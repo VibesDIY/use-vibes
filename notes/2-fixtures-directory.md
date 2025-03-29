@@ -1,37 +1,79 @@
-# Step 2: Fixtures Directory for HTML Challenges
+# Step 2: Archived Web Pages for Browser Testing
 
 ## Goal
-Create a proper fixtures/ directory containing HTML test pages that represent different integration scenarios to test our useVibes module.
+Create a fixtures directory containing archived web pages from the internet for testing the useVibes module in realistic scenarios, plus one simple Hello World page.
 
-## Tasks
-1. Create fixtures directory structure:
-   ```
-   /fixtures
-     /basic              # Simple HTML pages
-       /index.html       # Minimal test case
-       /styled.html      # With CSS styling
-     /complex            # More complex test cases
-       /bootstrap.html   # Bootstrap-based page
-       /tailwind.html    # Tailwind CSS page
-     /applications       # Real-world application examples
-       /todo-app.html    # Simple todo application
-       /blog.html        # Blog layout
-     /components         # Component-specific test fixtures
-       /forms.html       # Various form elements
-       /navigation.html  # Navigation patterns
-   ```
+## Web Pages to Archive
+1. **Craigslist SF Home Page**
+   - URL: https://sfbay.craigslist.org/
+   - Represents a classifieds listing with complex layout
+   - Contains various interactive elements
 
-2. Each fixture should:
-   - Be self-contained with inline scripts/styles where possible
-   - Include a variety of DOM structures
-   - Represent real-world challenges (complex CSS, nested elements, etc.)
-   - Have clear target elements for injection (marked with data-attributes or IDs)
-   - Include comments for test purposes
+2. **Wikipedia Permalink Page**
+   - URL: https://en.wikipedia.org/wiki/Permalink
+   - Example of content-heavy page with references
+   - Contains various article structures and navigation elements
 
-3. Create a fixtures index page:
-   - List all available fixtures with descriptions
-   - Provide direct links to each test case
-   - Include instructions for running tests
+3. **Google News**
+   - URL: https://news.google.com/
+   - Dynamic content loading
+   - Complex layout with cards and multiple sections
 
-## Expected Output
-A comprehensive collection of HTML test pages that can be used to test the useVibes functionality across different scenarios. These fixtures will serve as the foundation for integration testing and demos.
+4. **Hacker News**
+   - URL: https://news.ycombinator.com/
+   - Simple layout but with interactive elements
+   - Good example of a forum/discussion page
+
+5. **Hello World Page**
+   - A simple custom HTML page
+   - Minimal structure for basic testing
+
+## Archiving Requirements
+- Archives should preserve JavaScript functionality
+- CSS styling must be maintained
+- Interactive elements should work as expected
+- Local assets should be properly referenced
+
+## Archiving Tools Options
+1. **SingleFile**
+   - Browser extension that saves complete pages as single HTML files
+   - Preserves CSS, images, fonts, and can execute scripts
+   - GitHub: https://github.com/gildas-lormeau/SingleFile
+
+2. **HTTrack**
+   - Website copier that downloads complete websites to local directory
+   - Maintains directory structure and converts links
+   - Website: https://www.httrack.com/
+
+3. **Playwright/Puppeteer**
+   - Can be used to write custom scripts that capture full page state
+   - Allows handling of JavaScript execution and state
+   - Good for pages requiring authentication or interaction
+
+4. **MHTML Format**
+   - Browser's built-in "Save as Web Page, Complete" feature
+   - Saves everything in a single MHTML file
+
+5. **Wget with --page-requisites**
+   - Command-line tool for downloading pages with all assets
+   - Example: `wget --page-requisites --convert-links --span-hosts --adjust-extension https://example.com/`
+
+## Directory Structure
+```
+/fixtures
+  /web-archives
+    /craigslist-sf       # Archived Craigslist SF page
+    /wikipedia-permalink # Archived Wikipedia page
+    /google-news         # Archived Google News
+    /hacker-news         # Archived Hacker News
+  /basic
+    /hello-world.html    # Simple Hello World page
+  /index.html            # Index listing all fixtures
+```
+
+## Next Steps
+1. Select appropriate archiving tool based on needs
+2. Create archives of each target website
+3. Test each archive to ensure JavaScript execution works properly
+4. Create the simple Hello World page
+5. Build an index page to navigate the fixtures

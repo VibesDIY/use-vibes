@@ -1,0 +1,41 @@
+// tests/browser/helpers.ts
+import { Page } from '@playwright/test';
+
+/**
+ * Helper function to inject and test the useVibes module in a browser context
+ * This avoids the TypeScript errors from directly importing browser modules in Node.js
+ */
+export async function applyUseVibes(page: Page, selector: string, config: any): Promise<void> {
+  await page.evaluate(({ selector, config }) => {
+    return new Promise<void>((resolve, reject) => {
+      // Dynamically import the module within the browser context
+      import('../../../src/index.js')
+        .then(({ useVibes }) => {
+          const element = document.querySelector(selector);
+          if (!element) {
+            reject(new Error(`Element not found: ${selector}`));
+            return;
+          }
+          
+          useVibes(element, config)
+            .then(() => resolve())
+            .catch(err => reject(err));
+        })
+        .catch(err => reject(err));
+    });
+  }, { selector, config });
+}
+
+/**
+ * Helper function to apply custom effects in a browser context
+ */
+export async function applyCustomEffect(page: Page, selector: string, effectFn: string): Promise<void> {
+  await page.evaluate(({ selector, effectFn }) => {
+    const element = document.querySelector(selector);
+    if (!element) return;
+    
+    // Execute the string function in the browser context
+    const fn = new Function('element', effectFn);
+    fn(element);
+  }, { selector, effectFn });
+}

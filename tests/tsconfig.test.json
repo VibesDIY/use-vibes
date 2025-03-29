@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "types": ["node", "@playwright/test"],
+    "baseUrl": "..",
+    "paths": {
+      "src/*": ["./src/*"]
+    },
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["browser/**/*.ts", "../src/**/*.ts"]
+}
