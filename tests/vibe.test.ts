@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createVibe } from '../src/core/vibe.js';
 import { enhanceVibe } from '../src/utils/enhancer.js';
-import useVibe from '../src/index.js';
+import { default as useVibe } from '../src/index.js';
 
 describe('Vibe Core', () => {
   it('should create a vibe with the given name', () => {

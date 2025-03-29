@@ -2,11 +2,11 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { applyUseVibes, applyCustomEffect } from './helpers';
+import { applyUseVibes, applyCustomEffect } from './helpers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-test.describe('Hello World Test', () => {
+// Moving away from test.describe to individual tests
   test('page loads with initial content', async ({ page }) => {
     // Navigate to the test page
     await page.goto('http://localhost:3000/basic/hello-world.html');
@@ -76,7 +76,7 @@ test.describe('Hello World Test', () => {
     const errorResult = await page.evaluate(async () => {
       try {
         // Import module dynamically
-        const module = await import('../../../src/index.js');
+        const module = await import('/src/index.js');
         const { useVibes } = module;
         
         // Try to use a non-existent element
@@ -95,4 +95,3 @@ test.describe('Hello World Test', () => {
     expect(typeof errorResult).toBe('string');
     expect(errorResult.length).toBeGreaterThan(0);
   });
-});

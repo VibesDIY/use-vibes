@@ -28,6 +28,11 @@ pnpm-debug.log*
 # Testing
 coverage/
 .nyc_output/
+test-results/
+playwright-report/
+.playwright-cache/
+/playwright/.cache/
+test-output/
 
 # Environment variables
 .env
