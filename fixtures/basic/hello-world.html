@@ -34,20 +34,23 @@
         This content will be used for alternative configuration testing.
     </div>
     
-    <script type="module">
-        // Import the use-vibes module using a direct path
-        import { useVibes } from '../../dist/index.js';
-        
-        // Get the target element
-        const target = document.getElementById('target');
-        
-        // Apply vibes to the target
-        useVibes(target, {
-            effect: (element) => {
-                element.textContent = 'Hello World! Vibes applied successfully!';
-                element.style.backgroundColor = '#e6f7ff';
-                element.style.borderColor = '#91d5ff';
-            }
+    <!-- Load the use-vibes library directly for testing -->
+    <script src="../lib/index.js"></script>
+    
+    <script>
+        // Wait for DOM to be fully loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get the target element
+            const target = document.getElementById('target');
+            
+            // Apply vibes to the target
+            useVibes(target, {
+                effect: (element) => {
+                    element.textContent = 'Hello World! Vibes applied successfully!';
+                    element.style.backgroundColor = '#e6f7ff';
+                    element.style.borderColor = '#91d5ff';
+                }
+            });
         });
     </script>
 </body>
