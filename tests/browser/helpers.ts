@@ -9,7 +9,7 @@ export async function applyUseVibes(page: Page, selector: string, config: any): 
   await page.evaluate(({ selector, config }) => {
     return new Promise<void>((resolve, reject) => {
       // Dynamically import the module within the browser context
-      import('../../../src/index.js')
+      import('../../src/index.js')
         .then(({ useVibes }) => {
           const element = document.querySelector(selector);
           if (!element) {
@@ -17,11 +17,11 @@ export async function applyUseVibes(page: Page, selector: string, config: any): 
             return;
           }
           
-          useVibes(element, config)
+          useVibes(element as HTMLElement, config)
             .then(() => resolve())
-            .catch(err => reject(err));
+            .catch((err: Error) => reject(err));
         })
-        .catch(err => reject(err));
+        .catch((err: Error) => reject(err));
     });
   }, { selector, config });
 }

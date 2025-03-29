@@ -75,7 +75,7 @@ test('useVibes should handle errors gracefully', async ({ page }) => {
   const errorResult = await page.evaluate(async () => {
     try {
       // Import module dynamically
-      const module = await import('@/index.js');
+      const module = await import('../../src/index.js');
       const { useVibes } = module;
       
       // Try to use a non-existent element
