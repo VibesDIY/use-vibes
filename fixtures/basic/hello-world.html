@@ -34,16 +34,16 @@
         This content will be used for alternative configuration testing.
     </div>
     
-    <!-- Load the use-vibes library directly for testing -->
-    <script src="../lib/index.js"></script>
+    <!-- Load the use-vibes library bundled as IIFE for browser testing -->
+    <script src="../lib/use-vibes.iife.js"></script>
     
     <script>
-        // Wait for DOM to be fully loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            // Get the target element
-            const target = document.getElementById('target');
-            
-            // Apply vibes to the target
+        // Execute immediately - placed at the end of the body to ensure DOM is ready
+        // Get the target element
+        const target = document.getElementById('target');
+        
+        // Apply vibes to the target with a small delay to ensure everything is loaded
+        setTimeout(() => {
             useVibes(target, {
                 effect: (element) => {
                     element.textContent = 'Hello World! Vibes applied successfully!';
@@ -51,7 +51,7 @@
                     element.style.borderColor = '#91d5ff';
                 }
             });
-        });
+        }, 100);
     </script>
 </body>
 </html>

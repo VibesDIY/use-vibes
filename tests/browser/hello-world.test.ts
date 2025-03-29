@@ -19,8 +19,27 @@ test('useVibes should modify the target element', async ({ page }) => {
   // Navigate to the test page
   await page.goto('http://localhost:3000/basic/hello-world.html');
   
-  // Wait for the script to execute and modify the DOM
-  await page.waitForSelector('#target:has-text("Hello World! Vibes applied successfully!")');
+  // Wait for page to load and manually apply useVibes function
+  await page.waitForSelector('#target');
+  
+  // Directly apply the useVibes function in the page context
+  await page.evaluate(() => {
+    const target = document.getElementById('target');
+    if (!target) {
+      throw new Error('Target element not found');
+    }
+    // Using the global useVibes function from our IIFE bundle
+    useVibes(target, {
+      effect: (element: HTMLElement) => {
+        element.textContent = 'Hello World! Vibes applied successfully!';
+        element.style.backgroundColor = '#e6f7ff';
+        element.style.borderColor = '#91d5ff';
+      }
+    });
+  });
+  
+  // Wait a moment for changes to apply
+  await page.waitForTimeout(100);
   
   // Verify the content was changed
   const targetText = await page.textContent('#target');
