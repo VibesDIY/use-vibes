@@ -27,7 +27,7 @@ describe('Vibe Enhancer', () => {
   it('should enhance a vibe with additional methods', () => {
     const basicVibe = createVibe('Relaxed');
     const enhanced = enhanceVibe(basicVibe);
-    
+
     expect(enhanced.name).toBe('Relaxed');
     expect(typeof enhanced.boost).toBe('function');
     expect(typeof enhanced.chill).toBe('function');
@@ -37,7 +37,7 @@ describe('Vibe Enhancer', () => {
     const enhanced = enhanceVibe(createVibe('Energy'));
     enhanced.boost(3);
     expect(enhanced.intensity).toBe(8);
-    
+
     // Should not exceed max
     enhanced.boost(5);
     expect(enhanced.intensity).toBe(10);
@@ -48,7 +48,7 @@ describe('Vibe Enhancer', () => {
     enhanced.setIntensity(7);
     enhanced.chill(4);
     expect(enhanced.intensity).toBe(3);
-    
+
     // Should not go below min
     enhanced.chill(5);
     expect(enhanced.intensity).toBe(0);

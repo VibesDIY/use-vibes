@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import * as esbuild from 'esbuild';
 import path from 'path';
 import fs from 'fs';
@@ -41,4 +42,6 @@ window.useVibes.enhanceVibe = useVibesModule.enhanceVibe;
 // Write the wrapper to the final output file
 fs.writeFileSync(path.resolve(fixturesLibDir, 'use-vibes.iife.js'), wrapperCode);
 
-console.log('Browser bundle with global useVibes function created at fixtures/lib/use-vibes.iife.js');
+console.log(
+  'Browser bundle with global useVibes function created at fixtures/lib/use-vibes.iife.js'
+);

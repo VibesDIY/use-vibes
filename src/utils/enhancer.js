@@ -7,11 +7,19 @@ export function enhanceVibe(vibe) {
   // Create a wrapper that delegates to the original vibe
   const enhanced = {
     // Pass through core properties
-    get name() { return vibe.name; },
-    get intensity() { return vibe.intensity; },
-    setIntensity(level) { vibe.setIntensity(level); },
-    describe() { return vibe.describe(); },
-    
+    get name() {
+      return vibe.name;
+    },
+    get intensity() {
+      return vibe.intensity;
+    },
+    setIntensity(level) {
+      vibe.setIntensity(level);
+    },
+    describe() {
+      return vibe.describe();
+    },
+
     // Add mandatory methods for tests
     boost(amount) {
       const newLevel = Math.min(10, vibe.intensity + amount);
@@ -29,11 +37,10 @@ export function enhanceVibe(vibe) {
     },
     // Original functionality
     getVibeLevel() {
-      const intensityText = vibe.intensity <= 3 ? 'low' :
-                           vibe.intensity <= 7 ? 'medium' : 'high';
+      const intensityText = vibe.intensity <= 3 ? 'low' : vibe.intensity <= 7 ? 'medium' : 'high';
       return `${vibe.name} is at ${intensityText} energy`;
-    }
+    },
   };
-  
+
   return enhanced;
 }

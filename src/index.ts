@@ -14,7 +14,7 @@ export interface UseVibesConfig {
 // App instance interface returned by useVibes
 export interface VibesApp {
   container: HTMLElement;
-  database?: any;
+  database?: Record<string, unknown>;
   chat: {
     sendMessage: (message: string) => Promise<void>;
     // Add more chat methods as needed
@@ -29,29 +29,29 @@ export interface VibesApp {
  */
 export function useVibes(target: string | HTMLElement, config: UseVibesConfig): Promise<VibesApp> {
   // Get the target element if string selector was provided
-  const targetElement = typeof target === 'string' 
-    ? document.querySelector(target) as HTMLElement
-    : target;
-  
+  const targetElement =
+    typeof target === 'string' ? (document.querySelector(target) as HTMLElement) : target;
+
   // Validate the target element
   if (!targetElement) {
     return Promise.reject(new Error(`Target element not found: ${target}`));
   }
-  
+
   // Apply the effect if provided
   if (config.effect && typeof config.effect === 'function') {
     config.effect(targetElement);
   }
-  
+
   // Return a promise that resolves to the app instance
   return Promise.resolve({
     container: targetElement,
     chat: {
       sendMessage: async (message: string) => {
+        // eslint-disable-next-line no-console
         console.log(`Message sent: ${message}`);
         // In a real implementation, this would communicate with an AI
-      }
-    }
+      },
+    },
   });
 }
 

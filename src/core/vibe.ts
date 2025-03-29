@@ -19,7 +19,7 @@ export interface Vibe {
  */
 export function createVibe(name: string): Vibe {
   let intensityLevel = 5; // Default intensity
-  
+
   return {
     name,
     get intensity() {
@@ -33,6 +33,6 @@ export function createVibe(name: string): Vibe {
     },
     describe() {
       return `${name} vibe at intensity ${intensityLevel}`;
-    }
+    },
   };
 }

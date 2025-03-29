@@ -23,11 +23,19 @@ export function enhanceVibe(vibe: Vibe): EnhancedVibe {
   // Create a wrapper object that delegates to the original vibe
   const enhancedVibe: EnhancedVibe = {
     // Pass through the core properties
-    get name() { return vibe.name; },
-    get intensity() { return vibe.intensity; },
-    setIntensity(level: number) { vibe.setIntensity(level); },
-    describe() { return vibe.describe(); },
-    
+    get name() {
+      return vibe.name;
+    },
+    get intensity() {
+      return vibe.intensity;
+    },
+    setIntensity(level: number) {
+      vibe.setIntensity(level);
+    },
+    describe() {
+      return vibe.describe();
+    },
+
     // Add enhanced methods
     boost(amount: number) {
       const newLevel = Math.min(10, this.intensity + amount);
@@ -42,8 +50,8 @@ export function enhanceVibe(vibe: Vibe): EnhancedVibe {
     },
     isLowIntensity() {
       return this.intensity < 3;
-    }
+    },
   };
-  
+
   return enhancedVibe;
 }
