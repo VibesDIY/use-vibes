@@ -1,10 +1,11 @@
 export default {
   extends: [
     'eslint:recommended',
-    'plugin:@typescript-eslint/recommended'
+    'plugin:@typescript-eslint/recommended',
+    'plugin:prettier/recommended' // Integrates Prettier with ESLint
   ],
   parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint'],
+  plugins: ['@typescript-eslint', 'prettier'],
   root: true,
   env: {
     browser: true,
@@ -16,6 +17,13 @@ export default {
     sourceType: 'module'
   },
   rules: {
-    // Add custom rules here
+    'prettier/prettier': 'error',
+    'no-console': ['warn', { allow: ['warn', 'error'] }],
+    '@typescript-eslint/explicit-function-return-type': 'off',
+    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-unused-vars': ['error', { 
+      'argsIgnorePattern': '^_',
+      'varsIgnorePattern': '^_' 
+    }]
   }
 };
