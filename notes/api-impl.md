@@ -10,7 +10,7 @@ We developed the following components for the new API:
 
 1. **Core Interfaces**:
    - `UseVibesConfig` - Configuration interface accepting a prompt and options for capturing page state
-   - `VibesApp` - App instance interface with container element, optional database, and chat interface
+   - `VibesApp` - App instance interface with container element and optional database
 
 2. **Key Modules**:
    - `pageCapture.ts` - Utility for capturing HTML, CSS, and visual snapshots of the page
@@ -18,7 +18,6 @@ We developed the following components for the new API:
 
 3. **Implementation Features**:
    - Inject-first approach leveraging current page's HTML, CSS, and visual snapshots
-   - Chat interface for ongoing communication with the AI
    - Configuration options for customizing capture behavior
 
 ## Testing Strategy
@@ -27,12 +26,12 @@ Our testing approach included:
 1. **Unit Tests** (`vibe.test.ts`):
    - Mocking DOM elements for non-browser testing
    - Testing the core `useVibes` functionality
-   - Verifying the chat interface works correctly
+   - Verifying content transformation based on the prompt
 
 2. **Browser Tests** (`hello-world.test.ts`):
    - Using Playwright to test in real browser environments
    - Verifying element transformation and content injection
-   - Testing message sending via the chat interface
+   - Testing prompt processing and content generation
    - Testing configuration options and error handling
 
 ## Implementation Challenges
