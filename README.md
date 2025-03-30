@@ -143,15 +143,54 @@ useVibes("#app", { prompt: "create a todo list with emojis" })
 
 ---
 
+## Testing
+
+The useVibes library includes a comprehensive testing suite to ensure functionality across different browsers and use cases.
+
+### Browser Testing
+
+Browser tests are implemented using Playwright and run on Chrome, Firefox, and WebKit (Safari). The test infrastructure uses a custom build process to create a test bundle with mocked dependencies, allowing tests to run without making actual API calls.
+
+```bash
+# Run browser tests
+pnpm test:browser
+```
+
+This command will:
+1. Build a test-specific bundle using the `build-browser-test.js` script
+2. Set up browser mocks for all three browser engines
+3. Run the Playwright tests with proper reporting
+
+### Unit Testing
+
+```bash
+# Run unit tests
+pnpm test:unit
+```
+
+### Linting and TypeScript Validation
+
+```bash
+# Check types
+pnpm typecheck
+
+# Run linter
+pnpm lint
+
+# Run linter with auto-fixes
+pnpm lint --fix
+```
+
 ## Directory Structure
 
 - **src/**: Contains the source code for the useVibes library.
 - **fixtures/**: A collection of HTML challenge files. These fixtures serve as test cases for validating that useVibes can handle a variety of page structures.
+- **tests/**: Test suites including browser and unit tests.
+  - **browser/**: Playwright browser tests with mock implementations.
+  - **unit/**: Unit tests for core functionality.
+- **scripts/**: Build scripts and utilities.
 - **docs/**: Documentation directory which includes:
   - **llms.txt**: A text file specifying the details and technical context for LLM integrations and other project guidelines.
-- **tests/**: Browser tests to ensure proper functionality:
-  1. A test that verifies an HTML fixture loads correctly without invoking the library.
-  2. A test that confirms the useVibes library loads and performs a simple injection (e.g., injecting "hello world" into the page).
 
 ---
 
