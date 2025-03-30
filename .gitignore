@@ -37,6 +37,9 @@ test-output/
 # Fixture library copies
 fixtures/lib/
 
+# Browser test mocks
+tests/browser/call-ai-mock.js
+
 # Environment variables
 .env
 .env.local

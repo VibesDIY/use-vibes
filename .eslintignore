@@ -1,0 +1,9 @@
+# Dependency directories
+node_modules/
+
+# Build directories
+dist/
+fixtures/lib/
+
+# Test mocks 
+tests/browser/call-ai-mock.js
