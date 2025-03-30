@@ -1,64 +1,46 @@
-import { describe, it, expect } from 'vitest';
-import { createVibe } from '../src/core/vibe.js';
-import { enhanceVibe } from '../src/utils/enhancer.js';
-import { default as useVibe } from '../src/index.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { useVibes } from '../src/index.js';
 
-describe('Vibe Core', () => {
-  it('should create a vibe with the given name', () => {
-    const vibe = createVibe('Chill');
-    expect(vibe.name).toBe('Chill');
-    expect(vibe.intensity).toBe(5); // Default intensity
-  });
+// Setup test DOM elements before each test
+beforeEach(() => {
+  // Reset the body content
+  document.body.innerHTML = '';
 
-  it('should allow setting intensity', () => {
-    const vibe = createVibe('Party');
-    vibe.setIntensity(8);
-    expect(vibe.intensity).toBe(8);
-  });
+  // Create test elements
+  const target = document.createElement('div');
+  target.id = 'target';
+  document.body.appendChild(target);
 
-  it('should throw an error for invalid intensity', () => {
-    const vibe = createVibe('Focus');
-    expect(() => vibe.setIntensity(11)).toThrow();
-    expect(() => vibe.setIntensity(-1)).toThrow();
-  });
+  const targetAlt = document.createElement('div');
+  targetAlt.id = 'target-alt';
+  document.body.appendChild(targetAlt);
 });
 
-describe('Vibe Enhancer', () => {
-  it('should enhance a vibe with additional methods', () => {
-    const basicVibe = createVibe('Relaxed');
-    const enhanced = enhanceVibe(basicVibe);
-
-    expect(enhanced.name).toBe('Relaxed');
-    expect(typeof enhanced.boost).toBe('function');
-    expect(typeof enhanced.chill).toBe('function');
+describe('useVibes function', () => {
+  it('should accept a string selector and apply changes to the target element', async () => {
+    const result = await useVibes('#target', { prompt: 'Test prompt' });
+    expect(result.container).toBeDefined();
+    expect(result.container.innerHTML).toContain('Vibes received prompt: "Test prompt"');
   });
 
-  it('should boost intensity correctly', () => {
-    const enhanced = enhanceVibe(createVibe('Energy'));
-    enhanced.boost(3);
-    expect(enhanced.intensity).toBe(8);
-
-    // Should not exceed max
-    enhanced.boost(5);
-    expect(enhanced.intensity).toBe(10);
+  it('should accept an HTMLElement directly', async () => {
+    const targetElement = document.getElementById('target');
+    if (!targetElement) throw new Error('Test setup failed: target element not found');
+    const result = await useVibes(targetElement, { prompt: 'Direct element test' });
+    expect(result.container).toBe(targetElement);
+    expect(result.container.innerHTML).toContain('Vibes received prompt: "Direct element test"');
   });
 
-  it('should decrease intensity correctly', () => {
-    const enhanced = enhanceVibe(createVibe('Focus'));
-    enhanced.setIntensity(7);
-    enhanced.chill(4);
-    expect(enhanced.intensity).toBe(3);
-
-    // Should not go below min
-    enhanced.chill(5);
-    expect(enhanced.intensity).toBe(0);
+  it('should reject with an error when target element not found', async () => {
+    await expect(useVibes('#non-existent', { prompt: 'Test' })).rejects.toThrow(
+      'Target element not found: #non-existent'
+    );
   });
-});
 
-describe('useVibe default export', () => {
-  it('should create an enhanced vibe', () => {
-    const vibe = useVibe('Default');
-    expect(vibe.name).toBe('Default');
-    expect(typeof vibe.boost).toBe('function');
+  it('should return an object with the expected interface properties', async () => {
+    const result = await useVibes('#target', { prompt: 'Interface test' });
+    expect(result).toHaveProperty('container');
+    expect(result).toHaveProperty('database');
+    expect(result.database).toBeUndefined(); // Currently undefined in the implementation
   });
 });
