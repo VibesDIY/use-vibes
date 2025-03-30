@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      call-ai:
+        specifier: ^0.5.0
+        version: 0.5.0
     devDependencies:
       '@playwright/test':
         specifier: ^1.41.2
@@ -774,6 +778,10 @@ packages:
   cac@6.7.14:
     resolution: {integrity: sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==}
     engines: {node: '>=8'}
+
+  call-ai@0.5.0:
+    resolution: {integrity: sha512-pM9TsP9jtz0RTt11locRa250Ndalv9scYCLzu5Tp7EytCsjmeCdVr5gd+M1DUCMnjrztVSQ4/ZsICv1pPjvq3A==}
+    engines: {node: '>=14.0.0'}
 
   call-bind-apply-helpers@1.0.2:
     resolution: {integrity: sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ==}
@@ -2263,6 +2271,8 @@ snapshots:
   buffer-from@1.1.2: {}
 
   cac@6.7.14: {}
+
+  call-ai@0.5.0: {}
 
   call-bind-apply-helpers@1.0.2:
     dependencies:
