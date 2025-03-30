@@ -1,10 +1,3 @@
-// Main entry point
-import { createVibe } from './core/vibe.js';
-import { enhanceVibe } from './utils/enhancer.js';
-
-export { createVibe, enhanceVibe };
-export type { Vibe } from './core/vibe.js';
-
 // DOM element and configuration interface
 export interface UseVibesConfig {
   prompt: string;
@@ -46,10 +39,4 @@ export function useVibes(target: string | HTMLElement, config: UseVibesConfig): 
     container: targetElement,
     database: undefined,
   });
-}
-
-// Original singular useVibe export (for backwards compatibility)
-export default function useVibe(name: string) {
-  const vibe = createVibe(name);
-  return enhanceVibe(vibe);
 }
