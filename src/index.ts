@@ -1,10 +1,5 @@
 import { callAI } from 'call-ai';
 
-// Environment detection
-const isTestEnvironment =
-  (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') ||
-  (typeof window !== 'undefined' && (window as any).__VITEST__);
-
 // DOM element and configuration interface
 export interface UseVibesConfig {
   prompt: string;
@@ -33,19 +28,6 @@ export function useVibes(target: string | HTMLElement, config: UseVibesConfig): 
     return Promise.reject(new Error(`Target element not found: ${target}`));
   }
 
-  // In test environment, use the simple implementation to make tests pass
-  if (isTestEnvironment) {
-    // For tests, just add a placeholder that shows the prompt was received
-    targetElement.innerHTML = `<div>🎭 Vibes received prompt: "${config.prompt}"</div>`;
-
-    // Return a promise that resolves to the app instance
-    return Promise.resolve({
-      container: targetElement,
-      database: undefined,
-    });
-  }
-
-  // For non-test environments, proceed with the real implementation
   try {
     // Capture the current HTML state
     const htmlContext = document.body.innerHTML;

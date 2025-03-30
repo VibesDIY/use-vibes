@@ -1,5 +1,31 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useVibes } from '../src/index.js';
+
+// Mock the call-ai module for testing
+vi.mock('call-ai', () => {
+  return {
+    callAI: vi.fn().mockImplementation((prompt, options) => {
+      if (options?.stream === false) {
+        // Extract prompt content for the mock response
+        let promptText = 'Test prompt';
+        if (typeof prompt === 'string' && prompt.includes('request:')) {
+          promptText = prompt.split('request:')[1].split('\n')[0].trim();
+        }
+
+        // Create a properly formatted mock response that matches the schema
+        const mockResponse = JSON.stringify({
+          html: `<div>🎭 Vibes received prompt: "${promptText}"</div>`,
+          explanation: 'This is a mock explanation from the test',
+        });
+
+        return Promise.resolve(mockResponse);
+      }
+
+      // For any other case
+      return 'Direct response';
+    }),
+  };
+});
 
 // Setup test DOM elements before each test
 beforeEach(() => {
