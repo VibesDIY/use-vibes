@@ -2,6 +2,136 @@
 // This script will be injected into the test page before any tests run
 
 (function setupMocks() {
+  // Module interception - CRITICAL: This must run before any other scripts
+  // Create a module-level interception that redirects 'call-ai' imports to our mock
+
+  // Debug indicator that helps us verify our mock is working
+  window.__MOCK_STATUS__ = {
+    initialized: true,
+    moduleIntercepted: false,
+    callCount: 0,
+    lastPrompt: null,
+    lastOptions: null,
+    lastResponse: null,
+    errors: [],
+  };
+
+  // Log that we're starting the mock setup
+  /* eslint-disable-next-line no-console */
+  console.log('🔄 MOCK SETUP: Initializing module interception for call-ai');
+
+  try {
+    // Define our mock implementation that will replace the real callAI
+    const mockCallAI = function (userPrompt, options = {}) {
+      // Track usage
+      window.__MOCK_STATUS__.callCount++;
+      window.__MOCK_STATUS__.lastPrompt = userPrompt;
+      window.__MOCK_STATUS__.lastOptions = options;
+
+      /* eslint-disable-next-line no-console */
+      console.log(
+        `🔍 MOCK CALL #${window.__MOCK_STATUS__.callCount}: callAI invoked with:`,
+        typeof userPrompt === 'string'
+          ? userPrompt.substring(0, 100) + '...'
+          : '[non-string-prompt]'
+      );
+
+      // Check if this is an error test case
+      if (
+        typeof userPrompt === 'string' &&
+        (userPrompt.includes('error') || userPrompt.includes('fail'))
+      ) {
+        /* eslint-disable-next-line no-console */
+        console.log('🚨 MOCK: Simulating error response');
+        return Promise.reject(new Error('Simulated error from mock callAI'));
+      }
+
+      // Extract the actual request from the longer prompt
+      let extractedPrompt = 'Default prompt';
+
+      if (typeof userPrompt === 'string') {
+        const promptMatch = userPrompt.match(
+          /Transform the HTML content based on this request:\s*([^\n]+)/
+        );
+
+        if (promptMatch && promptMatch[1]) {
+          extractedPrompt = promptMatch[1].trim();
+        } else if (userPrompt.includes('Alternative configuration test')) {
+          extractedPrompt = 'Alternative configuration test';
+        }
+      }
+
+      // Create response HTML based on the prompt content
+      let htmlContent;
+      let explanationText;
+
+      if (extractedPrompt.includes('Alternative configuration')) {
+        htmlContent = `<div style="background-color: #fff8e1; padding: 10px; border: 2px solid #ffc107; border-radius: 5px;">
+          <strong>🎭 Vibes received prompt:</strong> "Alternative configuration test"
+          <br><small>(Alternative config mock response)</small>
+        </div>`;
+        explanationText = 'Mock explanation for alternative configuration';
+      } else {
+        htmlContent = `<div style="background-color: #eefbff; padding: 10px; border: 2px solid #0099cc; border-radius: 5px;">
+          <strong>🎭 Vibes received prompt:</strong> "${extractedPrompt}"
+          <br><small>(This is a mock response from browser test)</small>
+        </div>`;
+        explanationText = 'This is a mock explanation from the browser test';
+      }
+
+      // Create the structured response object that matches the schema in useVibes
+      const responseObj = {
+        html: htmlContent,
+        explanation: explanationText,
+      };
+
+      // Store for debugging
+      window.__MOCK_STATUS__.lastResponse = responseObj;
+
+      /* eslint-disable-next-line no-console */
+      console.log(
+        '✅ MOCK: Created JSON response:',
+        JSON.stringify(responseObj).substring(0, 100) + '...'
+      );
+
+      // Return a properly structured response that matches what useVibes expects
+      return Promise.resolve(JSON.stringify(responseObj));
+    };
+
+    // Create a mock module object that matches the structure of the real call-ai module
+    const mockModule = {
+      callAI: mockCallAI,
+      __isMock: true,
+    };
+
+    // Attempt multiple interception strategies for maximum browser compatibility
+
+    // Strategy 1: Intercept dynamic imports
+    // This works with newer module bundlers like Vite, Webpack, etc.
+    const originalImport = window.import;
+    window.import = function (specifier) {
+      if (specifier === 'call-ai') {
+        /* eslint-disable-next-line no-console */
+        console.log('🎯 MOCK: Import intercepted for call-ai module');
+        window.__MOCK_STATUS__.moduleIntercepted = true;
+        return Promise.resolve(mockModule);
+      }
+      return originalImport.apply(this, arguments);
+    };
+
+    // Strategy 2: Define the module globally for ESM imports to find
+    // Helps with static imports which can't be intercepted directly
+    window.mockCallAI = mockCallAI;
+
+    // Also set window.callAI for direct access tests
+    window.callAI = mockCallAI;
+
+    /* eslint-disable-next-line no-console */
+    console.log('✅ MOCK SETUP: Module interception complete - callAI has been mocked');
+  } catch (error) {
+    console.error('❌ MOCK SETUP ERROR:', error);
+    window.__MOCK_STATUS__.errors.push(error.message);
+  }
   // Flag to indicate mocks are initialized
   window.mockInitialized = true;
 
@@ -23,26 +153,29 @@
   // This is the most reliable way to mock the call-ai module
   window.callAI = function mockCallAI(userPrompt, options = {}) {
     window.MOCK_DEBUG.mockCallsCount++;
-    
+
     // eslint-disable-next-line no-console
     console.log('🔄 MOCK INTERCEPTED: callAI invoked - call #', window.MOCK_DEBUG.mockCallsCount);
     // eslint-disable-next-line no-console
-    console.log('📝 MOCK PROMPT:', typeof userPrompt === 'string' ? userPrompt.substring(0, 100) + '...' : 'Non-string prompt');
+    console.log(
+      '📝 MOCK PROMPT:',
+      typeof userPrompt === 'string' ? userPrompt.substring(0, 100) + '...' : 'Non-string prompt'
+    );
     // eslint-disable-next-line no-console
     console.log('⚙️ MOCK OPTIONS:', JSON.stringify(options));
-    
+
     // Store the prompt for debugging
     window.MOCK_DEBUG.lastPrompt = userPrompt;
     window.MOCK_DEBUG.lastOptions = options;
-    
+
     // Extract the actual request from the longer prompt - more robust regex handling
     let extractedPrompt = 'Default prompt';
-    
+
     if (typeof userPrompt === 'string') {
       const promptMatch = userPrompt.match(
         /Transform the HTML content based on this request:\s*([^\n]+)/
       );
-      
+
       if (promptMatch && promptMatch[1]) {
         extractedPrompt = promptMatch[1].trim();
       } else if (userPrompt.includes('Alternative configuration test')) {
@@ -54,7 +187,7 @@
         extractedPrompt = userPrompt.length > 50 ? userPrompt.substring(0, 50) + '...' : userPrompt;
       }
     }
-    
+
     // eslint-disable-next-line no-console
     console.log('🔍 EXTRACTED PROMPT:', extractedPrompt);
 
@@ -68,7 +201,7 @@
     // Create response based on the prompt content
     let htmlContent;
     let explanationText;
-    
+
     if (extractedPrompt.includes('Alternative configuration')) {
       // Custom response for alternative config test
       htmlContent = `<div style="background-color: #fff8e1; padding: 10px; border: 2px solid #ffc107; border-radius: 5px;">
@@ -84,19 +217,19 @@
       </div>`;
       explanationText = 'This is a mock explanation from the browser test';
     }
-    
+
     // Create the response object in the exact format that useVibes expects
     const responseObj = {
       html: htmlContent,
       explanation: explanationText,
     };
-    
+
     // Store the response for debugging
     window.MOCK_DEBUG.lastResponse = responseObj;
-    
+
     // eslint-disable-next-line no-console
     console.log('✅ MOCK RESPONSE CREATED:', JSON.stringify(responseObj).substring(0, 100) + '...');
-    
+
     // useVibes expects a Promise that resolves to a string (JSON)
     return Promise.resolve(JSON.stringify(responseObj));
   };

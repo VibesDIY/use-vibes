@@ -34,16 +34,28 @@
         This content will be used for alternative configuration testing.
     </div>
     
-    <!-- Load the use-vibes library bundled as IIFE for browser testing -->
-    <script src="../lib/use-vibes.iife.js"></script>
+    <!-- Load the use-vibes test bundle with mocked dependencies for browser testing -->
+    <script src="../lib/use-vibes-test.iife.js"></script>
+    <!-- Adding debug info to verify the test bundle is loaded -->
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('✅ Test page loaded, __TEST_MOCK_ACTIVE:', window.__TEST_MOCK_ACTIVE || false);
+        });
+    </script>
     
     <script>
-        // Execute immediately - placed at the end of the body to ensure DOM is ready
-        // Get the target element
-        const target = document.getElementById('target');
-        
-        // Apply vibes to the target with a small delay to ensure everything is loaded
-        setTimeout(() => {
+        // We'll set up initialization functions but not run them automatically
+        // This allows the tests to control when useVibes gets called
+
+        // Make the initialization function available globally for tests to call
+        window.initializeVibes = () => {
+            console.log('Initializing useVibes on target element');
+            const target = document.getElementById('target');
+            if (!target) {
+                console.error('Target element not found!');
+                return;
+            }
+
             useVibes(target, {
                 effect: (element) => {
                     element.textContent = 'Hello World! Vibes applied successfully!';
@@ -51,7 +63,12 @@
                     element.style.borderColor = '#91d5ff';
                 }
             });
-        }, 100);
+        };
+
+        // Only execute if AUTO_INIT flag is set (this won't run during tests)
+        if (window.AUTO_INIT_VIBES === true) {
+            setTimeout(window.initializeVibes, 100);
+        }
     </script>
 </body>
 </html>

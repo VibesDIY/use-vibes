@@ -33,4 +33,9 @@ interface Window {
   // For mocking in tests
   _originalFetch: typeof fetch;
   CALLAI_API_KEY?: string;
+  // Mock for callAI function
+  callAI?: (
+    prompt: string,
+    options?: Record<string, unknown>
+  ) => Promise<string> | AsyncGenerator<string, void, unknown>;
 }
