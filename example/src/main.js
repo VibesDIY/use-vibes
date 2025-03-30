@@ -1,6 +1,5 @@
-// Direct import from use-vibes source for development
-// This is a temporary solution until we have an npm package
-import { useVibes } from '../../src/index.ts';
+// Import from the installed package
+import { useVibes } from 'use-vibes';
 
 // Set the API key from environment variables
 window.CALLAI_API_KEY = import.meta.env.VITE_CALLAI_API_KEY;
