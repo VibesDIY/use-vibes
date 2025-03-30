@@ -30,11 +30,7 @@ test('useVibes should modify the target element', async ({ page }) => {
     }
     // Using the global useVibes function from our IIFE bundle
     useVibes(target, {
-      effect: (element: HTMLElement) => {
-        element.textContent = 'Hello World! Vibes applied successfully!';
-        element.style.backgroundColor = '#e6f7ff';
-        element.style.borderColor = '#91d5ff';
-      },
+      prompt: 'Create a Hello World message with blue styling',
     });
   });
 
@@ -43,7 +39,7 @@ test('useVibes should modify the target element', async ({ page }) => {
 
   // Verify the content was changed
   const targetText = await page.textContent('#target');
-  expect(targetText).toBe('Hello World! Vibes applied successfully!');
+  expect(targetText).toContain('Vibes received prompt');
 
   // Verify the styling was applied
   const styles = await page.evaluate(() => {
@@ -103,7 +99,7 @@ test('useVibes should handle errors gracefully', async ({ page }) => {
 
       // Try to use a non-existent element
       await useVibes('#non-existent-element', {
-        effect: () => {},
+        prompt: 'Test error handling',
       });
 
       return 'No error thrown';

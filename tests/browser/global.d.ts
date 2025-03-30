@@ -1,17 +1,13 @@
 // Type declarations for dynamic imports in browser tests
 declare module '../../../src/index.js' {
   export interface UseVibesConfig {
-    effect?: (element: HTMLElement) => void;
+    prompt: string;
     // Add more configuration options as needed
   }
 
   export interface VibesApp {
     container: HTMLElement;
     database?: Record<string, unknown>;
-    chat: {
-      sendMessage: (message: string) => Promise<void>;
-      // Add more chat methods as needed
-    };
   }
 
   export function useVibes(target: string | HTMLElement, config: UseVibesConfig): Promise<VibesApp>;
@@ -19,17 +15,13 @@ declare module '../../../src/index.js' {
 
 // Global declaration for the IIFE bundle
 interface UseVibesConfig {
-  effect?: (element: HTMLElement) => void;
+  prompt: string;
   // Add more configuration options as needed
 }
 
 interface VibesApp {
   container: HTMLElement;
   database?: Record<string, unknown>;
-  chat: {
-    sendMessage: (message: string) => Promise<void>;
-    // Add more chat methods as needed
-  };
 }
 
 // Declare the global useVibes function

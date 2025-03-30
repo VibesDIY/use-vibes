@@ -30,7 +30,10 @@
     "lint:fix": "eslint --ext .js,.ts,.tsx --fix src/ tests/ scripts/",
     "format": "prettier --write 'src/**/*.{js,ts,tsx}' 'tests/**/*.{js,ts,tsx}' 'scripts/**/*.js'",
     "typecheck": "tsc --noEmit",
-    "prerelease": "npm run typecheck && npm run test",
+    "validate": "npm run typecheck && npm run test && npm run test:browser && npm run lint",
+    "fix": "npm run lint:fix && npm run format",
+    "check": "npm run validate && npm run fix",
+    "prerelease": "npm run validate",
     "serve": "vite fixtures --port 3000"
   },
   "keywords": [

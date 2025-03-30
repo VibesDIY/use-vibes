@@ -6,7 +6,7 @@ import { Page } from '@playwright/test';
  * This avoids the TypeScript errors from directly importing browser modules in Node.js
  */
 interface UseVibesConfig {
-  effect?: (element: HTMLElement) => void;
+  prompt: string;
   [key: string]: unknown;
 }
 

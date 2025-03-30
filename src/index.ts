@@ -7,7 +7,7 @@ export type { Vibe } from './core/vibe.js';
 
 // DOM element and configuration interface
 export interface UseVibesConfig {
-  effect?: (element: HTMLElement) => void;
+  prompt: string;
   // Add more configuration options as needed
 }
 
@@ -15,16 +15,12 @@ export interface UseVibesConfig {
 export interface VibesApp {
   container: HTMLElement;
   database?: Record<string, unknown>;
-  chat: {
-    sendMessage: (message: string) => Promise<void>;
-    // Add more chat methods as needed
-  };
 }
 
 /**
  * The useVibes function - transforms a DOM element into an AI-augmented micro-app
  * @param target - CSS selector string or HTMLElement to inject into
- * @param config - Configuration object
+ * @param config - Configuration object with prompt
  * @returns Promise resolving to the app instance
  */
 export function useVibes(target: string | HTMLElement, config: UseVibesConfig): Promise<VibesApp> {
@@ -37,21 +33,18 @@ export function useVibes(target: string | HTMLElement, config: UseVibesConfig): 
     return Promise.reject(new Error(`Target element not found: ${target}`));
   }
 
-  // Apply the effect if provided
-  if (config.effect && typeof config.effect === 'function') {
-    config.effect(targetElement);
-  }
+  // In a real implementation, this would:
+  // 1. Capture the page state (HTML, CSS, visual snapshot)
+  // 2. Process the prompt with the captured context
+  // 3. Transform the target element with AI-generated content
+
+  // For now, just add a placeholder that shows the prompt was received
+  targetElement.innerHTML += `<div>🎭 Vibes received prompt: "${config.prompt}"</div>`;
 
   // Return a promise that resolves to the app instance
   return Promise.resolve({
     container: targetElement,
-    chat: {
-      sendMessage: async (message: string) => {
-        // eslint-disable-next-line no-console
-        console.log(`Message sent: ${message}`);
-        // In a real implementation, this would communicate with an AI
-      },
-    },
+    database: undefined,
   });
 }
 
