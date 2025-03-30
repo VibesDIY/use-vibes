@@ -2,7 +2,7 @@
   "name": "use-vibes",
   "version": "0.1.0",
   "type": "module",
-  "description": "A buildless ESM TypeScript module",
+  "description": "Transform any DOM element into an AI-powered micro-app",
   "main": "./src/index.ts",
   "exports": {
     ".": {
@@ -21,6 +21,8 @@
   "scripts": {
     "build": "tsc",
     "build:browser": "node scripts/build-browser.js",
+    "build:bookmarklet": "node scripts/generate-bookmarklet.js",
+    "build:all": "npm run build && npm run build:browser && npm run build:bookmarklet",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:browser": "npm run build:browser && playwright test --reporter=line",
@@ -37,12 +39,23 @@
     "serve": "vite fixtures --port 3000"
   },
   "keywords": [
+    "ai",
+    "dom",
+    "micro-app",
+    "generator",
+    "web",
     "esm",
-    "typescript",
-    "buildless"
+    "typescript"
   ],
   "author": "",
   "license": "MIT",
+  "files": [
+    "dist/",
+    "lib/",
+    "src/",
+    "LICENSE",
+    "README.md"
+  ],
   "devDependencies": {
     "@playwright/test": "^1.41.2",
     "@rollup/plugin-commonjs": "^28.0.3",
@@ -61,6 +74,7 @@
     "prettier": "^3.5.3",
     "rollup": "^4.38.0",
     "rollup-plugin-terser": "^7.0.2",
+    "terser": "^5.39.0",
     "typescript": "^5.3.3",
     "vite": "^5.1.4",
     "vitest": "^1.2.2"

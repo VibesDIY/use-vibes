@@ -1,6 +1,9 @@
 # useVibes - App Gen Anywhere
 
-useVibes is a vanilla browser TypeScript module that transforms a designated DOM element into an AI-augmented micro-app using an HTML inject-first approach. It leverages the current page's HTML, CSS, and a visual snapshot to create a rich context for dynamic content generation. The module returns an app instance that includes an interactive chat interface (chat) for ongoing communication with the AI.
+[![npm version](https://img.shields.io/npm/v/use-vibes.svg)](https://www.npmjs.com/package/use-vibes)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+useVibes is a vanilla browser TypeScript module that transforms any DOM element into an AI-augmented micro-app using an HTML inject-first approach. It leverages the current page's HTML context to create a rich environment for dynamic content generation, powered by the call-ai library.
 
 ---
 
@@ -15,13 +18,84 @@ useVibes is a vanilla browser TypeScript module that transforms a designated DOM
 
 ---
 
-## Usage
+## Installation
 
-To use useVibes, simply call the function with a target element (CSS selector or DOM element) and a configuration object containing your prompt. The function returns a Promise that resolves to an app instance with the following properties:
+### npm
 
-- **container**: The DOM element into which the micro-app is injected.
-- **database**: A configurable property that can later be set to indicate the database in use (if needed).
-- **chat**: An interface for the ongoing chat session. This provides methods to send messages and interact with the AI.
+```bash
+npm install use-vibes
+```
+
+### yarn
+
+```bash
+yarn add use-vibes
+```
+
+### pnpm
+
+```bash
+pnpm add use-vibes
+```
+
+## Basic Usage
+
+```javascript
+import { useVibes } from 'use-vibes';
+
+// Set the API key for call-ai (required)
+window.CALLAI_API_KEY = 'your-api-key-here';
+
+// Get target element (can be a CSS selector string or DOM element)
+const target = document.getElementById('my-app-container');
+
+// Apply useVibes to the target with a prompt
+useVibes(target, {
+  prompt: 'Create a beautiful hello world message with blue styling'
+}).then(app => {
+  console.log('App created:', app);
+}).catch(error => {
+  console.error('Error creating app:', error);
+});
+```
+
+### Return Value
+
+The function returns a Promise that resolves to an app instance with the following properties:
+
+- **container**: The DOM element into which the micro-app has been injected
+- **database**: An optional property for state management (may be undefined)
+
+## Browser Usage
+
+### IIFE Bundle
+
+If you want to use useVibes directly in the browser without a build step, you can use the IIFE bundle:
+
+```html
+<script src="https://unpkg.com/use-vibes@latest/lib/use-vibes.iife.js"></script>
+<script>
+  // Set API key
+  window.CALLAI_API_KEY = 'your-api-key-here';
+
+  // Now the global useVibes function is available
+  useVibes(document.getElementById('my-element'), {
+    prompt: 'Create a beautiful hello world message'
+  });
+</script>
+```
+
+### Bookmarklet
+
+The useVibes package also includes a bookmarklet that allows you to test useVibes on any website:
+
+1. After installing the package, you'll find a `bookmarklet.html` file in the `dist` directory
+2. Open this file in your browser
+3. Drag the bookmarklet link to your bookmarks bar
+4. Navigate to any website, click the bookmarklet, then click on any element you want to enhance
+5. Enter your prompt when prompted
+
+You'll need to edit the bookmarklet to include your API key. See the HTML file for detailed instructions.
 
 ### Example
 

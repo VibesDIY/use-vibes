@@ -27,7 +27,10 @@ interface VibesApp {
 // Declare the global useVibes function
 declare function useVibes(target: string | HTMLElement, config: UseVibesConfig): Promise<VibesApp>;
 
-// Declare the window.useVibes property
+// Declare the window.useVibes property and our mock-related properties
 interface Window {
   useVibes: typeof useVibes;
+  // For mocking in tests
+  _originalFetch: typeof fetch;
+  CALLAI_API_KEY?: string;
 }

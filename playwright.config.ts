@@ -10,6 +10,10 @@ export default defineConfig({
     ignoreHTTPSErrors: true,
     video: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // Add browser mocks before tests run
+    launchOptions: {
+      args: ['--disable-web-security'], // Disable CORS for test environment
+    },
   },
   webServer: {
     command: 'pnpm serve',
@@ -17,6 +21,8 @@ export default defineConfig({
     reuseExistingServer: true,
   },
   reporter: 'html',
+  // Setup hook to inject our mock script into all test pages
+  globalSetup: './tests/browser/global-setup.ts',
   projects: [
     {
       name: 'chromium',

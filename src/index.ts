@@ -76,6 +76,7 @@ export function useVibes(target: string | HTMLElement, config: UseVibesConfig): 
 
             // Log explanation if provided
             if (result.explanation) {
+              // eslint-disable-next-line no-console
               console.log('AI explanation:', result.explanation);
             }
 

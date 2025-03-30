@@ -63,6 +63,9 @@ importers:
       rollup-plugin-terser:
         specifier: ^7.0.2
         version: 7.0.2(rollup@4.38.0)
+      terser:
+        specifier: ^5.39.0
+        version: 5.39.0
       typescript:
         specifier: ^5.3.3
         version: 5.8.2
