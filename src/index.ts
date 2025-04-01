@@ -1,4 +1,5 @@
 import { callAI } from 'call-ai';
+import docSources from './docs-sources.json' with { type: 'json' };
 
 // DOM element and configuration interface
 export interface UseVibesConfig {
@@ -32,44 +33,80 @@ export function useVibes(target: string | HTMLElement, config: UseVibesConfig): 
     // Capture the current HTML state
     const htmlContext = document.body.innerHTML;
 
-    // Build the prompt for the AI
-    const userPrompt = `
-      Transform the HTML content based on this request: ${config.prompt}
-      
-      The current HTML of the page is:
-      \`\`\`html
-      ${htmlContext}
-      \`\`\`
-      
-      Generate HTML content that should be placed inside the target element.
-      Keep your response focused and concise, generating only the HTML required.
-    `;
+    // Fetch documentation from URLs in parallel
+    const fetchDocs = async () => {
+      try {
+        const docPromises = docSources.docs.map(async doc => {
+          try {
+            const response = await fetch(doc.src);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch ${doc.name} documentation: ${response.statusText}`);
+            }
+            const content = await response.text();
+            return `Documentation from ${doc.name}:\n\`\`\`\n${content}\n\`\`\``;
+          } catch (error) {
+            console.error(`Error fetching ${doc.name} documentation:`, error);
+            return `Documentation from ${doc.name}: [Failed to load]`;
+          }
+        });
 
-    // Define a simple schema for the response
-    const schema = {
-      properties: {
-        html: {
-          type: 'string',
-          description: 'The HTML content to inject into the target element',
-        },
-        explanation: {
-          type: 'string',
-          description: 'A brief explanation of the changes made (optional)',
-        },
-      },
+        return await Promise.all(docPromises);
+      } catch (error) {
+        console.error('Error fetching documentation:', error);
+        return [];
+      }
     };
 
-    // Call the AI with the prompt and schema
-    // Explicitly set stream to false to ensure we get a string response
-    const aiResponse = callAI(userPrompt, { schema, stream: false });
+    // Construct and process the prompt
+    const processPrompt = async (docsContent: string[]) => {
+      const docsText = docsContent.join('\n\n');
 
-    // We need to handle the response which is a Promise<string> since we set stream: false
-    if (aiResponse instanceof Promise) {
-      return aiResponse
-        .then(response => {
+      const userPrompt = `
+Transform the HTML content based on this request: ${config.prompt}
+
+The current HTML of the page is:
+\`\`\`html
+${htmlContext}
+\`\`\`
+
+${docsContent.length > 0 ? `Here is relevant documentation:\n${docsText}\n\n` : ''}
+Generate HTML content that should be placed inside the target element.
+Keep your response focused and concise, generating only the HTML required.
+`;
+
+      // Define a simple schema for the response
+      const schema = {
+        properties: {
+          html: {
+            type: 'string',
+            description: 'The HTML content to inject into the target element',
+          },
+          explanation: {
+            type: 'string',
+            description: 'A brief explanation of the changes made (optional)',
+          },
+        },
+      };
+
+      // Call the AI with the prompt and schema
+      // Explicitly set stream to false to ensure we get a string response
+      return callAI(userPrompt, { schema, stream: false });
+    };
+
+    // Execute the fetch and processing
+    return fetchDocs()
+      .then(docsContent => processPrompt(docsContent))
+      .then(aiResponse => {
+        // Handle response from callAI
+        return Promise.resolve(aiResponse).then(response => {
           try {
             // Parse the JSON response
-            const result = JSON.parse(response as string) as { html: string; explanation?: string };
+            const result = JSON.parse(
+              typeof response === 'string' ? response : String(response)
+            ) as {
+              html: string;
+              explanation?: string;
+            };
 
             // Extract HTML from structured response and inject it into the target element
             targetElement.innerHTML = result.html;
@@ -91,16 +128,13 @@ export function useVibes(target: string | HTMLElement, config: UseVibesConfig): 
               parseError instanceof Error ? parseError.message : String(parseError);
             return Promise.reject(new Error(`Failed to parse AI response: ${errorMessage}`));
           }
-        })
-        .catch((error: unknown) => {
-          console.error('Error calling AI:', error);
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          return Promise.reject(new Error(`Failed to process prompt: ${errorMessage}`));
         });
-    } else {
-      // This should never happen with stream: false, but we need to handle it for type safety
-      return Promise.reject(new Error('Unexpected streaming response from callAI'));
-    }
+      })
+      .catch((error: unknown) => {
+        console.error('Error in AI processing:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return Promise.reject(new Error(`Failed to process prompt: ${errorMessage}`));
+      });
   } catch (error) {
     // Fallback for any unexpected errors
     console.error('Error initializing AI call:', error);

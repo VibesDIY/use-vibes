@@ -10,9 +10,14 @@
   },
   "dependencies": {
     "call-ai": "^0.5.0",
-    "use-vibes": "^0.1.1"
+    "use-vibes": "file:../"
   },
   "devDependencies": {
     "vite": "^5.1.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "use-vibes": "file:../"
+    }
   }
 }

@@ -1,0 +1,14 @@
+{
+  "docs": [
+    {
+      "name": "Fireproof",
+      "keywords": ["fireproof", "use-fireproof", "useFireproof", "useLiveQuery", "useDocument"],
+      "src": "https://use-fireproof.com/llms.txt"
+    },
+    {
+      "name": "CallAI",
+      "keywords": ["callai", "call-ai"],
+      "src": "https://use-fireproof.com/callai-llms.txt"
+    }
+  ]
+}
