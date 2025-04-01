@@ -1,16 +1,19 @@
 import { callAI } from 'call-ai';
+import { useFireproof } from 'use-fireproof';
 import docSources from './docs-sources.json' with { type: 'json' };
 
 // DOM element and configuration interface
 export interface UseVibesConfig {
   prompt: string;
   // Add more configuration options as needed
+  exposeAPIs?: boolean; // Whether to expose APIs to global window object
 }
 
 // App instance interface returned by useVibes
 export interface VibesApp {
   container: HTMLElement;
   database?: Record<string, unknown>;
+  executeScript: (scriptStr?: string) => unknown; // Method to execute additional scripts
 }
 
 /**
@@ -81,6 +84,10 @@ Keep your response focused and concise, generating only the HTML required.
             type: 'string',
             description: 'The HTML content to inject into the target element',
           },
+          script: {
+            type: 'string',
+            description: 'JavaScript code to run after HTML is injected (optional)',
+          },
           explanation: {
             type: 'string',
             description: 'A brief explanation of the changes made (optional)',
@@ -105,11 +112,39 @@ Keep your response focused and concise, generating only the HTML required.
               typeof response === 'string' ? response : String(response)
             ) as {
               html: string;
+              script?: string;
               explanation?: string;
             };
 
+            // If APIs should be exposed, add them to window object
+            if (config.exposeAPIs) {
+              // Type assertion to access window as a record
+              const windowObj = window as unknown as Record<string, unknown>;
+              windowObj.callAI = callAI;
+              windowObj.useFireproof = useFireproof;
+            }
+
             // Extract HTML from structured response and inject it into the target element
             targetElement.innerHTML = result.html;
+
+            // Create the script execution function
+            const executeScript = (scriptStr?: string): unknown => {
+              try {
+                const scriptToExecute = scriptStr || result.script;
+                if (!scriptToExecute) return null;
+
+                // Create a function from the script string and execute it
+                // Pass the target element as a parameter
+                return new Function('element', 'callAI', 'useFireproof', scriptToExecute)(
+                  targetElement,
+                  callAI,
+                  useFireproof
+                );
+              } catch (scriptError) {
+                console.error('Error executing script:', scriptError);
+                return null;
+              }
+            };
 
             // Log explanation if provided
             if (result.explanation) {
@@ -117,10 +152,16 @@ Keep your response focused and concise, generating only the HTML required.
               console.log('AI explanation:', result.explanation);
             }
 
+            // Run the script if it exists
+            if (result.script) {
+              executeScript();
+            }
+
             // Return the app instance
             return {
               container: targetElement,
               database: undefined,
+              executeScript,
             };
           } catch (parseError: unknown) {
             console.error('Error parsing AI response:', parseError);
@@ -142,9 +183,16 @@ Keep your response focused and concise, generating only the HTML required.
     // Provide a simple fallback that shows the prompt was received
     targetElement.innerHTML = `<div>🎭 Vibes received prompt: "${config.prompt}" (AI processing failed)</div>`;
 
+    // Create a no-op executeScript function for the fallback case
+    const executeScript = (_scriptStr?: string): unknown => {
+      console.error('Script execution not available due to initialization error');
+      return null;
+    };
+
     return Promise.resolve({
       container: targetElement,
       database: undefined,
+      executeScript,
     });
   }
 }
