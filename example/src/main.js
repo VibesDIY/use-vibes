@@ -24,10 +24,22 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       // Apply loading state
       outputElement.innerHTML = '<p>Applying vibes...</p>';
-      // Call useVibes with the prompt
-      await useVibes(outputElement, {
-        prompt: prompt,
+      
+      // Call useVibes with the prompt and enable API exposing
+      // Script execution happens automatically if returned by the AI
+      const vibesApp = await useVibes(outputElement, {
+        prompt: prompt + ' Include a script that demonstrates dynamic functionality.',
+        exposeAPIs: true, // Enable API exposing to window object
       });
+      
+      // Log the vibesApp instance to console
+      console.log('VibesApp instance created:', vibesApp);
+      
+      // Add info text about script execution
+      const infoDiv = document.createElement('div');
+      infoDiv.classList.add('script-info');
+      infoDiv.innerHTML = '<p><small>✓ Any script returned by the AI has been automatically executed. APIs like callAI and useFireproof are available to scripts.</small></p>';
+      outputElement.appendChild(infoDiv);
     } catch (error) {
       console.error('Error applying vibes:', error);
       outputElement.innerHTML = `<p class="error">Error: ${error.message}</p>`;
