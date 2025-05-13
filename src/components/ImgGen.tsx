@@ -118,6 +118,12 @@ export const ImgGen: React.FC<ImgGenProps> = ({
   useEffect(() => {
     let isMounted = true;
 
+    // Don't generate image if prompt is falsy
+    if (!prompt) {
+      setLoading(false);
+      return;
+    }
+
     const generateImage = async (): Promise<void> => {
       try {
         setLoading(true);
@@ -210,6 +216,8 @@ export const ImgGen: React.FC<ImgGenProps> = ({
             <div className="img-gen-error">
               <p>Error: {error.message}</p>
             </div>
+          ) : !prompt ? (
+            <div>Waiting for prompt</div>
           ) : (
             <div>Generating image...</div>
           )}
