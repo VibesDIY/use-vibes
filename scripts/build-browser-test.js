@@ -103,6 +103,25 @@ export const callAI = function mockCallAI(userPrompt, options = {}) {
 };
 
 // Additional exports to match the real module structure if needed
+// Mock implementation of imageGen for testing
+export const imageGen = function mockImageGen(prompt, options = {}) {
+  /* eslint-disable-next-line no-console */
+  console.log('🔍 TEST MOCK: imageGen called with:', 
+              typeof prompt === 'string' ? prompt.substring(0, 100) + '...' : '[non-string-prompt]');
+
+  // Return a mock image response
+  return Promise.resolve({
+    created: Date.now(),
+    data: [
+      {
+        url: null,
+        b64_json: 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', // 1x1 transparent GIF
+        revised_prompt: prompt
+      }
+    ]
+  });
+};
+
 export default callAI;
 `;
 
