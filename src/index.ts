@@ -128,21 +128,66 @@ Keep your response focused and concise, generating only the HTML required.
             targetElement.innerHTML = result.html;
 
             // Create the script execution function
-            const executeScript = (scriptStr?: string): unknown => {
+            const executeScript = (scriptStr?: string): Promise<unknown> => {
               try {
                 const scriptToExecute = scriptStr || result.script;
-                if (!scriptToExecute) return null;
+                if (!scriptToExecute) return Promise.resolve(null);
 
-                // Create a function from the script string and execute it
-                // Pass the target element as a parameter
-                return new Function('element', 'callAI', 'useFireproof', scriptToExecute)(
-                  targetElement,
-                  callAI,
-                  useFireproof
-                );
+                // Create a module script to properly support imports
+                return new Promise((resolve, reject) => {
+                  // Create a unique ID for this script execution
+                  const scriptId = `vibes-script-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+                  
+                  // Create a script element with type="module"
+                  const scriptEl = document.createElement('script');
+                  scriptEl.type = 'module';
+                  scriptEl.id = scriptId;
+                  
+                  // Make target element, callAI and useFireproof available to the module
+                  // Using globalThis to avoid window reference in SSR environments
+                  const globalObj = globalThis as unknown as Record<string, unknown>;
+                  globalObj[`_vibes_element_${scriptId}`] = targetElement;
+                  globalObj[`_vibes_callAI_${scriptId}`] = callAI;
+                  globalObj[`_vibes_useFireproof_${scriptId}`] = useFireproof;
+                  
+                  // Set up onload and onerror handlers
+                  scriptEl.onload = () => {
+                    // Clean up global variables
+                    delete globalObj[`_vibes_element_${scriptId}`];
+                    delete globalObj[`_vibes_callAI_${scriptId}`];
+                    delete globalObj[`_vibes_useFireproof_${scriptId}`];
+                    // Remove the script after execution
+                    scriptEl.remove();
+                    resolve(true);
+                  };
+                  
+                  scriptEl.onerror = error => {
+                    // Clean up global variables
+                    delete globalObj[`_vibes_element_${scriptId}`];
+                    delete globalObj[`_vibes_callAI_${scriptId}`];
+                    delete globalObj[`_vibes_useFireproof_${scriptId}`];
+                    // Remove the script after execution
+                    scriptEl.remove();
+                    reject(error);
+                  };
+                  
+                  // Create the script content with access to the variables
+                  scriptEl.textContent = `
+// Access injected variables
+const element = globalThis._vibes_element_${scriptId};
+const callAI = globalThis._vibes_callAI_${scriptId};
+const useFireproof = globalThis._vibes_useFireproof_${scriptId};
+
+// Execute the script
+${scriptToExecute}
+`;
+                  
+                  // Append to document
+                  document.head.appendChild(scriptEl);
+                });
               } catch (scriptError) {
                 console.error('Error executing script:', scriptError);
-                return null;
+                return Promise.resolve(null);
               }
             };
 
@@ -154,14 +199,22 @@ Keep your response focused and concise, generating only the HTML required.
 
             // Run the script if it exists
             if (result.script) {
-              executeScript();
+              // Execute the script returned by the AI
+              executeScript().catch(scriptError => {
+                console.error('Error executing script asynchronously:', scriptError);
+              });
             }
 
             // Return the app instance
             return {
               container: targetElement,
               database: undefined,
-              executeScript,
+              executeScript: (scriptStr?: string) => {
+                return executeScript(scriptStr).catch(error => {
+                  console.error('Error in executeScript call:', error);
+                  return null;
+                });
+              },
             };
           } catch (parseError: unknown) {
             console.error('Error parsing AI response:', parseError);
