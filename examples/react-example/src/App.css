@@ -29,21 +29,23 @@
 }
 
 .image-container {
-  width: 200px;
-  height: 200px;
+  width: 400px;
+  height: 400px;
   margin-top: 1rem;
   display: flex;
   justify-content: center;
+  align-items: center;
+  overflow: hidden;
 }
 
 .placeholder {
   width: 512px;
   height: 512px;
-  background-color: #f0f0f0;
+  background-color: #333;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
+  color: #333;
   font-size: 1.2rem;
   border-radius: 8px;
   text-align: center;

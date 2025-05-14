@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       call-ai:
-        specifier: ^0.10.0
-        version: 0.10.0
+        specifier: ^0.10.1
+        version: 0.10.1
       react:
         specifier: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
         version: 19.1.0
@@ -935,8 +935,8 @@ packages:
     resolution: {integrity: sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==}
     engines: {node: '>=8'}
 
-  call-ai@0.10.0:
-    resolution: {integrity: sha512-SILNy37CHnlAVW/YNcg8lZ1HbiZQk5cLwoA2jMFSUKPUgMVjKMTzl3uVp7DLIduMa6Y14p2EAp0NsF3mBhw3dQ==}
+  call-ai@0.10.1:
+    resolution: {integrity: sha512-3tU9bWuZJiPi7I3w6sTUZntDxvo8+P1H9ybqXrkfr8uRC9RDuZocF0goQuMszd9VRfM+nId1P/p4K1ZtIcrp0Q==}
     engines: {node: '>=14.0.0'}
 
   call-bind-apply-helpers@1.0.2:
@@ -2991,7 +2991,7 @@ snapshots:
 
   cac@6.7.14: {}
 
-  call-ai@0.10.0: {}
+  call-ai@0.10.1: {}
 
   call-bind-apply-helpers@1.0.2:
     dependencies:

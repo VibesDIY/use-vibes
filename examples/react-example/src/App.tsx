@@ -3,15 +3,18 @@ import { ImgGen } from 'use-vibes'
 import './App.css'
 
 function App() {
-  const [prompt, setPrompt] = useState('')
+  const [inputPrompt, setInputPrompt] = useState('')
+  const [activePrompt, setActivePrompt] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPrompt(e.target.value)
+    setInputPrompt(e.target.value)
   }
 
   const handleGenerate = () => {
-    if (!prompt.trim()) return
+    if (!inputPrompt.trim()) return
+    // Set the active prompt that gets passed to ImgGen only when button is clicked
+    setActivePrompt(inputPrompt)
     setIsGenerating(true)
     // Simulate image generation
     setTimeout(() => {
@@ -26,7 +29,7 @@ function App() {
       <div className="input-container">
         <input
           type="text"
-          value={prompt}
+          value={inputPrompt}
           onChange={handleInputChange}
           placeholder="Enter your image prompt here..."
           className="prompt-input"
@@ -34,14 +37,20 @@ function App() {
         <button 
           onClick={handleGenerate} 
           className="generate-button"
-          disabled={isGenerating || !prompt.trim()}
+          disabled={isGenerating || !inputPrompt.trim()}
         >
           {isGenerating ? 'Generating...' : 'Generate'}
         </button>
       </div>
       
       <div className="image-container" >
-        <ImgGen prompt={prompt} />
+        <ImgGen 
+          prompt={activePrompt}
+          options={{
+            imgUrl: 'https://vibecode.garden',
+            size: '1024x1024'
+          }}
+        />
       </div>
     </div>
   )
