@@ -43,8 +43,11 @@ function base64ToFile(base64Data: string, filename: string): File {
 }
 
 export interface UseImageGenOptions {
-  /** Text prompt for image generation */
+  /** Text prompt for image generation (required unless _id is provided) */
   prompt: string;
+  
+  /** Document ID to load a specific image instead of generating a new one */
+  _id?: string;
   
   /** Options for image generation */
   options?: ImageGenOptions;
@@ -82,6 +85,7 @@ export interface UseImageGenResult {
  */
 export function useImageGen({
   prompt,
+  _id,
   options = {},
   database = "ImgGen",
 }: UseImageGenOptions): UseImageGenResult {
@@ -99,7 +103,7 @@ export function useImageGen({
   const size = options?.size || '1024x1024';
   const [width, height] = size.split('x').map(Number);
 
-  // Reset state when prompt or options change
+  // Reset state when prompt, _id, or options change
   useEffect(() => {
     setImageData(null);
     setError(null);
@@ -117,14 +121,14 @@ export function useImageGen({
         clearInterval(progressTimerRef.current);
       }
     };
-  }, [prompt, JSON.stringify(options)]);
+  }, [prompt, _id, JSON.stringify(options)]);
 
-  // Generate the image when prompt or options change
+  // Generate the image when prompt or options change or load by ID
   useEffect(() => {
     let isMounted = true;
 
-    // Don't generate image if prompt is falsy
-    if (!prompt) {
+    // Don't generate image if both prompt and _id are falsy
+    if (!prompt && !_id) {
       setLoading(false);
       return;
     }
@@ -146,7 +150,8 @@ export function useImageGen({
 
         // Try to get from Fireproof cache first
         let data: ImageResponse | null = null;
-        const docId = `img:${promptKey}`;
+        // If _id is provided, use that directly, otherwise use the promptKey
+        const docId = _id || `img:${promptKey}`;
         
         try {
           // Try to get from Fireproof first
@@ -183,8 +188,8 @@ export function useImageGen({
           console.error('Error retrieving from Fireproof:', err);
         }
 
-        // If no data in cache, generate new image
-        if (!data) {
+        // If no data in cache and no _id provided, generate new image
+        if (!data && !_id) {
           // Use the actual imageGen function from call-ai
           data = await imageGen(prompt, options);
           
@@ -214,6 +219,11 @@ export function useImageGen({
               console.error('Error saving to Fireproof:', err);
             }
           }
+        }
+        // If it was just a load by ID request and we have a document, we're done
+        else if (_id && document) {
+          // No need to generate, just finish loading
+          setProgress(100);
         }
 
         // Update state with the image data
@@ -250,7 +260,7 @@ export function useImageGen({
     return () => {
       isMounted = false;
     };
-  }, [prompt, JSON.stringify(options), promptKey, database]);
+  }, [prompt, _id, JSON.stringify(options), promptKey, database]);
 
   return {
     imageData,

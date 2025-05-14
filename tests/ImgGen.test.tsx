@@ -140,11 +140,11 @@ describe('ImgGen Component', () => {
     // Reset the mock
     mockImageGen.mockClear();
     
-    // Test with empty string prompt
-    render(<ImgGen prompt="" />);
+    // Test with empty string prompt but provide _id to prevent validation error
+    render(<ImgGen prompt="" _id="test-image-id" />);
     expect(screen.getByText('Waiting for prompt')).toBeInTheDocument();
     
-    // Verify imageGen is not called when prompt is empty
+    // Verify imageGen is not called when prompt is empty and _id is provided
     expect(mockImageGen).not.toHaveBeenCalled();
   });
 
@@ -153,7 +153,8 @@ describe('ImgGen Component', () => {
     vi.useFakeTimers();
     
     // Our mock useImageGen sets loading=false for empty prompt
-    render(<ImgGen prompt="" />);
+    // Provide _id to prevent validation error
+    render(<ImgGen prompt="" _id="test-image-id" />);
     
     // Find the progress bar element
     const progressBar = document.querySelector('div[style*="bottom: 0"][style*="height: 4px"]');

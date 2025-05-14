@@ -16,6 +16,7 @@ function App() {
   const [inputPrompt, setInputPrompt] = useState('')
   const [activePrompt, setActivePrompt] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [selectedImageId, setSelectedImageId] = useState<string | undefined>()
   
   // Use Fireproof to query all images
   const { useLiveQuery } = useFireproof("ImgGen")
@@ -66,9 +67,10 @@ function App() {
         </button>
       </div>
       
-      <div className="image-container" >
+      <div className="img-wrapper">
         <ImgGen 
           prompt={activePrompt}
+          _id={selectedImageId}
           options={{
             imgUrl: 'https://vibecode.garden',
             size: '1024x1024'
@@ -78,20 +80,34 @@ function App() {
         />
       </div>
       
-      {/* Display list of previously generated images */}
-      <div className="history-container">
-        <h2>Image History</h2>
-        <ul>
-          {imageDocuments.length > 0 ? 
-            imageDocuments.map(doc => (
-              <li key={doc._id}>
-                {JSON.stringify({...doc, _files: undefined})}
-              </li>
-            )) : 
-            <li>No images generated yet</li>
-          }
-        </ul>
-      </div>
+      {/* Display previously generated images */}
+      {imageDocuments.length > 0 && (
+        <div className="history">
+          <h3>Previously Generated Images</h3>
+          <div className="image-grid">
+            {imageDocuments.map((doc) => (
+              <div key={doc._id} className="image-item">
+                <div 
+                  className="thumbnail-container"
+                  onClick={() => {
+                    // Load the selected image by ID in the main viewer
+                    setSelectedImageId(doc._id);
+                    // Clear the active prompt when loading by ID
+                    setActivePrompt('');
+                  }}
+                >
+                  <ImgGen 
+                    _id={doc._id} 
+                    alt={doc.prompt}
+                    className="thumbnail-img"
+                  />
+                </div>
+                <div className="prompt-text">{doc.prompt}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

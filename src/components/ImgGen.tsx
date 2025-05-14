@@ -1,28 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
 import type { ImageGenOptions, ImageResponse } from 'call-ai';
+import { useState, useEffect } from 'react';
 import { useImageGen } from '../hooks/use-image-gen';
 import { ImgFile } from 'use-fireproof';
 
 export interface ImgGenProps {
-  /** Text prompt for image generation (required) */
-  prompt: string;
-
-  /** Options for image generation (optional) */
-  options?: ImageGenOptions;
-
-  /** CSS class name for the image element (optional) */
+  /** Text prompt for image generation (required unless _id is provided) */
+  prompt?: string;
+  
+  /** Document ID to load a specific image instead of generating a new one */
+  _id?: string;
+  
+  /** Classname(s) to apply to the image */
   className?: string;
-
-  /** Alt text for the image (defaults to prompt) */
+  
+  /** Alt text for the image */
   alt?: string;
   
-  /** Database name or Fireproof database instance (defaults to "ImgGen") */
+  /** Image generation options */
+  options?: ImageGenOptions;
+  
+  /** Database name or instance to use for storing images */
   database?: string | any;
   
-  /** Called when image generation completes successfully */
+  /** Callback when image load completes successfully */
   onLoad?: () => void;
   
-  /** Called when image generation fails with the error */
+  /** Callback when image load fails */
   onError?: (error: Error) => void;
 }
 
@@ -30,21 +34,29 @@ export interface ImgGenProps {
  * React component for generating images with call-ai's imageGen
  * Provides automatic caching, reactive updates, and placeholder handling
  */
-export const ImgGen: React.FC<ImgGenProps> = ({
-  prompt,
-  options = {},
+export const ImgGen = React.memo(function ImgGen({
+  prompt = '',
+  _id,
   className = '',
   alt,
+  options,
   database,
   onLoad,
   onError,
-}) => {
+}: ImgGenProps): React.ReactElement {
+  // Validate that either prompt or _id is provided
+  if (!prompt && !_id) {
+    return <div className={`img-gen ${className}`}>Waiting for prompt</div>;
+  }
+  
   // Use the custom hook for all the image generation logic
-  const { imageData, loading, progress, error, size, document } = useImageGen({
-    prompt,
-    options,
-    database,
-  });
+  const {
+    imageData,
+    loading,
+    error,
+    progress,
+    document,
+  } = useImageGen({ prompt, _id, options, database });
   
   // Call onLoad/onError callbacks when status changes
   React.useEffect(() => {
@@ -124,7 +136,11 @@ export const ImgGen: React.FC<ImgGenProps> = ({
   }
   
   // This should never happen but added as a failsafe
-  return null;
-};
+  return <div className="img-gen-error">Failed to render image</div>;
+});
+
+
+// Add static displayName to help with React DevTools and error reporting
+ImgGen.displayName = 'ImgGen';
 
 export default ImgGen;
