@@ -22,7 +22,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "rimraf dist",
-    "prepare": "npm run clean && npm run build"
+    "prepare": "npm run clean && npm run build",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "ai",
