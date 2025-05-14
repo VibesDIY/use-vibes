@@ -1,109 +1,132 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { imageGen as originalImageGen } from 'call-ai';
-import type { ImageGenOptions, ImageResponse } from 'call-ai';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useFireproof } from 'use-fireproof';
+import { ImageGenOptions, ImageResponse, imageGen as originalImageGen } from 'call-ai';
 import type { DocFileMeta } from 'use-fireproof';
 
 // Module-level state for tracking and preventing duplicate calls
 const MODULE_STATE = {
-  // Keep track of ongoing image generation calls to prevent duplicates
   pendingImageGenCalls: new Map<string, Promise<ImageResponse>>(),
-  // Track requests that are currently being processed (prevents race conditions)
+  pendingPrompts: new Set<string>(), // Track uniqueness by prompt+options hash
   processingRequests: new Set<string>(),
-  // Track request timestamps to avoid reusing stale promises
   requestTimestamps: new Map<string, number>(),
-  // Timeout duration for cleaning up stale requests (5 minutes)
-  STALE_TIMEOUT_MS: 5 * 60 * 1000,
+  requestCounter: 0 // To track total requests for debugging
 };
 
 // Periodically clean up stale requests (every minute)
 setInterval(() => {
   const now = Date.now();
   for (const [key, timestamp] of MODULE_STATE.requestTimestamps.entries()) {
-    if (now - timestamp > MODULE_STATE.STALE_TIMEOUT_MS) {
+    if (now - timestamp > 5 * 60 * 1000) {
       MODULE_STATE.pendingImageGenCalls.delete(key);
       MODULE_STATE.processingRequests.delete(key);
+      MODULE_STATE.pendingPrompts.delete(key);
       MODULE_STATE.requestTimestamps.delete(key);
     }
   }
-}, 60 * 1000);
+}, 60000); // Check every minute
 
 // Wrapper for imageGen that prevents duplicate calls
 function imageGen(prompt: string, options?: ImageGenOptions): Promise<ImageResponse> {
-  // Create a unique key for this request
-  const key = `${prompt}-${JSON.stringify(options || {})}`;
+  // Only include specific option properties that matter for image generation
+  const relevantOptions = options ? {
+    size: options.size,
+    quality: options.quality,
+    model: options.model,
+    style: options.style
+  } : {};
   
-  // If this exact request is already in progress, return the existing promise
-  if (MODULE_STATE.pendingImageGenCalls.has(key) && !MODULE_STATE.processingRequests.has(key)) {
-    console.log(`[ImgGen Debug] Using existing imageGen call for: ${prompt}`);
-    return MODULE_STATE.pendingImageGenCalls.get(key)!;
+  // Create a stable key for the request cache
+  const stableKey = `${prompt}-${JSON.stringify(relevantOptions)}`;
+  
+  // Create a unique ID for this specific request instance (for logging)
+  const requestId = ++MODULE_STATE.requestCounter;
+  
+  // Check if this prompt+options combination is already being processed
+  if (MODULE_STATE.pendingPrompts.has(stableKey)) {
+    console.log(`[ImgGen Debug] DUPLICATE REQUEST #${requestId} DETECTED - Using existing imageGen call [key:${stableKey.slice(0, 12)}...] for: ${prompt}`);
+    
+    // Return the existing promise for this prompt+options combination
+    if (MODULE_STATE.pendingImageGenCalls.has(stableKey)) {
+      return MODULE_STATE.pendingImageGenCalls.get(stableKey)!;
+    }
   }
   
-  // If we're already processing this request (potential race condition), 
-  // wait a bit and try again
-  if (MODULE_STATE.processingRequests.has(key)) {
-    return new Promise((resolve) => {
-      // Wait 50ms and check again
-      setTimeout(() => {
-        resolve(imageGen(prompt, options));
-      }, 50);
-    });
-  }
+  // Mark this prompt+options as being processed
+  MODULE_STATE.pendingPrompts.add(stableKey);
+  MODULE_STATE.processingRequests.add(stableKey);
+  MODULE_STATE.requestTimestamps.set(stableKey, Date.now());
   
-  // Mark this request as being processed
-  MODULE_STATE.processingRequests.add(key);
-  MODULE_STATE.requestTimestamps.set(key, Date.now());
-  
-  console.log(`[ImgGen Debug] New imageGen call for: ${prompt}`);
+  console.log(`[ImgGen Debug] NEW REQUEST #${requestId} - Starting imageGen call [key:${stableKey.slice(0, 12)}...] for: ${prompt}`);
   let promise: Promise<ImageResponse>;
   
   try {
+    // Direct import from call-ai - this works consistently with test mocks
+    // We imported this at the top of the file
     promise = originalImageGen(prompt, options);
-  } catch (error) {
-    // If synchronous error occurs, clean up and rethrow
-    MODULE_STATE.processingRequests.delete(key);
-    throw error;
+  } catch (e) {
+    console.error(`[ImgGen Debug] Error with imageGen for request #${requestId}:`, e);
+    promise = Promise.reject(e);
   }
   
-  // Only store and track the promise if it's a real Promise object
-  if (promise && typeof promise.then === 'function') {
-    MODULE_STATE.pendingImageGenCalls.set(key, promise);
-    
-    // Add completion log when the promise resolves
-    promise.then(() => {
-      console.log('Image generation completed!');
-    }).catch(() => {});
-    
-    // Clean up after the promise resolves or rejects
-    promise.finally(() => {
-      MODULE_STATE.pendingImageGenCalls.delete(key);
-      MODULE_STATE.processingRequests.delete(key);
-      // Keep the timestamp a bit longer for diagnostics
+  // Store the promise so other requests for the same prompt+options can use it
+  MODULE_STATE.pendingImageGenCalls.set(stableKey, promise);
+  
+  // Clean up after the promise resolves or rejects
+  promise
+    .then(response => {
+      console.log(`[ImgGen Debug] Request #${requestId} succeeded [key:${stableKey.slice(0, 12)}...]`);
+      return response; 
+    })
+    .catch(error => {
+      console.error(`[ImgGen Debug] Request #${requestId} failed [key:${stableKey.slice(0, 12)}...]: ${error}`);
+      return Promise.reject(error);
+    })
+    .finally(() => {
+      // After request completes, wait a short time before allowing new requests with the same key
+      // This prevents immediate duplicate requests during React's render cycles
       setTimeout(() => {
-        MODULE_STATE.requestTimestamps.delete(key);
-      }, 30000);
-    }).catch(() => {});
-  } else {
-    // If we somehow didn't get a promise, clean up immediately
-    MODULE_STATE.processingRequests.delete(key);
-  }
+        MODULE_STATE.processingRequests.delete(stableKey);
+        MODULE_STATE.pendingPrompts.delete(stableKey); 
+        MODULE_STATE.pendingImageGenCalls.delete(stableKey);
+      }, 500); // Short delay to prevent new requests during render cycles
+    });
   
   return promise;
 }
 
 /**
- * Hash function to create a key from the prompt string
+ * Synchronous hash function to create a key from the prompt string and options
  * @param prompt The prompt string to hash
- * @returns A string hash of the prompt
+ * @param options Optional image generation options
+ * @returns A hash string for the input
  */
-function hashPrompt(prompt: string): string {
-  let hash = 0;
-  for (let i = 0; i < prompt.length; i++) {
-    const char = prompt.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash; // Convert to 32bit integer
+function hashInput(prompt: string, options?: any): string {
+  // Create a string that includes both prompt and relevant options
+  const inputString = JSON.stringify({
+    prompt,
+    // Only include relevant options properties to avoid unnecessary regeneration
+    options: options ? {
+      size: options.size,
+      quality: options.quality,
+      model: options.model,
+      style: options.style,
+    } : undefined
+  });
+  
+  // Use a fast non-crypto hash for immediate results (FNV-1a algorithm)
+  let hash = 2166136261; // FNV offset basis
+  for (let i = 0; i < inputString.length; i++) {
+    hash ^= inputString.charCodeAt(i);
+    // Multiply by the FNV prime (32-bit)
+    hash = Math.imul(hash, 16777619);
   }
-  return hash.toString(16);
+  
+  // Convert to hex string and take first 12 chars
+  const hashHex = (hash >>> 0).toString(16).padStart(8, '0');
+  const requestId = hashHex.slice(0, 12);
+  
+  // Add a timestamp to make the ID unique even for identical requests
+  return `${requestId}-${Date.now().toString(36)}`;
 }
 
 // Interface for our image documents in Fireproof
@@ -199,8 +222,11 @@ export function useImageGen({
     // Add any other properties from options that matter for image generation
   ]);
   
-  // Memoize the promptKey to prevent recalculation on each render
-  const memoizedPromptKey = useMemo(() => hashPrompt(prompt), [prompt]);
+  // Memoize the request hash to prevent recalculation on each render
+  const requestHash = useMemo(() => {
+    // Generate a unique hash based on prompt and options
+    return hashInput(prompt, options);
+  }, [prompt, options?.size, options?.quality, options?.model, options?.style]);
 
   // No debug tracking for renders
   
@@ -241,9 +267,30 @@ export function useImageGen({
 
     // Function that handles the actual image generation call
     const callImageGeneration = async (promptText: string, genOptions?: ImageGenOptions): Promise<ImageResponse> => {
-      console.log(`[ImgGen Debug] imageGen call for prompt: ${promptText}`);
+      // Create a key string based on the options to help identify duplicate calls
+      const optionsKey = JSON.stringify({
+        size: genOptions?.size,
+        quality: genOptions?.quality,
+        model: genOptions?.model,
+        style: genOptions?.style
+      });
       
-      return imageGen(promptText, genOptions);
+      // Log detailed information about this request - including request hash and options
+      console.log(`[ImgGen Debug] imageGen call [ID:${requestHash}] for prompt: ${promptText}`);
+      console.log(`[ImgGen Debug] Request options [ID:${requestHash}]: ${optionsKey}`);
+      
+      // Track the time it takes to generate the image
+      const startTime = Date.now();
+      
+      try {
+        const response = await imageGen(promptText, genOptions);
+        const duration = Date.now() - startTime;
+        console.log(`[ImgGen Debug] Completed request [ID:${requestHash}] in ${duration}ms`);
+        return response;
+      } catch (error) {
+        console.error(`[ImgGen Debug] Failed request [ID:${requestHash}]: ${error}`);
+        throw error;
+      }
     };
 
     // Main function that handles the image loading/generation process
@@ -261,8 +308,8 @@ export function useImageGen({
         progressTimerRef.current = timer;
 
         let data: ImageResponse | null = null;
-        // If _id is provided, use that directly, otherwise use the memoizedPromptKey
-        const docId = _id || `img:${memoizedPromptKey}`;
+        // If _id is provided, use that directly, otherwise use the requestHash
+        const docId = _id || `img:${requestHash}`;
         
         try {
           // Try to get from Fireproof first
@@ -389,7 +436,7 @@ export function useImageGen({
     return () => {
       isMounted = false;
     };
-  }, [prompt, _id, memoizedOptions, memoizedPromptKey, database]); // Using memoizedOptions and memoizedPromptKey
+  }, [prompt, _id, memoizedOptions, requestHash, database]); // Using memoizedOptions and requestHash
 
   return {
     imageData,
