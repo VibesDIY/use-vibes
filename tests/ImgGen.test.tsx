@@ -104,4 +104,35 @@ describe('ImgGen Component', () => {
     const { imageGen } = vi.hoisted(() => ({ imageGen: vi.fn() }));
     expect(imageGen).not.toHaveBeenCalled();
   });
+
+  it('should not display a progress bar when no request is being made', () => {
+    // Mock the DOM methods for testing timers
+    vi.useFakeTimers();
+    
+    // Render component with empty prompt (which should not trigger a request)
+    render(<ImgGen prompt="" />);
+    
+    // Find the progress bar element
+    const initialProgressBar = document.querySelector('div[style*="bottom: 0"][style*="height: 4px"]');
+    expect(initialProgressBar).toBeTruthy();
+    
+    // Get the initial style to confirm it doesn't have a progress width
+    const initialStyle = initialProgressBar?.getAttribute('style') || '';
+    expect(initialStyle).toContain('width: 0%');
+    
+    // Advance timers to see if progress bar updates
+    vi.advanceTimersByTime(2000);
+    
+    // The progress bar should still exist but width should remain at 0%
+    const updatedProgressBar = document.querySelector('div[style*="bottom: 0"][style*="height: 4px"]');
+    expect(updatedProgressBar).toBeTruthy();
+    
+    // Get the updated style and verify width is still 0%
+    const updatedStyle = updatedProgressBar?.getAttribute('style') || '';
+    expect(updatedStyle).toContain('width: 0%');
+    expect(updatedStyle).not.toMatch(/width: [1-9][0-9]?%/);
+    
+    // Clean up
+    vi.useRealTimers();
+  });
 });

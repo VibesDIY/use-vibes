@@ -96,16 +96,6 @@ export const ImgGen: React.FC<ImgGenProps> = ({
       progressTimerRef.current = null;
     }
 
-    // Set up progress timer simulation (45 seconds to completion)
-    // This is just for visual feedback and doesn't reflect actual progress
-    const timer = setInterval(() => {
-      setProgress((prev: number) => {
-        const next = prev + (100 - prev) * 0.05;
-        return next > 99 ? 99 : next;
-      });
-    }, 1000);
-    progressTimerRef.current = timer;
-
     // Cleanup on unmount or when dependencies change
     return () => {
       if (progressTimerRef.current) {
@@ -127,6 +117,17 @@ export const ImgGen: React.FC<ImgGenProps> = ({
     const generateImage = async (): Promise<void> => {
       try {
         setLoading(true);
+        
+        // Start the progress animation only when loading starts
+        // Set up progress timer simulation (45 seconds to completion)
+        // This is just for visual feedback and doesn't reflect actual progress
+        const timer = setInterval(() => {
+          setProgress((prev: number) => {
+            const next = prev + (100 - prev) * 0.05;
+            return next > 99 ? 99 : next;
+          });
+        }, 1000);
+        progressTimerRef.current = timer;
 
         // Try to get from cache via the beforeLoad callback if provided
         let data: ImageResponse | null = null;
@@ -172,6 +173,11 @@ export const ImgGen: React.FC<ImgGenProps> = ({
         }
       } finally {
         if (isMounted) {
+          // Clear progress timer if it's still running
+          if (progressTimerRef.current) {
+            clearInterval(progressTimerRef.current);
+            progressTimerRef.current = null;
+          }
           setLoading(false);
         }
       }
