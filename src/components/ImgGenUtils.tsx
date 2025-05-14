@@ -246,7 +246,7 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
         }}
       >
-        <span style={{ marginRight: '5px', fontWeight: 'bold' }}>ⓘ</span> Info
+        <span style={{ marginRight: '5px', fontWeight: 'bold' }}>ⓘ</span> 
       </button>
       
       {/* Overlay with image information and controls */}
@@ -316,7 +316,7 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
               onClick={toggleOverlay}
               style={{ fontSize: '14px' }}
             >
-              ⓘ Info
+              ⓘ 
             </button>
             
             <div className="flex items-center gap-2">
