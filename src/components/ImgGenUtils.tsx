@@ -44,11 +44,23 @@ export function ImgGenPlaceholder({
     if (errorMsg.includes('{')) {
       try {
         const jsonStart = errorMsg.indexOf('{');
-        const jsonObj = JSON.parse(errorMsg.substring(jsonStart));
+        const jsonStr = errorMsg.substring(jsonStart);
+        const jsonObj = JSON.parse(jsonStr);
         
         // Get error code if it exists
         if (errorMsg.match(/\d{3}/)) {
           code = errorMsg.match(/\d{3}/)?.[0] || '';
+        }
+        
+        // Special handling for moderation blocked errors
+        if (
+          (jsonObj.details?.error?.code === 'moderation_blocked') || 
+          (jsonObj.code === 'moderation_blocked')
+        ) {
+          // Include error code in title but avoid duplication
+          title = code ? `${code} - Failed to generate image` : 'Failed to generate image';
+          body = "Your request was rejected as a result of our safety system. Your request may contain content that is not allowed by our safety system.";
+          return { title, body, code };
         }
         
         // Set the title from the main error message
@@ -57,7 +69,9 @@ export function ImgGenPlaceholder({
         }
         
         // Set the body from the detailed error message
-        if (jsonObj.error?.details?.error?.message) {
+        if (jsonObj.details?.error?.message) {
+          body = jsonObj.details.error.message;
+        } else if (jsonObj.error?.details?.error?.message) {
           body = jsonObj.error.details.error.message;
         }
       } catch (e) {
@@ -126,7 +140,7 @@ export function ImgGenPlaceholder({
                     marginBottom: '12px',
                     textAlign: 'center'
                   }}>
-                    {code ? `${code} - ${title}` : title}
+                    {title}
                   </h3>
                   <p style={{ 
                     whiteSpace: 'pre-wrap', 
