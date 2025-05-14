@@ -15,8 +15,8 @@ importers:
         specifier: ^19.1.0
         version: 19.1.0(react@19.1.0)
       use-vibes:
-        specifier: ^0.2.1
-        version: 0.2.1(react@19.1.0)
+        specifier: ^0.2.2
+        version: 0.2.2(react@19.1.0)
     devDependencies:
       '@eslint/js':
         specifier: ^9.25.0
@@ -1309,8 +1309,8 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-  use-vibes@0.2.1:
-    resolution: {integrity: sha512-orXbm8JpySy5a5wA2CDF6et/eVuoS8/7RQZzd3iEVR10l3psRBFefKiAK1hp1qIrSLqAl6GtEvjKcKb+yYHrYA==}
+  use-vibes@0.2.2:
+    resolution: {integrity: sha512-jnKWtBpd0nZebGPsqpGFp/B3SpOc3TdQenwWt4e6JP2KW+owadJdS8/rMeIF7wgWZOY/Bqbo+5mUjJRiVGElUw==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0
 
@@ -2639,7 +2639,7 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  use-vibes@0.2.1(react@19.1.0):
+  use-vibes@0.2.2(react@19.1.0):
     dependencies:
       call-ai: 0.10.0
       react: 19.1.0

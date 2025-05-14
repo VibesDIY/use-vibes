@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ImgGen } from 'use-vibes/dist/components/ImgGen.js'
+import { ImgGen } from 'use-vibes'
 import './App.css'
 
 function App() {
