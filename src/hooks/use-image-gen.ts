@@ -174,10 +174,16 @@ export function useImageGen({
     setProgress(0);
     setError(null);
 
-    const generateImage = async () => {
-      console.log(`[ImgGen Debug] imageGen call for prompt: ${prompt}, _id: ${_id}`); // Keep only this log
+    // Function that handles the actual image generation call
+    const callImageGeneration = async (promptText: string, genOptions?: ImageGenOptions): Promise<ImageResponse> => {
+      console.log(`[ImgGen Debug] imageGen call for prompt: ${promptText}`);
+      
+      return imageGen(promptText, genOptions);
+    };
+
+    // Main function that handles the image loading/generation process
+    const loadOrGenerateImage = async () => {
       try {
-        
         // Start the progress animation only when loading starts
         // Set up progress timer simulation (45 seconds to completion)
         // This is just for visual feedback and doesn't reflect actual progress
@@ -189,7 +195,6 @@ export function useImageGen({
         }, 1000);
         progressTimerRef.current = timer;
 
-        // Try to get from Fireproof cache first
         let data: ImageResponse | null = null;
         // If _id is provided, use that directly, otherwise use the promptKey
         const docId = _id || `img:${promptKey}`;
@@ -221,55 +226,69 @@ export function useImageGen({
               
               // Create a response-like object
               data = {
-                data: [{ b64_json: base64Data }]
-              } as ImageResponse;
-            }
-          }
-        } catch (err) {
-          console.error('Error retrieving from Fireproof:', err);
-        }
-
-        // If no data in cache and no _id provided, generate new image
-        if (!data && !_id) {
-          // Use the actual imageGen function from call-ai
-          data = await imageGen(prompt, options);
-          
-          // Store in Fireproof
-          if (data && data.data && data.data[0] && data.data[0].b64_json) {
-            try {
-              // Create a File object from the base64 data
-              const imageFile = base64ToFile(data.data[0].b64_json, 'image.png');
-              
-              // Create or update the document
-              const imgDoc: ImageDocument = {
-                _id: docId,
-                type: 'image',
-                prompt,
-                options,
                 created: Date.now(),
-                _files: {
-                  image: imageFile
-                }
+                data: [{
+                  b64_json: base64Data,
+                  url: undefined,
+                  revised_prompt: prompt,
+                }],
               };
-              
-              // Save to Fireproof
-              await db.put(imgDoc);
-              const savedDoc = await db.get(docId);
-              setDocument(savedDoc as unknown as ImageDocument);
-            } catch (err) {
-              console.error('Error saving to Fireproof:', err);
+
+              setImageData(base64Data);
             }
+          } else if (prompt) {
+            // Document doesn't exist, generate new image
+            data = await callImageGeneration(prompt, options);
+            
+            // Store in Fireproof
+            if (data && data.data && data.data[0] && data.data[0].b64_json) {
+              try {
+                // Create a File object from the base64 data
+                const imageFile = base64ToFile(data.data[0].b64_json, 'image.png');
+                
+                // Create or update the document
+                const imgDoc: ImageDocument = {
+                  _id: docId,
+                  type: 'image',
+                  prompt,
+                  options,
+                  created: Date.now(),
+                  _files: {
+                    image: imageFile
+                  }
+                };
+                const result = await db.put(imgDoc);
+                
+                // Get the document with the file attached
+                const doc = await db.get(result.id);
+                setDocument(doc as unknown as ImageDocument);
+                
+                setImageData(data.data[0].b64_json);
+              } catch (e) {
+                console.error('Error saving to Fireproof:', e);
+                // Even if we fail to save to Fireproof, we still have the image data so don't throw
+                setImageData(data.data[0].b64_json);
+              }
+            }
+          } else {
+            throw new Error('Document not found and no prompt provided for generation');
           }
-        }
-        // If it was just a load by ID request and we have a document, we're done
-        else if (_id && document) {
-          // No need to generate, just finish loading
-          setProgress(100);
+        } catch (error) {
+          console.error('Error retrieving from Fireproof:', error);
+          
+          // If we have a prompt, try direct generation as fallback
+          if (prompt && !data) {
+            data = await callImageGeneration(prompt, options);
+            if (data && data.data && data.data[0] && data.data[0].b64_json) {
+              setImageData(data.data[0].b64_json);
+            }
+          } else {
+            throw error;
+          }
         }
 
         // Update state with the image data
         if (isMounted && data) {
-          setImageData(data.data[0].b64_json);
           setProgress(100);
 
           // Clear progress timer
@@ -296,9 +315,8 @@ export function useImageGen({
       }
     };
 
-    // if (prompt) {
-      generateImage();
-    // }
+    // Always call the function since it handles both prompt-based generation and ID-based retrieval
+    loadOrGenerateImage();
 
     return () => {
       isMounted = false;
