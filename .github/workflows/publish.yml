@@ -18,16 +18,35 @@ jobs:
         with:
           node-version: '18'
           registry-url: 'https://registry.npmjs.org/'
-          cache: 'npm'
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+          run_install: false
+          
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+      
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
       
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install
       
       - name: Run tests
-        run: npm test
+        run: pnpm test
       
       - name: Run typecheck
-        run: npm run typecheck
+        run: pnpm run typecheck
       
       - name: Publish
         if: startsWith(github.ref, 'refs/tags/v')
@@ -40,4 +59,4 @@ jobs:
           echo "GITHUB_REF->"$GITHUB_REF
           # test tag signature
           git tag -v $(git describe --tags --abbrev=0)
-          npm publish 
+          pnpm publish --no-git-checks
