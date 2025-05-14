@@ -338,11 +338,94 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
               ⓘ
             </button>
             
-            <div className="flex items-center gap-2">
-              <button className="hover:text-gray-800" aria-label="Previous version" disabled={true}>◀︎</button>
-              <span className="text-sm" aria-live="polite">1 of 1</span>
-              <button className="hover:text-gray-800" aria-label="Next version" disabled={true}>▶︎</button>
-              <button className="ml-1 hover:text-gray-800" aria-label="Generate new version">⟳</button>
+            <div className="flex items-center gap-3" style={{ alignItems: 'center' }}>
+              {/* Previous button */}
+              <button 
+                aria-label="Previous version" 
+                disabled={true}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.7)',
+                  borderRadius: '50%',
+                  width: '28px',
+                  height: '28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: 'none',
+                  cursor: 'pointer',
+                  opacity: 0.5,
+                  transition: 'opacity 0.2s ease',
+                  padding: 0,
+                  fontSize: '14px',
+                }}
+                onMouseEnter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.opacity = '1')}
+                onMouseLeave={(e) => !e.currentTarget.disabled && (e.currentTarget.style.opacity = '0.5')}
+              >
+                ◀︎
+              </button>
+              
+              {/* Version indicator */}
+              <span 
+                className="version-indicator" 
+                aria-live="polite"
+                style={{ 
+                  fontSize: '14px',
+                  color: '#333',
+                  margin: '0 2px'
+                }}
+              >
+                1 of 1
+              </span>
+              
+              {/* Next button */}
+              <button 
+                aria-label="Next version" 
+                disabled={true}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.7)',
+                  borderRadius: '50%',
+                  width: '28px',
+                  height: '28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: 'none',
+                  cursor: 'pointer',
+                  opacity: 0.5,
+                  transition: 'opacity 0.2s ease',
+                  padding: 0,
+                  fontSize: '14px',
+                }}
+                onMouseEnter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.opacity = '1')}
+                onMouseLeave={(e) => !e.currentTarget.disabled && (e.currentTarget.style.opacity = '0.5')}
+              >
+                ▶︎
+              </button>
+              
+              {/* Refresh button */}
+              <button 
+                aria-label="Generate new version"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.7)',
+                  borderRadius: '50%',
+                  width: '28px',
+                  height: '28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: 'none',
+                  cursor: 'pointer',
+                  opacity: 0.5,
+                  transition: 'opacity 0.2s ease',
+                  padding: 0,
+                  fontSize: '14px',
+                  marginLeft: '4px'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
+              >
+                ⟳
+              </button>
             </div>
           </div>
         </div>
