@@ -1,21 +1,12 @@
 {
   "name": "use-vibes",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "type": "module",
   "description": "Transform any DOM element into an AI-powered micro-app",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.js",
-      "default": "./dist/index.js"
-    },
-    "./dist/*": "./dist/*",
-    "./package.json": "./package.json"
-  },
+  "exports": "./dist/index.js",
   "scripts": {
     "build": "tsc",
     "build:browser": "node scripts/build-browser.js",
