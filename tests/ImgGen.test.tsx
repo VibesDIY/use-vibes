@@ -116,27 +116,35 @@ describe('ImgGen Component', () => {
     expect(placeholder).toBeInTheDocument();
   });
 
-  it.skip('should attempt image generation with correct parameters', async () => {
-    // Set up mocks with minimal implementation
-    mockImageGen.mockClear().mockImplementation((prompt, options) => {
-      return Promise.resolve({
-        created: Date.now(),
-        data: [{
-          b64_json: mockBase64Image,
-          url: null,
-          revised_prompt: prompt
-        }]
-      });
+  it('should attempt image generation with correct parameters', async () => {
+    // Clear any previous mock calls
+    mockImageGen.mockReset();
+    
+    // Setup mock to return a successful response
+    mockImageGen.mockReturnValue(Promise.resolve({
+      created: Date.now(),
+      data: [{ b64_json: 'mockBase64Image' }]
+    }));
+    
+    // Custom options for testing
+    const customOptions = { size: '512x512', style: 'vivid' };
+    
+    // Render with prompt and options
+    await act(async () => {
+      render(<ImgGen prompt="beautiful landscape" options={customOptions} />);
+      
+      // Allow time for rendering and the API call to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
     });
     
-    // Render the component
-    render(<ImgGen prompt="beautiful landscape" options={{ size: '512x512' }} />);
-
-    // Just verify mockImageGen was called with the correct parameters
+    // Verify the mock was called with correct parameters
     expect(mockImageGen).toHaveBeenCalledWith(
       'beautiful landscape',
-      expect.objectContaining({ size: '512x512' })
+      expect.objectContaining(customOptions)
     );
+    
+    // Verify it was only called once
+    expect(mockImageGen).toHaveBeenCalledTimes(1);
   });
 
   it('should handle errors gracefully', async () => {
