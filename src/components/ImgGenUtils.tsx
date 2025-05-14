@@ -295,50 +295,56 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
           }}
         >
           
-          {/* Prompt text */}
+          {/* Single row layout for prompt text and all controls */}
           <div 
-            className="text-gray-700 truncate mb-1"
             style={{
-              color: '#333',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              marginBottom: '4px',
-            }}
-          >
-            {promptText}
-          </div>
-          
-          {/* Controls */}
-          <div 
-            className="flex items-center justify-between text-gray-600"
-            style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between',
+              display: 'flex',
               alignItems: 'center',
-              color: '#666',
+              justifyContent: 'space-between',
+              width: '100%',
             }}
           >
-            <button 
-              aria-label="Close info panel"
-              onClick={toggleOverlay}
-              style={{ 
-                background: 'none',
-                border: 'none',
-                fontSize: '24px',
-                color: '#333',
-                opacity: 0.5,
-                cursor: 'pointer',
-                padding: 0,
-                transition: 'opacity 0.2s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
-            >
-              ⓘ
-            </button>
+            {/* Left side: Info button and prompt text */}
+            <div style={{ display: 'flex', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
+              {/* Info button */}
+              <button 
+                aria-label="Close info panel"
+                onClick={toggleOverlay}
+                style={{ 
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  color: '#333',
+                  opacity: 0.5,
+                  cursor: 'pointer',
+                  padding: 0,
+                  marginRight: '8px',
+                  transition: 'opacity 0.2s ease',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
+              >
+                ⓘ
+              </button>
+              
+              {/* Prompt text */}
+              <div 
+                className="text-gray-700 truncate"
+                style={{
+                  color: '#333',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  fontSize: '14px',
+                }}
+              >
+                {promptText}
+              </div>
+            </div>
             
-            <div className="flex items-center gap-3" style={{ alignItems: 'center' }}>
+            {/* Right side: Version controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
               {/* Previous button */}
               <button 
                 aria-label="Previous version" 
@@ -371,7 +377,6 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
                 style={{ 
                   fontSize: '14px',
                   color: '#333',
-                  margin: '0 2px'
                 }}
               >
                 1 of 1
@@ -419,7 +424,6 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
                   transition: 'opacity 0.2s ease',
                   padding: 0,
                   fontSize: '14px',
-                  marginLeft: '4px'
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
                 onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
