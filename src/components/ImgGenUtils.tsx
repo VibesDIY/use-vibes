@@ -221,7 +221,7 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
         loading="lazy"
       />
       
-      {/* Simple info button that exactly matches the second screenshot */}
+      {/* Minimalist info icon with opacity change on hover */}
       <button 
         className="img-gen-info-button"
         onClick={toggleOverlay}
@@ -232,21 +232,19 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
           bottom: '10px',
           left: '10px',
           zIndex: 5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '8px 16px',
-          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          background: 'none',
           border: 'none',
-          borderRadius: '20px',
-          fontSize: '14px',
-          color: '#333',
+          fontSize: '24px',
+          color: 'white',
+          opacity: 0.5,
           cursor: 'pointer',
-          backdropFilter: 'blur(4px)',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          padding: 0,
+          transition: 'opacity 0.2s ease',
         }}
+        onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+        onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
       >
-        <span style={{ marginRight: '5px', fontWeight: 'bold' }}>ⓘ</span> 
+        ⓘ
       </button>
       
       {/* Overlay with image information and controls */}
@@ -311,12 +309,22 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
             }}
           >
             <button 
-              className="text-sm hover:text-gray-800" 
               aria-label="Close info panel"
               onClick={toggleOverlay}
-              style={{ fontSize: '14px' }}
+              style={{ 
+                background: 'none',
+                border: 'none',
+                fontSize: '24px',
+                color: '#333',
+                opacity: 0.5,
+                cursor: 'pointer',
+                padding: 0,
+                transition: 'opacity 0.2s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
             >
-              ⓘ 
+              ⓘ
             </button>
             
             <div className="flex items-center gap-2">
