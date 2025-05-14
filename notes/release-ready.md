@@ -5,12 +5,14 @@ This document outlines the tasks required to prepare useVibes for publishing to 
 ## Build Requirements
 
 - [ ] **ESM Module Build**
+
   - [ ] Verify TypeScript compilation settings in `tsconfig.json`
   - [ ] Ensure proper ESM exports in `package.json`
   - [ ] Generate declaration files (`.d.ts`)
   - [ ] Run build: `npm run build`
 
 - [ ] **IIFE Browser Build**
+
   - [ ] Review the browser build script (`scripts/build-browser.js`)
   - [ ] Ensure proper bundling of dependencies (excluding ones marked as external)
   - [ ] Verify browser compatibility (check for browser-specific APIs)
@@ -18,6 +20,7 @@ This document outlines the tasks required to prepare useVibes for publishing to 
   - [ ] Test IIFE build in browser environments
 
 - [ ] **Bookmarklet**
+
   - [ ] Create `scripts/generate-bookmarklet.js` as outlined in `notes/injecting.md`
   - [ ] Create `templates/bookmarklet-template.js` with the bookmarklet source code
   - [ ] Add `build:bookmarklet` script to `package.json`
@@ -30,17 +33,20 @@ This document outlines the tasks required to prepare useVibes for publishing to 
 ## Testing
 
 - [ ] **Unit Tests**
+
   - [ ] Ensure comprehensive test coverage for all core functionality
   - [ ] Run tests: `npm test`
   - [ ] Fix any failing tests
 
 - [ ] **Browser Tests**
+
   - [ ] Verify the browser test setup with Playwright
   - [ ] Test in multiple browsers (Chrome, Firefox, Safari)
   - [ ] Run browser tests: `npm run test:browser`
   - [ ] Fix any failing tests
 
 - [ ] **Integration Tests**
+
   - [ ] Test with the example application
   - [ ] Verify the bookmarklet works correctly
   - [ ] Test with different types of DOM elements and prompts
@@ -52,6 +58,7 @@ This document outlines the tasks required to prepare useVibes for publishing to 
 ## Documentation
 
 - [ ] **README.md**
+
   - [ ] Update with final installation instructions
   - [ ] Add comprehensive API documentation
   - [ ] Include examples for different use cases
@@ -60,10 +67,12 @@ This document outlines the tasks required to prepare useVibes for publishing to 
   - [ ] Include browser compatibility information
 
 - [ ] **API Documentation**
+
   - [ ] Add JSDoc comments to all public methods and interfaces
   - [ ] Generate API docs if using a documentation tool
 
 - [ ] **Example Code**
+
   - [ ] Update the example app to use the published package (after initial release)
   - [ ] Ensure examples are clear and well-documented
   - [ ] Include a variety of use cases
@@ -75,6 +84,7 @@ This document outlines the tasks required to prepare useVibes for publishing to 
 ## Package Configuration
 
 - [ ] **package.json**
+
   - [ ] Update to final version (e.g., `1.0.0` for initial release)
   - [ ] Verify package name availability on npm
   - [ ] Update description, keywords, and author information
@@ -93,6 +103,7 @@ This document outlines the tasks required to prepare useVibes for publishing to 
   ```
 
 - [ ] **.npmignore**
+
   - [ ] Create or update to exclude test files, fixtures, and docs
   - [ ] Ensure critical files are not excluded (check exclusions against `files` array)
 
@@ -102,14 +113,17 @@ This document outlines the tasks required to prepare useVibes for publishing to 
 ## Quality Assurance
 
 - [ ] **Linting**
+
   - [ ] Run ESLint: `npm run lint`
   - [ ] Fix any linting issues: `npm run lint:fix`
 
 - [ ] **Code Formatting**
+
   - [ ] Run Prettier: `npm run format`
   - [ ] Ensure consistent code style
 
 - [ ] **Bundle Size Analysis**
+
   - [ ] Analyze bundle size for browser builds
   - [ ] Optimize if needed (tree-shaking, code splitting, etc.)
 
@@ -120,10 +134,12 @@ This document outlines the tasks required to prepare useVibes for publishing to 
 ## Pre-Publish Checklist
 
 - [ ] **Version Bump**
+
   - [ ] Update version in `package.json`
   - [ ] Create version commit and tag
 
 - [ ] **Changelog**
+
   - [ ] Create or update CHANGELOG.md with release notes
   - [ ] Document breaking changes, new features, and bug fixes
 
@@ -136,10 +152,12 @@ This document outlines the tasks required to prepare useVibes for publishing to 
 ## Publishing
 
 - [ ] **Dry Run**
+
   - [ ] Run `npm publish --dry-run` to verify package contents
   - [ ] Review the files that would be published
 
 - [ ] **Publish to npm**
+
   - [ ] Run `npm publish` (use `--tag beta` for pre-releases)
   - [ ] Verify the package is available on npm
 

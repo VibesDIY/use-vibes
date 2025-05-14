@@ -19,7 +19,7 @@ vi.mock('call-ai', () => {
         ],
       });
     }),
-    callAI: vi.fn()
+    callAI: vi.fn(),
   };
 });
 
@@ -30,9 +30,9 @@ vi.mock('use-fireproof', () => {
       database: {
         get: vi.fn().mockRejectedValue(new Error('Not found')),
         put: vi.fn().mockResolvedValue({ ok: true }),
-      }
+      },
     }),
-    ImgFile: ({ alt }: { alt?: string }) => <div data-testid="mock-img">{alt}</div>
+    ImgFile: ({ alt }: { alt?: string }) => <div data-testid="mock-img">{alt}</div>,
   };
 });
 
@@ -60,11 +60,11 @@ describe('ImgGen Render Test', () => {
     });
 
     // Wait a bit to ensure any effects have run
-    await new Promise(r => setTimeout(r, 100));
-    
+    await new Promise((r) => setTimeout(r, 100));
+
     // Check how many times imageGen was called
     console.log('Number of imageGen calls:', mockImageGen.mock.calls.length);
-    
+
     // This should be 1, but the bug might show 2 or more
     expect(mockImageGen).toHaveBeenCalledTimes(1);
   });
@@ -73,43 +73,40 @@ describe('ImgGen Render Test', () => {
     // Test component that can change props
     function TestWrapper() {
       const [prompt, setPrompt] = useState('initial prompt');
-      
+
       return (
         <div>
           <ImgGen prompt={prompt} />
-          <button 
-            data-testid="change-prompt" 
-            onClick={() => setPrompt('new prompt')}
-          >
+          <button data-testid="change-prompt" onClick={() => setPrompt('new prompt')}>
             Change Prompt
           </button>
         </div>
       );
     }
-    
+
     await act(async () => {
       render(<TestWrapper />);
     });
-    
+
     // Wait for initial render to complete
-    await new Promise(r => setTimeout(r, 100));
-    
+    await new Promise((r) => setTimeout(r, 100));
+
     // Check initial calls
     const initialCalls = mockImageGen.mock.calls.length;
     console.log('Initial imageGen calls:', initialCalls);
-    
+
     // Change the prompt
     await act(async () => {
       screen.getByTestId('change-prompt').click();
     });
-    
+
     // Wait for effects to run
-    await new Promise(r => setTimeout(r, 100));
-    
+    await new Promise((r) => setTimeout(r, 100));
+
     // Should only have one additional call
     const finalCalls = mockImageGen.mock.calls.length;
     console.log('Final imageGen calls:', finalCalls);
-    
+
     // We expect exactly one more call
     expect(finalCalls).toBe(initialCalls + 1);
   });

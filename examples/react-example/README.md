@@ -34,7 +34,7 @@ function App() {
   return (
     <div className="container">
       <h1>Image Generator</h1>
-      
+
       <div className="input-container">
         <input
           type="text"
@@ -44,7 +44,7 @@ function App() {
           className="prompt-input"
         />
       </div>
-      
+
       <div className="image-container">
         <ImgGen prompt={prompt} />
       </div>

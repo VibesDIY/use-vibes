@@ -5,6 +5,7 @@ useVibes is a vanilla browser TypeScript module that transforms a designated DOM
 ---
 
 ## Overview
+
 - **Purpose:**
   Transform any DOM element into a self-contained, AI-driven micro-app by extracting and utilizing the page's inherent state.
 - **Core Features:**
@@ -18,6 +19,7 @@ useVibes is a vanilla browser TypeScript module that transforms a designated DOM
 ## Usage
 
 To use useVibes, simply call the function with a target element (CSS selector or DOM element) and a configuration object containing your prompt. The function returns a Promise that resolves to an app instance with the following properties:
+
 - **container:**
   The DOM element into which the micro-app is injected.
 - **database:**
@@ -28,26 +30,27 @@ To use useVibes, simply call the function with a target element (CSS selector or
 ```typescript
 import { useVibes } from 'useVibes';
 
-useVibes("#app", { prompt: "create a todo list with emojis" })
+useVibes('#app', { prompt: 'create a todo list with emojis' })
   .then((app) => {
-    console.log("Micro-app created successfully!");
+    console.log('Micro-app created successfully!');
 
     // Log the container element
-    console.log("Injected into:", app.container);
+    console.log('Injected into:', app.container);
 
     // If a database is later configured, it can be accessed via app.database
     if (app.database) {
-      console.log("Database configured as:", app.database);
+      console.log('Database configured as:', app.database);
     }
   })
   .catch((error) => {
-    console.error("Error during injection:", error);
+    console.error('Error during injection:', error);
   });
 ```
 
 ---
 
 ## Quick Start
+
 1. **Include the Module:**
    Import or bundle useVibes as an ESM module in your project.
 2. **Prepare Your HTML:**

@@ -54,7 +54,7 @@ export function useVibes(target: string | HTMLElement, config: UseVibesConfig): 
 
   // Capture the current HTML state
   const htmlContext = document.body.innerHTML;
-  
+
   // Build the prompt for the AI
   const userPrompt = `
     Transform the HTML content based on this request: ${config.prompt}
@@ -72,14 +72,14 @@ export function useVibes(target: string | HTMLElement, config: UseVibesConfig): 
   const schema = {
     properties: {
       html: {
-        type: "string",
-        description: "The HTML content to inject into the target element"
+        type: 'string',
+        description: 'The HTML content to inject into the target element',
       },
       explanation: {
-        type: "string",
-        description: "A brief explanation of the changes made (optional)"
-      }
-    }
+        type: 'string',
+        description: 'A brief explanation of the changes made (optional)',
+      },
+    },
   };
 
   // Call the AI with the prompt and schema
@@ -88,15 +88,15 @@ export function useVibes(target: string | HTMLElement, config: UseVibesConfig): 
       try {
         // Parse the JSON response
         const result = JSON.parse(response);
-        
+
         // Extract HTML from structured response and inject it into the target element
         targetElement.innerHTML = result.html;
-        
+
         // Log explanation if provided
         if (result.explanation) {
           console.log('AI explanation:', result.explanation);
         }
-        
+
         // Return the app instance
         return {
           container: targetElement,
@@ -111,13 +111,13 @@ export function useVibes(target: string | HTMLElement, config: UseVibesConfig): 
       console.error('Error calling AI:', error);
       return Promise.reject(new Error(`Failed to process prompt: ${error.message}`));
     });
-
 }
 ```
 
 ### 3. Error Handling
 
 Add additional error handling for:
+
 - Missing or invalid configuration
 - AI processing failures
 - JSON parsing errors
@@ -134,19 +134,19 @@ import { test, expect } from '@playwright/test';
 test('useVibes basic functionality', async ({ page }) => {
   // Load the test page with useVibes script
   await page.goto('http://localhost:3000/test-page.html');
-  
+
   // Execute useVibes with a simple prompt
   const result = await page.evaluate(async () => {
     const { useVibes } = window as any;
-    const app = await useVibes('#test-container', { 
-      prompt: 'Create a hello world message with a blue background' 
+    const app = await useVibes('#test-container', {
+      prompt: 'Create a hello world message with a blue background',
     });
     return !!app.container;
   });
-  
+
   // Verify that useVibes executed successfully
   expect(result).toBeTruthy();
-  
+
   // Check that content was injected into the target container
   const content = await page.textContent('#test-container');
   expect(content).not.toBeNull();

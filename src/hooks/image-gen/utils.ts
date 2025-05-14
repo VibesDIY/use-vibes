@@ -7,7 +7,7 @@ export const MODULE_STATE: ModuleState = {
   pendingPrompts: new Set(),
   processingRequests: new Set(),
   requestTimestamps: new Map(),
-  requestCounter: 0
+  requestCounter: 0,
 };
 
 // Periodically clean up stale requests (every minute)
@@ -34,14 +34,16 @@ export function hashInput(prompt: string, options?: any): string {
   const inputString = JSON.stringify({
     prompt,
     // Only include relevant options properties to avoid unnecessary regeneration
-    options: options ? {
-      size: options.size,
-      quality: options.quality,
-      model: options.model,
-      style: options.style,
-    } : undefined
+    options: options
+      ? {
+          size: options.size,
+          quality: options.quality,
+          model: options.model,
+          style: options.style,
+        }
+      : undefined,
   });
-  
+
   // Use a fast non-crypto hash for immediate results (FNV-1a algorithm)
   let hash = 2166136261; // FNV offset basis
   for (let i = 0; i < inputString.length; i++) {
@@ -49,11 +51,11 @@ export function hashInput(prompt: string, options?: any): string {
     // Multiply by the FNV prime (32-bit)
     hash = Math.imul(hash, 16777619);
   }
-  
+
   // Convert to hex string and take first 12 chars
   const hashHex = (hash >>> 0).toString(16).padStart(8, '0');
   const requestId = hashHex.slice(0, 12);
-  
+
   // Add a timestamp to make the ID unique even for identical requests
   return `${requestId}-${Date.now().toString(36)}`;
 }
@@ -63,11 +65,11 @@ export function base64ToFile(base64Data: string, filename: string): File {
   const byteString = atob(base64Data);
   const ab = new ArrayBuffer(byteString.length);
   const ia = new Uint8Array(ab);
-  
+
   for (let i = 0; i < byteString.length; i++) {
     ia[i] = byteString.charCodeAt(i);
   }
-  
+
   const blob = new Blob([ab], { type: 'image/png' });
   return new File([blob], filename, { type: 'image/png' });
 }
@@ -77,10 +79,12 @@ export function base64ToFile(base64Data: string, filename: string): File {
  * to avoid unnecessary re-renders or regenerations
  */
 export function getRelevantOptions(options?: ImageGenOptions): Record<string, any> {
-  return options ? {
-    size: options.size,
-    quality: options.quality,
-    model: options.model,
-    style: options.style
-  } : {};
+  return options
+    ? {
+        size: options.size,
+        quality: options.quality,
+        model: options.model,
+        style: options.style,
+      }
+    : {};
 }

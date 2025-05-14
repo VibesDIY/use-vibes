@@ -76,8 +76,9 @@ vim README.md
 ```
 
 I added a proper usage section with code examples showing:
+
 - Basic usage
-- Configuration options 
+- Configuration options
 - Error handling
 - Browser integration via the IIFE
 - Bookmarklet usage
@@ -110,7 +111,7 @@ Ran the full test suite to ensure everything works:
 npm test
 # Fixed a couple failing tests related to recent changes
 
-# Run browser tests 
+# Run browser tests
 npm run test:browser
 # All good!
 
@@ -153,6 +154,7 @@ npm pack --dry-run
 The package is now ready for publishing! Here's my release plan:
 
 1. Do one final test of the example app:
+
 ```bash
 cd example
 npm install
@@ -162,6 +164,7 @@ npm run dev
 ```
 
 2. Create a proper git tag and release commit:
+
 ```bash
 git add .
 git commit -m "Prepare for v0.1.0 release"
@@ -169,12 +172,14 @@ git tag v0.1.0
 ```
 
 3. Publish to npm:
+
 ```bash
 # We'll use the public access flag since this is a scoped package
 npm publish --access public
 ```
 
 4. Post-release:
+
 - Create a GitHub release with notes
 - Update our example app to use the published package
 - Announce the release to interested parties

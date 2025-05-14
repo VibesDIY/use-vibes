@@ -19,6 +19,7 @@
   "scripts": {
     "build": "tsc",
     "lint": "eslint src --ext .ts,.tsx",
+    "format": "prettier --write \"./**/*.{js,jsx,ts,tsx,json,md}\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "rimraf dist",
@@ -49,6 +50,7 @@
     "@vitejs/plugin-react": "^4.4.1",
     "eslint": "^8.56.0",
     "jsdom": "^26.1.0",
+    "prettier": "^3.5.3",
     "rimraf": "^5.0.5",
     "typescript": "^5.3.3",
     "vitest": "^1.2.2"
