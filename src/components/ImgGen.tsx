@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ImageGenOptions, ImageResponse } from 'call-ai';
 import { useImageGen } from '../hooks/use-image-gen';
+import { ImgFile } from 'use-fireproof';
 
 export interface ImgGenProps {
   /** Text prompt for image generation (required) */
@@ -20,6 +21,9 @@ export interface ImgGenProps {
 
   /** Alt text for the image (defaults to prompt) */
   alt?: string;
+  
+  /** Database name or Fireproof database instance (defaults to "ImgGen") */
+  database?: string | any;
 }
 
 /**
@@ -33,13 +37,15 @@ export const ImgGen: React.FC<ImgGenProps> = ({
   onLoad,
   className = '',
   alt,
+  database,
 }) => {
   // Use the custom hook for all the image generation logic
-  const { imageData, loading, progress, error, size } = useImageGen({
+  const { imageData, loading, progress, error, size, document } = useImageGen({
     prompt,
     options,
     beforeLoad,
     onLoad,
+    database,
   });
   
   // Render placeholder while loading
@@ -88,21 +94,30 @@ export const ImgGen: React.FC<ImgGenProps> = ({
     );
   }
 
-  // Render the generated image
-  return (
-    <img
-      src={`data:image/png;base64,${imageData}`}
-      className={`img-gen ${className}`}
-      alt={alt || prompt}
-      style={{
-        width: '100%',
-        height: '100%',
-        objectFit: 'cover',
-        display: 'block',
-      }}
-      loading="lazy"
-    />
-  );
+  // No longer need fileUrl state since ImgFile component handles file rendering
+  
+  // No longer need the effect to create object URLs since ImgFile handles this for us
+  
+  // Render using ImgFile component from Fireproof when document is available
+  if (document && document._files && document._files.image) {
+    return (
+      <ImgFile
+        file={document._files.image}
+        className={`img-gen ${className}`}
+        alt={alt || prompt}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          display: 'block',
+        }}
+        loading="lazy"
+      />
+    );
+  }
+  
+  // This should never happen but added as a failsafe
+  return null;
 };
 
 export default ImgGen;

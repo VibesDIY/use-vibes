@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { imageGen } from 'call-ai';
 import type { ImageGenOptions, ImageResponse } from 'call-ai';
+import { useFireproof } from 'use-fireproof';
+import type { DocFileMeta } from 'use-fireproof';
 
 /**
  * Hash function to create a key from the prompt string
@@ -17,30 +19,28 @@ function hashPrompt(prompt: string): string {
   return hash.toString(16);
 }
 
-interface CacheImplementation {
-  get: (key: string) => ImageResponse | null;
-  set: (key: string, value: ImageResponse) => void;
+// Interface for our image documents in Fireproof
+interface ImageDocument extends Record<string, any> {
+  _id: string;
+  type: 'image';
+  prompt: string;
+  _files?: Record<string, File | DocFileMeta>;
+  created?: number;
 }
 
-// Default cache implementation using localStorage
-const defaultCacheImpl: CacheImplementation = {
-  get: (key: string): ImageResponse | null => {
-    try {
-      const data = localStorage.getItem(`imggen-${key}`);
-      return data ? JSON.parse(data) : null;
-    } catch (e) {
-      console.error('Error retrieving from ImgGen cache', e);
-      return null;
-    }
-  },
-  set: (key: string, value: ImageResponse): void => {
-    try {
-      localStorage.setItem(`imggen-${key}`, JSON.stringify(value));
-    } catch (e) {
-      console.error('Error storing in ImgGen cache', e);
-    }
-  },
-};
+// Convert base64 to File object
+function base64ToFile(base64Data: string, filename: string): File {
+  const byteString = atob(base64Data);
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  
+  const blob = new Blob([ab], { type: 'image/png' });
+  return new File([blob], filename, { type: 'image/png' });
+}
 
 export interface UseImageGenOptions {
   /** Text prompt for image generation */
@@ -54,6 +54,9 @@ export interface UseImageGenOptions {
   
   /** Callback when image data is loaded */
   onLoad?: (response: ImageResponse) => void;
+  
+  /** Fireproof database name or instance */
+  database?: string | any;
 }
 
 export interface UseImageGenResult {
@@ -74,6 +77,9 @@ export interface UseImageGenResult {
     width: number;
     height: number;
   };
+  
+  /** Document for the generated image */
+  document: ImageDocument | null;
 }
 
 /**
@@ -85,13 +91,18 @@ export function useImageGen({
   options = {},
   beforeLoad,
   onLoad,
+  database = "ImgGen",
 }: UseImageGenOptions): UseImageGenResult {
   const [imageData, setImageData] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [error, setError] = useState<Error | null>(null);
-  const progressTimerRef = useRef<number | null>(null);
+  const [document, setDocument] = useState<ImageDocument | null>(null);
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const promptKey = hashPrompt(prompt);
+  
+  // Initialize Fireproof database
+  const { database: db } = useFireproof(database);
   
   const size = options?.size || '1024x1024';
   const [width, height] = size.split('x').map(Number);
@@ -141,25 +152,86 @@ export function useImageGen({
         }, 1000);
         progressTimerRef.current = timer;
 
-        // Try to get from cache via the beforeLoad callback if provided
+        // Try to get from Fireproof cache first
         let data: ImageResponse | null = null;
-
-        if (beforeLoad) {
-          data = await beforeLoad(promptKey);
-        } else {
-          // Use default cache implementation
-          data = defaultCacheImpl.get(promptKey);
+        const docId = `img:${promptKey}`;
+        
+        try {
+          // Try to get from Fireproof first
+          const existingDoc = await db.get(docId).catch(() => null);
+          
+          if (existingDoc && existingDoc._files) {
+            // Document exists, set it
+            setDocument(existingDoc as unknown as ImageDocument);
+            
+            // For backward compatibility, still use beforeLoad if provided
+            if (beforeLoad) {
+              data = await beforeLoad(promptKey);
+            }
+            
+            // If we don't have the data yet but have a file in the document
+            if (!data && existingDoc._files.image && 'file' in existingDoc._files.image && typeof existingDoc._files.image.file === 'function') {
+              const fileObj = await existingDoc._files.image.file();
+              // Read the file as base64
+              const reader = new FileReader();
+              const base64Promise = new Promise<string>((resolve, reject) => {
+                reader.onload = () => {
+                  const base64 = reader.result as string;
+                  // Strip the data URL prefix if present
+                  const base64Data = base64.split(',')[1] || base64;
+                  resolve(base64Data);
+                };
+                reader.onerror = reject;
+              });
+              reader.readAsDataURL(fileObj);
+              const base64Data = await base64Promise;
+              
+              // Create a response-like object
+              data = {
+                data: [{ b64_json: base64Data }]
+              } as ImageResponse;
+            }
+          } else if (beforeLoad) {
+            // If not in Fireproof but we have a beforeLoad callback
+            data = await beforeLoad(promptKey);
+          }
+        } catch (err) {
+          console.error('Error retrieving from Fireproof:', err);
+          // Still try the beforeLoad callback if available
+          if (beforeLoad) {
+            data = await beforeLoad(promptKey);
+          }
         }
 
         // If no data in cache, generate new image
         if (!data) {
           // Use the actual imageGen function from call-ai
           data = await imageGen(prompt, options);
-
-          // Cache the result using default implementation
-          // if beforeLoad wasn't provided
-          if (!beforeLoad) {
-            defaultCacheImpl.set(promptKey, data);
+          
+          // Store in Fireproof
+          if (data && data.data && data.data[0] && data.data[0].b64_json) {
+            try {
+              // Create a File object from the base64 data
+              const imageFile = base64ToFile(data.data[0].b64_json, 'image.png');
+              
+              // Create or update the document
+              const imgDoc: ImageDocument = {
+                _id: docId,
+                type: 'image',
+                prompt,
+                created: Date.now(),
+                _files: {
+                  image: imageFile
+                }
+              };
+              
+              // Save to Fireproof
+              await db.put(imgDoc);
+              const savedDoc = await db.get(docId);
+              setDocument(savedDoc as unknown as ImageDocument);
+            } catch (err) {
+              console.error('Error saving to Fireproof:', err);
+            }
           }
         }
 
@@ -207,6 +279,7 @@ export function useImageGen({
     loading,
     progress,
     error,
-    size: { width, height }
+    size: { width, height },
+    document
   };
 }
