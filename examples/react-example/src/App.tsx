@@ -29,10 +29,17 @@ function App() {
     // Set the active prompt that gets passed to ImgGen only when button is clicked
     setActivePrompt(inputPrompt)
     setIsGenerating(true)
-    // Simulate image generation
-    setTimeout(() => {
-      setIsGenerating(false)
-    }, 2000)
+    // ImgGen will call onLoad or onError when generation completes
+  }
+  
+  const handleImageLoad = () => {
+    console.log('Image generation completed!')
+    setIsGenerating(false)
+  }
+  
+  const handleImageError = (error: Error) => {
+    console.error('Image generation failed:', error)
+    setIsGenerating(false)
   }
 
   // Get all documents with type: 'image'
@@ -66,6 +73,8 @@ function App() {
             imgUrl: 'https://vibecode.garden',
             size: '1024x1024'
           }}
+          onLoad={handleImageLoad}
+          onError={handleImageError}
         />
       </div>
       

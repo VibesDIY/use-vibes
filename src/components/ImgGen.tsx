@@ -18,6 +18,12 @@ export interface ImgGenProps {
   
   /** Database name or Fireproof database instance (defaults to "ImgGen") */
   database?: string | any;
+  
+  /** Called when image generation completes successfully */
+  onLoad?: () => void;
+  
+  /** Called when image generation fails with the error */
+  onError?: (error: Error) => void;
 }
 
 /**
@@ -30,6 +36,8 @@ export const ImgGen: React.FC<ImgGenProps> = ({
   className = '',
   alt,
   database,
+  onLoad,
+  onError,
 }) => {
   // Use the custom hook for all the image generation logic
   const { imageData, loading, progress, error, size, document } = useImageGen({
@@ -37,6 +45,19 @@ export const ImgGen: React.FC<ImgGenProps> = ({
     options,
     database,
   });
+  
+  // Call onLoad/onError callbacks when status changes
+  React.useEffect(() => {
+    if (!loading) {
+      if (error) {
+        // Image generation failed
+        onError?.(error);
+      } else if (document && document._files && document._files.image) {
+        // Image generation succeeded
+        onLoad?.();
+      }
+    }
+  }, [loading, error, document, onLoad, onError]);
   
   // Render placeholder while loading
   if (loading || !imageData) {
@@ -84,10 +105,6 @@ export const ImgGen: React.FC<ImgGenProps> = ({
     );
   }
 
-  // No longer need fileUrl state since ImgFile component handles file rendering
-  
-  // No longer need the effect to create object URLs since ImgFile handles this for us
-  
   // Render using ImgFile component from Fireproof when document is available
   if (document && document._files && document._files.image) {
     return (
