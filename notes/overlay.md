@@ -21,8 +21,8 @@ The current `ImgGen` component and related utilities (`ImgGenUtils`) support the
 - Display delete button (✕) in the top-right corner of the image (only visible in this state)
 - The delete button should also appear briefly on hover even when overlay is closed for discoverability
 
-### `VERSIONS_VIEW` (formerly State 5)
-- Implement version history tracking when new versions are generated
+**When multiple versions exist:**
+- Show version history navigation controls in the overlay
 - Enable left/right arrow navigation buttons (◀︎ ▶︎) with keyboard support (← → arrow keys)
 - Display current version indicator (e.g., "2 of 3") with appropriate ARIA attributes
 - Implement refresh button (⟳) functionality to generate new versions
@@ -94,7 +94,8 @@ The current `ImgGen` component and related utilities (`ImgGenUtils`) support the
   - Test version navigation utilities without DOM dependencies
 
 - **Component Tests**:
-  - Verify all states function correctly (`READY`, `OVERLAY_OPEN`, etc.)
+  - Verify all states function correctly (`READY`, `OVERLAY_OPEN`, `DELETE_CONFIRM`)
+  - Test conditional rendering of version controls when multiple versions exist
   - Test keyboard interactions (arrows, ESC, Tab trapping)
   - Ensure proper error handling for regeneration failures
 
