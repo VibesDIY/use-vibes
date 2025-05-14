@@ -337,10 +337,13 @@ export function useImageGen({
             throw new Error('Document not found and no prompt provided for generation');
           }
         } catch (error) {
+          // Log but don't attempt a second generation if we already tried once
           console.error('Error retrieving from Fireproof:', error);
           
-          // If we have a prompt, try direct generation as fallback
-          if (prompt && !data) {
+          // Only try image generation as fallback if we haven't already done it
+          // and we have a prompt to use
+          if (prompt && !data && !docId.startsWith('img:')) {
+            // This is likely for a document lookup that failed, so try generation as last resort
             data = await callImageGeneration(prompt, options);
             if (data && data.data && data.data[0] && data.data[0].b64_json) {
               setImageData(data.data[0].b64_json);
