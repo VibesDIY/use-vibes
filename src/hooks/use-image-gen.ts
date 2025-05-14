@@ -49,12 +49,6 @@ export interface UseImageGenOptions {
   /** Options for image generation */
   options?: ImageGenOptions;
   
-  /** Callback to retrieve cached data before load */
-  beforeLoad?: (key: string) => ImageResponse | null | Promise<ImageResponse | null>;
-  
-  /** Callback when image data is loaded */
-  onLoad?: (response: ImageResponse) => void;
-  
   /** Fireproof database name or instance */
   database?: string | any;
 }
@@ -89,8 +83,6 @@ export interface UseImageGenResult {
 export function useImageGen({
   prompt,
   options = {},
-  beforeLoad,
-  onLoad,
   database = "ImgGen",
 }: UseImageGenOptions): UseImageGenResult {
   const [imageData, setImageData] = useState<string | null>(null);
@@ -164,13 +156,8 @@ export function useImageGen({
             // Document exists, set it
             setDocument(existingDoc as unknown as ImageDocument);
             
-            // For backward compatibility, still use beforeLoad if provided
-            if (beforeLoad) {
-              data = await beforeLoad(promptKey);
-            }
-            
-            // If we don't have the data yet but have a file in the document
-            if (!data && existingDoc._files.image && 'file' in existingDoc._files.image && typeof existingDoc._files.image.file === 'function') {
+            // If we have a file in the document, read it for backward compatibility with our state
+            if (existingDoc._files.image && 'file' in existingDoc._files.image && typeof existingDoc._files.image.file === 'function') {
               const fileObj = await existingDoc._files.image.file();
               // Read the file as base64
               const reader = new FileReader();
@@ -191,16 +178,9 @@ export function useImageGen({
                 data: [{ b64_json: base64Data }]
               } as ImageResponse;
             }
-          } else if (beforeLoad) {
-            // If not in Fireproof but we have a beforeLoad callback
-            data = await beforeLoad(promptKey);
           }
         } catch (err) {
           console.error('Error retrieving from Fireproof:', err);
-          // Still try the beforeLoad callback if available
-          if (beforeLoad) {
-            data = await beforeLoad(promptKey);
-          }
         }
 
         // If no data in cache, generate new image
@@ -219,6 +199,7 @@ export function useImageGen({
                 _id: docId,
                 type: 'image',
                 prompt,
+                options,
                 created: Date.now(),
                 _files: {
                   image: imageFile
@@ -246,10 +227,7 @@ export function useImageGen({
             progressTimerRef.current = null;
           }
 
-          // Call onLoad callback if provided
-          if (onLoad) {
-            onLoad(data);
-          }
+          // All done successfully
         }
       } catch (err) {
         if (isMounted) {
@@ -272,7 +250,7 @@ export function useImageGen({
     return () => {
       isMounted = false;
     };
-  }, [prompt, JSON.stringify(options), promptKey, beforeLoad, onLoad]);
+  }, [prompt, JSON.stringify(options), promptKey, database]);
 
   return {
     imageData,

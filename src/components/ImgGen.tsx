@@ -10,12 +10,6 @@ export interface ImgGenProps {
   /** Options for image generation (optional) */
   options?: ImageGenOptions;
 
-  /** Callback to retrieve cached data before load (optional) */
-  beforeLoad?: (key: string) => ImageResponse | null | Promise<ImageResponse | null>;
-
-  /** Callback when image data is loaded (optional) */
-  onLoad?: (response: ImageResponse) => void;
-
   /** CSS class name for the image element (optional) */
   className?: string;
 
@@ -33,8 +27,6 @@ export interface ImgGenProps {
 export const ImgGen: React.FC<ImgGenProps> = ({
   prompt,
   options = {},
-  beforeLoad,
-  onLoad,
   className = '',
   alt,
   database,
@@ -43,8 +35,6 @@ export const ImgGen: React.FC<ImgGenProps> = ({
   const { imageData, loading, progress, error, size, document } = useImageGen({
     prompt,
     options,
-    beforeLoad,
-    onLoad,
     database,
   });
   
