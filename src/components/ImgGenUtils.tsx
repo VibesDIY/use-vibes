@@ -247,6 +247,35 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
         ⓘ
       </button>
       
+      {/* Delete button only visible when overlay is open - positioned at the top right of the image */}
+      {isOverlayOpen && (
+        <button 
+          aria-label="Delete image"
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            zIndex: 20,
+            backgroundColor: 'rgba(255, 255, 255, 0.7)',
+            borderRadius: '50%',
+            width: '30px',
+            height: '30px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            border: 'none',
+            fontSize: '16px',
+            opacity: 0.5,
+            transition: 'opacity 0.2s ease',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
+        >
+          ✕
+        </button>
+      )}
+      
       {/* Overlay with image information and controls */}
       {isOverlayOpen && (
         <div 
@@ -265,24 +294,6 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
             flexDirection: 'column',
           }}
         >
-          {/* Delete button only visible when overlay is open */}
-          <button 
-            aria-label="Delete image"
-            className="absolute top-2 right-2 bg-white/60 hover:bg-white/80 rounded-full w-6 h-6 flex items-center justify-center"
-            style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.6)',
-              borderRadius: '50%',
-              width: '24px',
-              height: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'background-color 0.2s ease',
-            }}
-          >
-            <span className="text-gray-700">✕</span>
-          </button>
           
           {/* Prompt text */}
           <div 
