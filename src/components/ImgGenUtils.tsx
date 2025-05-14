@@ -178,6 +178,7 @@ export interface ImgGenDisplayProps {
   document: {
     _id: string;
     _files?: Record<string, File | DocFileMeta>;
+    prompt?: string; // Add prompt property to the document type
   };
   className?: string;
   alt?: string;
@@ -185,22 +186,129 @@ export interface ImgGenDisplayProps {
 
 // Component for displaying the generated image
 export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) {
+  const [isOverlayOpen, setIsOverlayOpen] = React.useState(false);
+
   if (!document._files || !document._files.image) {
     return <ImgGenError message="Missing image file" />;
   }
 
+  // The prompt might be stored in the document itself
+  const promptText = document.prompt || alt || 'Generated image';
+
+  // Toggle overlay visibility
+  const toggleOverlay = () => {
+    setIsOverlayOpen(!isOverlayOpen);
+  };
+
   return (
-    <ImgFile
-      file={document._files.image}
-      className={`img-gen ${className || ''}`}
-      alt={alt || ''}
-      style={{
-        width: '100%',
-        height: '100%',
-        objectFit: 'cover',
-        display: 'block',
-      }}
-      loading="lazy"
-    />
+    <div className="img-gen-container relative" style={{ width: '100%', height: '100%' }}>
+      <ImgFile
+        file={document._files.image}
+        className={`img-gen ${className || ''}`}
+        alt={alt || ''}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          display: 'block',
+        }}
+        loading="lazy"
+      />
+      
+      {/* Info button always visible at the bottom */}
+      <div 
+        className="img-gen-info-button absolute bottom-2 left-2 flex items-center"
+        style={{
+          padding: '4px 8px',
+          backgroundColor: 'rgba(255, 255, 255, 0.7)',
+          borderRadius: '12px',
+          fontSize: '14px',
+          cursor: 'pointer',
+          backdropFilter: 'blur(4px)',
+          transition: 'opacity 0.2s ease',
+        }}>
+        <button 
+          aria-label="Image information"
+          aria-expanded={isOverlayOpen}
+          className="info-button flex items-center"
+          onClick={toggleOverlay}
+        >
+          <span style={{ marginRight: '4px' }}>ⓘ</span> Info
+        </button>
+      </div>
+      
+      {/* Overlay with image information and controls */}
+      {isOverlayOpen && (
+        <div 
+          className="img-gen-overlay absolute bottom-0 left-0 right-0 bg-white/50 backdrop-blur-sm px-3 py-2 flex flex-col"
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.5)',
+            backdropFilter: 'blur(4px)',
+            transition: 'opacity 0.2s ease',
+            zIndex: 10,
+          }}
+        >
+          {/* Delete button only visible when overlay is open */}
+          <button 
+            aria-label="Delete image"
+            className="absolute top-2 right-2 bg-white/60 hover:bg-white/80 rounded-full w-6 h-6 flex items-center justify-center"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.6)',
+              borderRadius: '50%',
+              width: '24px',
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s ease',
+            }}
+          >
+            <span className="text-gray-700">✕</span>
+          </button>
+          
+          {/* Prompt text */}
+          <div 
+            className="text-gray-700 truncate mb-1"
+            style={{
+              color: '#333',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              marginBottom: '4px',
+            }}
+          >
+            {promptText}
+          </div>
+          
+          {/* Controls */}
+          <div 
+            className="flex items-center justify-between text-gray-600"
+            style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              color: '#666',
+            }}
+          >
+            <button 
+              className="text-sm hover:text-gray-800" 
+              aria-label="Close info panel"
+              onClick={toggleOverlay}
+              style={{ fontSize: '14px' }}
+            >
+              ⓘ Info
+            </button>
+            
+            <div className="flex items-center gap-2">
+              <button className="hover:text-gray-800" aria-label="Previous version" disabled={true}>◀︎</button>
+              <span className="text-sm" aria-live="polite">1 of 1</span>
+              <button className="hover:text-gray-800" aria-label="Next version" disabled={true}>▶︎</button>
+              <button className="ml-1 hover:text-gray-800" aria-label="Generate new version">⟳</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
