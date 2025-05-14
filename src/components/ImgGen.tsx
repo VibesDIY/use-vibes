@@ -78,7 +78,7 @@ export const ImgGen: React.FC<ImgGenProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [error, setError] = useState<Error | null>(null);
-  const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const progressTimerRef = useRef<number | null>(null);
   const promptKey = hashPrompt(prompt);
 
   const size = options?.size || '1024x1024';
