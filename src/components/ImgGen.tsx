@@ -190,14 +190,22 @@ export const ImgGen: React.FC<ImgGenProps> = ({
     };
   }, [prompt, JSON.stringify(options), promptKey, beforeLoad, onLoad]);
 
+  // Common styles for aspect ratio and container fitting
+  const containerStyle = {
+    maxWidth: '100%',
+    aspectRatio: `${width} / ${height}`,
+    width: 'auto', // Allow container to be sized by parent
+    height: 'auto', // Allow container to be sized by parent
+    display: 'block',
+  };
+
   // Render placeholder while loading
   if (loading || !imageData) {
     return (
       <div
         className={`img-gen-placeholder ${className}`}
         style={{
-          width: `${width}px`,
-          height: `${height}px`,
+          ...containerStyle,
           backgroundColor: '#f0f0f0',
           position: 'relative',
           overflow: 'hidden',
@@ -205,6 +213,8 @@ export const ImgGen: React.FC<ImgGenProps> = ({
           alignItems: 'center',
           justifyContent: 'center',
         }}
+        aria-label={alt || prompt || 'Image placeholder'}
+        role="img"
       >
         <div
           style={{
@@ -216,6 +226,7 @@ export const ImgGen: React.FC<ImgGenProps> = ({
             backgroundColor: '#0066cc',
             transition: 'width 0.3s ease-in-out',
           }}
+          aria-hidden="true"
         />
         <div style={{ textAlign: 'center', padding: '10px' }}>
           {error ? (
@@ -238,9 +249,8 @@ export const ImgGen: React.FC<ImgGenProps> = ({
       src={`data:image/png;base64,${imageData}`}
       className={`img-gen ${className}`}
       alt={alt || prompt}
-      width={width}
-      height={height}
-      style={{ maxWidth: '100%' }}
+      style={containerStyle}
+      loading="lazy"
     />
   );
 };

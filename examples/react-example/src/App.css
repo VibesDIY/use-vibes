@@ -29,6 +29,8 @@
 }
 
 .image-container {
+  width: 200px;
+  height: 200px;
   margin-top: 1rem;
   display: flex;
   justify-content: center;

@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  use-vibes: file:../..
+
 importers:
 
   .:
@@ -14,9 +17,6 @@ importers:
       react-dom:
         specifier: ^18.2.0
         version: 18.3.1(react@18.3.1)
-      use-vibes:
-        specifier: ^0.3.0
-        version: 0.3.0(react@18.3.1)
     devDependencies:
       '@eslint/js':
         specifier: ^9.25.0
@@ -607,10 +607,6 @@ packages:
   bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
     engines: {node: '>= 0.8'}
-
-  call-ai@0.10.0:
-    resolution: {integrity: sha512-SILNy37CHnlAVW/YNcg8lZ1HbiZQk5cLwoA2jMFSUKPUgMVjKMTzl3uVp7DLIduMa6Y14p2EAp0NsF3mBhw3dQ==}
-    engines: {node: '>=14.0.0'}
 
   call-bind-apply-helpers@1.0.2:
     resolution: {integrity: sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ==}
@@ -1313,11 +1309,6 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-  use-vibes@0.3.0:
-    resolution: {integrity: sha512-phrGMJvZOg51EqlybHQryhys/2W18DIqbMGpfjxZM/CQIg6yoc3Hb1CtaMbSaVjBBkVeoaus/AU6ticxFEtEsA==}
-    peerDependencies:
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
@@ -1924,8 +1915,6 @@ snapshots:
       update-browserslist-db: 1.1.3(browserslist@4.24.5)
 
   bytes@3.1.2: {}
-
-  call-ai@0.10.0: {}
 
   call-bind-apply-helpers@1.0.2:
     dependencies:
@@ -2651,11 +2640,6 @@ snapshots:
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
-
-  use-vibes@0.3.0(react@18.3.1):
-    dependencies:
-      call-ai: 0.10.0
-      react: 18.3.1
 
   vary@1.1.2: {}
 

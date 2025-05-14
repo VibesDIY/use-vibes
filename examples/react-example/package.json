@@ -12,7 +12,7 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "use-vibes": "^0.3.0"
+    "use-vibes": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

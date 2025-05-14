@@ -40,7 +40,7 @@ function App() {
         </button>
       </div>
       
-      <div className="image-container">
+      <div className="image-container" >
         <ImgGen prompt={prompt} />
       </div>
     </div>
