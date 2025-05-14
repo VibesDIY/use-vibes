@@ -100,21 +100,19 @@ export function ImgGenPlaceholder({
       aria-label={alt || prompt || 'Image placeholder'}
       role="img"
     >
-      {/* Only show progress bar if not in error state */}
-      {!error && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            height: '4px',
-            width: `${progress}%`,
-            backgroundColor: '#0066cc',
-            transition: 'width 0.3s ease-in-out',
-          }}
-          aria-hidden="true"
-        />
-      )}
+      {/* Always show progress bar, but with 0% width if in error state */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          height: '4px',
+          width: error ? '0%' : `${progress}%`,
+          backgroundColor: '#0066cc',
+          transition: 'width 0.3s ease-in-out',
+        }}
+        aria-hidden="true"
+      />
       <div style={{ textAlign: 'center', padding: '10px', width: '100%', wordWrap: 'break-word' }}>
         {error ? (
           <div className="img-gen-error" style={{ 
