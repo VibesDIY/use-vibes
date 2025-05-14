@@ -25,10 +25,14 @@ const mockImageGen = vi.hoisted(() => vi.fn().mockImplementation((prompt, option
   });
 }));
 
-// Create mock database for Fireproof
+// Create a fully mocked database for Fireproof
 const mockDb = vi.hoisted(() => ({
   get: vi.fn().mockImplementation((id) => Promise.reject(new Error('Not found'))),
   put: vi.fn().mockImplementation((doc) => Promise.resolve({...doc, _rev: '1-123'})),
+  query: vi.fn().mockResolvedValue({
+    rows: [{ id: 'img1', key: 'img1', value: { _id: 'img:hash', prompt: 'Test Image' } }],
+  }),
+  delete: vi.fn().mockResolvedValue({ ok: true })
 }));
 
 const mockImgFile = vi.hoisted(() => vi.fn().mockImplementation(({ file, className, alt, style }) => {
@@ -54,14 +58,7 @@ vi.mock('use-fireproof', () => ({
     useLiveFind: () => [[]],
     useIndex: () => [[]],
     useSubscribe: () => {},
-    database: {
-      put: mockDb.put,
-      get: mockDb.get,
-      query: vi.fn().mockResolvedValue({
-        rows: [{ id: 'img1', key: 'img1', value: { _id: 'img:hash', prompt: 'Test Image' } }],
-      }),
-      delete: vi.fn().mockResolvedValue({ ok: true }),
-    },
+    database: mockDb
   }),
   ImgFile: mockImgFile
 }));
