@@ -34,7 +34,6 @@ function App() {
   }
   
   const handleImageLoad = () => {
-    console.log('Image generation completed!')
     setIsGenerating(false)
   }
   

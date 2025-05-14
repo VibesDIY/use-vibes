@@ -20,6 +20,11 @@ function imageGen(prompt: string, options?: ImageGenOptions): Promise<ImageRespo
   const promise = originalImageGen(prompt, options);
   pendingImageGenCalls[key] = promise;
   
+  // Add completion log when the promise resolves
+  promise.then(() => {
+    console.log('Image generation completed!');
+  });
+  
   // Clean up after the promise resolves or rejects
   promise.finally(() => {
     delete pendingImageGenCalls[key];
