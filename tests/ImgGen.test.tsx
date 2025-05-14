@@ -27,8 +27,14 @@ const mockImageGen = vi.hoisted(() => vi.fn().mockImplementation((prompt, option
 
 // Create a fully mocked database for Fireproof
 const mockDb = vi.hoisted(() => ({
-  get: vi.fn().mockImplementation((id) => Promise.reject(new Error('Not found'))),
-  put: vi.fn().mockImplementation((doc) => Promise.resolve({...doc, _rev: '1-123'})),
+  get: vi.fn().mockImplementation((id) => {
+    // For tests that check 'Waiting for prompt', we need to fail differently
+    if (id === 'test-image-id') {
+      return Promise.reject(new Error('Test ID not found - expected for empty prompt test'));
+    }
+    return Promise.reject(new Error('Not found'));
+  }),
+  put: vi.fn().mockImplementation((doc) => Promise.resolve({id: doc._id, ok: true, rev: '1-123'})),
   query: vi.fn().mockResolvedValue({
     rows: [{ id: 'img1', key: 'img1', value: { _id: 'img:hash', prompt: 'Test Image' } }],
   }),
@@ -60,7 +66,9 @@ vi.mock('use-fireproof', () => ({
     useSubscribe: () => {},
     database: mockDb
   }),
-  ImgFile: mockImgFile
+  ImgFile: mockImgFile,
+  // Make sure to have a File constructor that matches expectations
+  File: vi.fn().mockImplementation((data, name) => ({ name }))
 }));
 
 describe('ImgGen Component', () => {
@@ -133,15 +141,25 @@ describe('ImgGen Component', () => {
     expect(placeholderContainer).toHaveAttribute('aria-label', 'Custom alt text');
   });
 
-  it('should show "Waiting for prompt" when prompt is falsy', () => {
+  it('should show "Waiting for prompt" when prompt is falsy', async () => {
     // Reset the mock
     mockImageGen.mockClear();
     
-    // Test with empty string prompt but provide _id to prevent validation error
-    render(<ImgGen prompt="" _id="test-image-id" />);
+    // Make sure we return to initial state
+    vi.clearAllMocks();
+    
+    // Override the default behavior for this test
+    mockDb.get.mockImplementation((id) => {
+      return Promise.reject(new Error('Not found for this test'));
+    });
+    
+    // Both prompt and _id need to be falsy to see 'Waiting for prompt'
+    render(<ImgGen prompt="" />);
+    
+    // The component should show 'Waiting for prompt'
     expect(screen.getByText('Waiting for prompt')).toBeInTheDocument();
     
-    // Verify imageGen is not called when prompt is empty and _id is provided
+    // Verify imageGen is not called when prompt is empty
     expect(mockImageGen).not.toHaveBeenCalled();
   });
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ImgGen } from 'use-vibes'
 import { useFireproof } from 'use-fireproof'
 import type { DocBase, DocFileMeta } from 'use-fireproof'
@@ -29,6 +29,7 @@ function App() {
     if (!inputPrompt.trim()) return
     // Set the active prompt that gets passed to ImgGen only when button is clicked
     setActivePrompt(inputPrompt)
+    setSelectedImageId(undefined)
     setIsGenerating(true)
     // ImgGen will call onLoad or onError when generation completes
   }
@@ -44,6 +45,11 @@ function App() {
 
   // Get all documents with type: 'image'
   const { docs: imageDocuments } = useLiveQuery<ImageDocument>('type', { key: 'image' })
+
+  useEffect(() => {
+    console.log('activePrompt', activePrompt)
+    console.log('selectedImageId', selectedImageId)
+  }, [activePrompt, selectedImageId])
 
   return (
     <div className="container">

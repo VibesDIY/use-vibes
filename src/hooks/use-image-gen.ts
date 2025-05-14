@@ -18,17 +18,21 @@ function imageGen(prompt: string, options?: ImageGenOptions): Promise<ImageRespo
   
   console.log(`[ImgGen Debug] New imageGen call for: ${prompt}`);
   const promise = originalImageGen(prompt, options);
-  pendingImageGenCalls[key] = promise;
   
-  // Add completion log when the promise resolves
-  promise.then(() => {
-    console.log('Image generation completed!');
-  });
-  
-  // Clean up after the promise resolves or rejects
-  promise.finally(() => {
-    delete pendingImageGenCalls[key];
-  });
+  // Only store and track the promise if it's a real Promise object
+  if (promise && typeof promise.then === 'function') {
+    pendingImageGenCalls[key] = promise;
+    
+    // Add completion log when the promise resolves
+    promise.then(() => {
+      console.log('Image generation completed!');
+    }).catch(() => {});
+    
+    // Clean up after the promise resolves or rejects
+    promise.finally(() => {
+      delete pendingImageGenCalls[key];
+    }).catch(() => {});
+  }
   
   return promise;
 }
