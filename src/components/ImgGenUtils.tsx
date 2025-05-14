@@ -33,6 +33,42 @@ export function ImgGenPlaceholder({
   progress, 
   error 
 }: ImgGenPlaceholderProps) {
+  // Extract error information from the error object
+  const parseErrorInfo = (error: Error) => {
+    const errorMsg = error.message;
+    let title = 'Image Generation Failed';
+    let body = errorMsg;
+    let code = '';
+    
+    // Try to parse JSON error details if present
+    if (errorMsg.includes('{')) {
+      try {
+        const jsonStart = errorMsg.indexOf('{');
+        const jsonObj = JSON.parse(errorMsg.substring(jsonStart));
+        
+        // Get error code if it exists
+        if (errorMsg.match(/\d{3}/)) {
+          code = errorMsg.match(/\d{3}/)?.[0] || '';
+        }
+        
+        // Set the title from the main error message
+        if (jsonObj.error) {
+          title = jsonObj.error;
+        }
+        
+        // Set the body from the detailed error message
+        if (jsonObj.error?.details?.error?.message) {
+          body = jsonObj.error.details.error.message;
+        }
+      } catch (e) {
+        // If parsing fails, just return the original message
+        console.warn('Error parsing error message JSON:', e);
+      }
+    }
+    
+    return { title, body, code };
+  };
+
   return (
     <div
       className={`img-gen-placeholder ${className || ''}`}
@@ -50,22 +86,60 @@ export function ImgGenPlaceholder({
       aria-label={alt || prompt || 'Image placeholder'}
       role="img"
     >
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          height: '4px',
-          width: `${progress}%`,
-          backgroundColor: '#0066cc',
-          transition: 'width 0.3s ease-in-out',
-        }}
-        aria-hidden="true"
-      />
+      {/* Only show progress bar if not in error state */}
+      {!error && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            height: '4px',
+            width: `${progress}%`,
+            backgroundColor: '#0066cc',
+            transition: 'width 0.3s ease-in-out',
+          }}
+          aria-hidden="true"
+        />
+      )}
       <div style={{ textAlign: 'center', padding: '10px', width: '100%', wordWrap: 'break-word' }}>
         {error ? (
-          <div className="img-gen-error">
-            <p>Error: {error.message}</p>
+          <div className="img-gen-error" style={{ 
+            backgroundColor: 'rgba(0, 0, 0, 0.7)', 
+            padding: '20px', 
+            borderRadius: '8px', 
+            margin: '15px',
+            border: '1px solid #ff6666',
+            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+            maxWidth: '90%',
+            maxHeight: '80%',
+            overflow: 'auto'
+          }}>
+            {(() => {
+              const { title, body, code } = parseErrorInfo(error);
+              return (
+                <>
+                  <h3 style={{ 
+                    color: '#ff6666', 
+                    marginTop: 0, 
+                    fontWeight: 'bold',
+                    fontSize: '18px',
+                    marginBottom: '12px',
+                    textAlign: 'center'
+                  }}>
+                    {code ? `${code} - ${title}` : title}
+                  </h3>
+                  <p style={{ 
+                    whiteSpace: 'pre-wrap', 
+                    color: '#ffffff',
+                    fontSize: '14px',
+                    lineHeight: '1.5',
+                    textAlign: 'left',
+                    fontFamily: 'monospace, sans-serif',
+                    marginBottom: 0
+                  }}>{body}</p>
+                </>
+              );
+            })()} 
           </div>
         ) : !prompt ? (
           <div>Waiting for prompt</div>

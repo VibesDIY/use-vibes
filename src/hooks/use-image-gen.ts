@@ -4,24 +4,70 @@ import type { ImageGenOptions, ImageResponse } from 'call-ai';
 import { useFireproof } from 'use-fireproof';
 import type { DocFileMeta } from 'use-fireproof';
 
-// Keep track of ongoing image generation calls to prevent duplicates
-const pendingImageGenCalls: Record<string, Promise<ImageResponse>> = {};
+// Module-level state for tracking and preventing duplicate calls
+const MODULE_STATE = {
+  // Keep track of ongoing image generation calls to prevent duplicates
+  pendingImageGenCalls: new Map<string, Promise<ImageResponse>>(),
+  // Track requests that are currently being processed (prevents race conditions)
+  processingRequests: new Set<string>(),
+  // Track request timestamps to avoid reusing stale promises
+  requestTimestamps: new Map<string, number>(),
+  // Timeout duration for cleaning up stale requests (5 minutes)
+  STALE_TIMEOUT_MS: 5 * 60 * 1000,
+};
+
+// Periodically clean up stale requests (every minute)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamp] of MODULE_STATE.requestTimestamps.entries()) {
+    if (now - timestamp > MODULE_STATE.STALE_TIMEOUT_MS) {
+      MODULE_STATE.pendingImageGenCalls.delete(key);
+      MODULE_STATE.processingRequests.delete(key);
+      MODULE_STATE.requestTimestamps.delete(key);
+    }
+  }
+}, 60 * 1000);
 
 // Wrapper for imageGen that prevents duplicate calls
 function imageGen(prompt: string, options?: ImageGenOptions): Promise<ImageResponse> {
+  // Create a unique key for this request
   const key = `${prompt}-${JSON.stringify(options || {})}`;
   
-  if (key in pendingImageGenCalls) {
+  // If this exact request is already in progress, return the existing promise
+  if (MODULE_STATE.pendingImageGenCalls.has(key) && !MODULE_STATE.processingRequests.has(key)) {
     console.log(`[ImgGen Debug] Using existing imageGen call for: ${prompt}`);
-    return pendingImageGenCalls[key];
+    return MODULE_STATE.pendingImageGenCalls.get(key)!;
   }
   
+  // If we're already processing this request (potential race condition), 
+  // wait a bit and try again
+  if (MODULE_STATE.processingRequests.has(key)) {
+    return new Promise((resolve) => {
+      // Wait 50ms and check again
+      setTimeout(() => {
+        resolve(imageGen(prompt, options));
+      }, 50);
+    });
+  }
+  
+  // Mark this request as being processed
+  MODULE_STATE.processingRequests.add(key);
+  MODULE_STATE.requestTimestamps.set(key, Date.now());
+  
   console.log(`[ImgGen Debug] New imageGen call for: ${prompt}`);
-  const promise = originalImageGen(prompt, options);
+  let promise: Promise<ImageResponse>;
+  
+  try {
+    promise = originalImageGen(prompt, options);
+  } catch (error) {
+    // If synchronous error occurs, clean up and rethrow
+    MODULE_STATE.processingRequests.delete(key);
+    throw error;
+  }
   
   // Only store and track the promise if it's a real Promise object
   if (promise && typeof promise.then === 'function') {
-    pendingImageGenCalls[key] = promise;
+    MODULE_STATE.pendingImageGenCalls.set(key, promise);
     
     // Add completion log when the promise resolves
     promise.then(() => {
@@ -30,8 +76,16 @@ function imageGen(prompt: string, options?: ImageGenOptions): Promise<ImageRespo
     
     // Clean up after the promise resolves or rejects
     promise.finally(() => {
-      delete pendingImageGenCalls[key];
+      MODULE_STATE.pendingImageGenCalls.delete(key);
+      MODULE_STATE.processingRequests.delete(key);
+      // Keep the timestamp a bit longer for diagnostics
+      setTimeout(() => {
+        MODULE_STATE.requestTimestamps.delete(key);
+      }, 30000);
     }).catch(() => {});
+  } else {
+    // If we somehow didn't get a promise, clean up immediately
+    MODULE_STATE.processingRequests.delete(key);
   }
   
   return promise;
