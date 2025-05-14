@@ -178,15 +178,40 @@ export interface ImgGenDisplayProps {
   document: {
     _id: string;
     _files?: Record<string, File | DocFileMeta>;
-    prompt?: string; // Add prompt property to the document type
+    prompt?: string;
   };
   className?: string;
   alt?: string;
+  onDelete?: (docId: string) => void;
 }
 
 // Component for displaying the generated image
-export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) {
+export function ImgGenDisplay({ document, className, alt, onDelete }: ImgGenDisplayProps) {
   const [isOverlayOpen, setIsOverlayOpen] = React.useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = React.useState(false);
+
+  // Toggle overlay visibility
+  const toggleOverlay = () => {
+    setIsOverlayOpen(!isOverlayOpen);
+  };
+
+  // Toggle delete confirmation
+  const toggleDeleteConfirm = () => {
+    setIsDeleteConfirmOpen(!isDeleteConfirmOpen);
+  };
+
+  // Handle delete confirmation
+  const handleDeleteConfirm = () => {
+    if (onDelete) {
+      onDelete(document._id);
+    }
+    setIsDeleteConfirmOpen(false);
+  };
+
+  // Handle cancel delete
+  const handleCancelDelete = () => {
+    setIsDeleteConfirmOpen(false);
+  };
 
   if (!document._files || !document._files.image) {
     return <ImgGenError message="Missing image file" />;
@@ -195,63 +220,56 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
   // The prompt might be stored in the document itself
   const promptText = document.prompt || alt || 'Generated image';
 
-  // Toggle overlay visibility
-  const toggleOverlay = () => {
-    setIsOverlayOpen(!isOverlayOpen);
-  };
-
   return (
     <div className="img-gen-container" style={{ 
-      position: 'relative', 
-      width: '100%', 
-      height: '100%',
+      position: 'relative',
+      maxWidth: '100%',
+      borderRadius: '8px',
       overflow: 'hidden',
-      borderRadius: 'inherit'
     }}>
-      <ImgFile
-        file={document._files.image}
-        className={`img-gen ${className || ''}`}
-        alt={alt || ''}
+      <ImgFile 
+        file={document._files.image as File}
+        className={`img-gen-image ${className || ''}`.trim()}
+        alt={alt || 'Generated image'}
         style={{
           width: '100%',
-          height: '100%',
-          objectFit: 'cover',
+          height: 'auto',
           display: 'block',
+          borderRadius: '8px',
         }}
-        loading="lazy"
       />
+
+      {/* Info button - visible when overlay is closed */}
+      {!isOverlayOpen && (
+        <button
+          aria-label="Image information"
+          onClick={toggleOverlay}
+          style={{ 
+            position: 'absolute',
+            bottom: '10px',
+            left: '10px',
+            background: 'none',
+            border: 'none',
+            fontSize: '24px',
+            color: '#fff',
+            opacity: 0.5,
+            cursor: 'pointer',
+            padding: 0,
+            transition: 'opacity 0.2s ease',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
+        >
+          ⓘ
+        </button>
+      )}
       
-      {/* Minimalist info icon with opacity change on hover */}
-      <button 
-        className="img-gen-info-button"
-        onClick={toggleOverlay}
-        aria-label="Image information"
-        aria-expanded={isOverlayOpen}
-        style={{
-          position: 'absolute',
-          bottom: '10px',
-          left: '10px',
-          zIndex: 5,
-          background: 'none',
-          border: 'none',
-          fontSize: '24px',
-          color: 'white',
-          opacity: 0.5,
-          cursor: 'pointer',
-          padding: 0,
-          transition: 'opacity 0.2s ease',
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-        onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
-      >
-        ⓘ
-      </button>
-      
-      {/* Delete button only visible when overlay is open - positioned at the top right of the image */}
+      {/* Delete button - visible when the overlay is open */}
       {isOverlayOpen && (
-        <button 
+        <button
           aria-label="Delete image"
-          style={{
+          onClick={toggleDeleteConfirm}
+          style={{ 
             position: 'absolute',
             top: '10px',
             right: '10px',
@@ -431,6 +449,75 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
                   ⟳
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Delete confirmation overlay */}
+      {isDeleteConfirmOpen && (
+        <div 
+          className="delete-confirmation-overlay"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            zIndex: 20,
+            color: 'white',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ maxWidth: '80%' }}>
+            <h3 style={{ marginBottom: '15px', fontSize: '18px' }}>
+              Are you sure you want to delete this image?
+            </h3>
+            
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+              <button
+                onClick={handleDeleteConfirm}
+                aria-label="Confirm delete"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  border: '1px solid white',
+                  borderRadius: '4px',
+                  padding: '6px 14px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)')}
+              >
+                Confirm
+              </button>
+              
+              <button
+                onClick={handleCancelDelete}
+                aria-label="Cancel delete"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.8)',
+                  color: '#333',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '6px 14px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  transition: 'opacity 0.2s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
