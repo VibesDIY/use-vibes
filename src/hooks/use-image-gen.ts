@@ -182,7 +182,6 @@ export function useImageGen({
   const [error, setError] = useState<Error | null>(null);
   const [document, setDocument] = useState<ImageDocument | null>(null);
   const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const promptKey = hashPrompt(prompt);
   
   // Initialize Fireproof database
   const { database: db } = useFireproof(database);
@@ -199,6 +198,9 @@ export function useImageGen({
     options?.style
     // Add any other properties from options that matter for image generation
   ]);
+  
+  // Memoize the promptKey to prevent recalculation on each render
+  const memoizedPromptKey = useMemo(() => hashPrompt(prompt), [prompt]);
 
   // No debug tracking for renders
   
@@ -259,8 +261,8 @@ export function useImageGen({
         progressTimerRef.current = timer;
 
         let data: ImageResponse | null = null;
-        // If _id is provided, use that directly, otherwise use the promptKey
-        const docId = _id || `img:${promptKey}`;
+        // If _id is provided, use that directly, otherwise use the memoizedPromptKey
+        const docId = _id || `img:${memoizedPromptKey}`;
         
         try {
           // Try to get from Fireproof first
@@ -387,7 +389,7 @@ export function useImageGen({
     return () => {
       isMounted = false;
     };
-  }, [prompt, _id, memoizedOptions, promptKey, database]); // Using memoizedOptions
+  }, [prompt, _id, memoizedOptions, memoizedPromptKey, database]); // Using memoizedOptions and memoizedPromptKey
 
   return {
     imageData,
