@@ -295,18 +295,33 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
           }}
         >
           
-          {/* Single row layout for prompt text and all controls */}
-          <div 
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              width: '100%',
-            }}
-          >
-            {/* Left side: Info button and prompt text */}
-            <div style={{ display: 'flex', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
-              {/* Info button */}
+          {/* Two row layout with prompt on top and controls below */}
+          <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+            {/* Prompt text on top row */}
+            <div 
+              className="text-gray-700 truncate mb-2"
+              style={{
+                color: '#333',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                fontSize: '14px',
+                marginBottom: '6px',
+              }}
+            >
+              {promptText}
+            </div>
+            
+            {/* Controls on bottom row */}
+            <div 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+              }}
+            >
+              {/* Left side: Info button */}
               <button 
                 aria-label="Close info panel"
                 onClick={toggleOverlay}
@@ -318,9 +333,7 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
                   opacity: 0.5,
                   cursor: 'pointer',
                   padding: 0,
-                  marginRight: '8px',
                   transition: 'opacity 0.2s ease',
-                  flexShrink: 0,
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
                 onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
@@ -328,108 +341,96 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
                 ⓘ
               </button>
               
-              {/* Prompt text */}
-              <div 
-                className="text-gray-700 truncate"
-                style={{
-                  color: '#333',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  fontSize: '14px',
-                }}
-              >
-                {promptText}
+              {/* Right side: Version controls */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* Show version arrows only when there are multiple versions */}
+                {false && ( // Replace with actual condition when implementing version handling
+                  <button 
+                    aria-label="Previous version" 
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.7)',
+                      borderRadius: '50%',
+                      width: '28px',
+                      height: '28px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: 'none',
+                      cursor: 'pointer',
+                      opacity: 0.5,
+                      transition: 'opacity 0.2s ease',
+                      padding: 0,
+                      fontSize: '14px',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
+                  >
+                    ◀︎
+                  </button>
+                )}
+                
+                {/* Version indicator - only display if we have versions */}
+                <span 
+                  className="version-indicator" 
+                  aria-live="polite"
+                  style={{ 
+                    fontSize: '14px',
+                    color: '#333',
+                  }}
+                >
+                  1 of 1
+                </span>
+                
+                {/* Show version arrows only when there are multiple versions */}
+                {false && ( // Replace with actual condition when implementing version handling
+                  <button 
+                    aria-label="Next version" 
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.7)',
+                      borderRadius: '50%',
+                      width: '28px',
+                      height: '28px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: 'none',
+                      cursor: 'pointer',
+                      opacity: 0.5,
+                      transition: 'opacity 0.2s ease',
+                      padding: 0,
+                      fontSize: '14px',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
+                  >
+                    ▶︎
+                  </button>
+                )}
+                
+                {/* Refresh button - always visible */}
+                <button 
+                  aria-label="Generate new version"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.7)',
+                    borderRadius: '50%',
+                    width: '28px',
+                    height: '28px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: 'none',
+                    cursor: 'pointer',
+                    opacity: 0.5,
+                    transition: 'opacity 0.2s ease',
+                    padding: 0,
+                    fontSize: '14px',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
+                >
+                  ⟳
+                </button>
               </div>
-            </div>
-            
-            {/* Right side: Version controls */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-              {/* Previous button */}
-              <button 
-                aria-label="Previous version" 
-                disabled={true}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.7)',
-                  borderRadius: '50%',
-                  width: '28px',
-                  height: '28px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: 'none',
-                  cursor: 'pointer',
-                  opacity: 0.5,
-                  transition: 'opacity 0.2s ease',
-                  padding: 0,
-                  fontSize: '14px',
-                }}
-                onMouseEnter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.opacity = '1')}
-                onMouseLeave={(e) => !e.currentTarget.disabled && (e.currentTarget.style.opacity = '0.5')}
-              >
-                ◀︎
-              </button>
-              
-              {/* Version indicator */}
-              <span 
-                className="version-indicator" 
-                aria-live="polite"
-                style={{ 
-                  fontSize: '14px',
-                  color: '#333',
-                }}
-              >
-                1 of 1
-              </span>
-              
-              {/* Next button */}
-              <button 
-                aria-label="Next version" 
-                disabled={true}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.7)',
-                  borderRadius: '50%',
-                  width: '28px',
-                  height: '28px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: 'none',
-                  cursor: 'pointer',
-                  opacity: 0.5,
-                  transition: 'opacity 0.2s ease',
-                  padding: 0,
-                  fontSize: '14px',
-                }}
-                onMouseEnter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.opacity = '1')}
-                onMouseLeave={(e) => !e.currentTarget.disabled && (e.currentTarget.style.opacity = '0.5')}
-              >
-                ▶︎
-              </button>
-              
-              {/* Refresh button */}
-              <button 
-                aria-label="Generate new version"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.7)',
-                  borderRadius: '50%',
-                  width: '28px',
-                  height: '28px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: 'none',
-                  cursor: 'pointer',
-                  opacity: 0.5,
-                  transition: 'opacity 0.2s ease',
-                  padding: 0,
-                  fontSize: '14px',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
-              >
-                ⟳
-              </button>
             </div>
           </div>
         </div>
