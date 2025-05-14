@@ -1,5 +1,6 @@
-// Re-export everything from call-ai
-export * from 'call-ai';
+// Re-export specific functions and types from call-ai
+import { callAI, type CallAIOptions, type AIResponse } from 'call-ai';
+export { callAI, type CallAIOptions, type AIResponse };
 
 // Export ImgGen component
 export { default as ImgGen } from './components/ImgGen';
