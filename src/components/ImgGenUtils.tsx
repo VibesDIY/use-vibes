@@ -201,7 +201,13 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
   };
 
   return (
-    <div className="img-gen-container relative" style={{ width: '100%', height: '100%' }}>
+    <div className="img-gen-container" style={{ 
+      position: 'relative', 
+      width: '100%', 
+      height: '100%',
+      overflow: 'hidden',
+      borderRadius: 'inherit'
+    }}>
       <ImgFile
         file={document._files.image}
         className={`img-gen ${className || ''}`}
@@ -215,37 +221,50 @@ export function ImgGenDisplay({ document, className, alt }: ImgGenDisplayProps) 
         loading="lazy"
       />
       
-      {/* Info button always visible at the bottom */}
-      <div 
-        className="img-gen-info-button absolute bottom-2 left-2 flex items-center"
+      {/* Simple info button that exactly matches the second screenshot */}
+      <button 
+        className="img-gen-info-button"
+        onClick={toggleOverlay}
+        aria-label="Image information"
+        aria-expanded={isOverlayOpen}
         style={{
-          padding: '4px 8px',
-          backgroundColor: 'rgba(255, 255, 255, 0.7)',
-          borderRadius: '12px',
+          position: 'absolute',
+          bottom: '10px',
+          left: '10px',
+          zIndex: 5,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '8px 16px',
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          border: 'none',
+          borderRadius: '20px',
           fontSize: '14px',
+          color: '#333',
           cursor: 'pointer',
           backdropFilter: 'blur(4px)',
-          transition: 'opacity 0.2s ease',
-        }}>
-        <button 
-          aria-label="Image information"
-          aria-expanded={isOverlayOpen}
-          className="info-button flex items-center"
-          onClick={toggleOverlay}
-        >
-          <span style={{ marginRight: '4px' }}>ⓘ</span> Info
-        </button>
-      </div>
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        }}
+      >
+        <span style={{ marginRight: '5px', fontWeight: 'bold' }}>ⓘ</span> Info
+      </button>
       
       {/* Overlay with image information and controls */}
       {isOverlayOpen && (
         <div 
-          className="img-gen-overlay absolute bottom-0 left-0 right-0 bg-white/50 backdrop-blur-sm px-3 py-2 flex flex-col"
+          className="img-gen-overlay"
           style={{
+            position: 'absolute',
+            bottom: '0',
+            left: '0',
+            right: '0',
+            padding: '8px 12px',
             backgroundColor: 'rgba(255, 255, 255, 0.5)',
             backdropFilter: 'blur(4px)',
             transition: 'opacity 0.2s ease',
             zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
           {/* Delete button only visible when overlay is open */}
