@@ -1,91 +1,115 @@
 # Image Generation Component Enhancement Plan
 
-## Current Status
+## Current Status and Semantic State Model
 
-The current `ImgGen` component and related utilities (`ImgGenUtils`) support four basic states:
-1. **Prompt Waiting** - When no prompt or ID is provided
-2. **Loading** - Displays a placeholder with progress indicator during image generation
-3. **Loaded Image** - Displays the generated image once available with a small "ⓘ Info" button visible at the bottom
-4. **Error** - Displays an error message if image generation fails
+The current `ImgGen` component and related utilities (`ImgGenUtils`) support these states:
+
+| State Identifier | Description |
+|-----------------|-------------|
+| `PROMPT_WAITING` | When no prompt or ID is provided |
+| `LOADING` | Displays a placeholder with progress indicator during image generation |
+| `READY` | Displays the generated image once available with a small "ⓘ Info" button visible at the bottom |
+| `ERROR` | Displays an error message if image generation fails |
 
 ## Missing Interactive States to Implement
 
-### State 4: Caption Overlay
-- When user clicks the "ⓘ Info" button (already visible in State 3):
+### `OVERLAY_OPEN` (formerly State 4)
+- When user clicks the "ⓘ Info" button (already visible in the `READY` state):
 - Create an overlay div (positioned absolutely at the bottom of the image)
 - Include prompt text at the top of the overlay
 - Include control buttons (refresh, version history) on the bottom line
 - Display delete button (✕) in the top-right corner of the image (only visible in this state)
+- The delete button should also appear briefly on hover even when overlay is closed for discoverability
 
-### State 5: Multiple Image Versions
+### `VERSIONS_VIEW` (formerly State 5)
 - Implement version history tracking when new versions are generated
-- Enable left/right arrow navigation buttons (◀︎ ▶︎)
-- Display current version indicator (e.g., "2 of 3")
+- Enable left/right arrow navigation buttons (◀︎ ▶︎) with keyboard support (← → arrow keys)
+- Display current version indicator (e.g., "2 of 3") with appropriate ARIA attributes
 - Implement refresh button (⟳) functionality to generate new versions
+- Properly disable navigation buttons when at first/last version with visual indication
 
-### State 6: Deletion Confirmation
+### `DELETE_CONFIRM` (formerly State 6)
 - Implement delete (✕) button functionality
 - Create a confirmation overlay with:
   - Semi-transparent dark background
   - Confirmation text: "Delete image? This can't be undone."
   - Two buttons: "Cancel" and "Delete"
+  - Focus trap within modal for keyboard accessibility
+  - ESC key should cancel deletion
 
 ## Implementation Steps
 
-1. **Extend ImgGenDisplay Component**:
-   - Add "ⓘ Info" button to the basic image display (State 3)
-   - Add delete button to the top-right corner (only when overlay is visible)
-   - Add state variables for overlay visibility and version management
-   - Implement caption overlay with fade animations (CSS transitions)
+1. **Refactor Component Structure**:
+   - Extract a new parent component `ImgGenViewer` to manage shared state
+   - Move current `ImgGenDisplay` code inside it
+   - Add state management with `useReducer` for state transitions
+   - Implement proper keyboard accessibility (arrow keys, ESC)
 
-2. **Create Version Management**:
-   - Track image versions in an array
-   - Store version history in the Fireproof database
-   - Implement navigation between versions
+2. **Add Overlay Components**:
+   - Add "ⓘ Info" button to the basic image display (`READY` state)
+   - Create `ImageFrame` component with hover-triggered delete button
+   - Implement `CaptionOverlay` with fade animations using CSS transitions
+   - Use `react-focus-lock` or equivalent for focus trapping in modals
 
-3. **Implement Delete Functionality**:
-   - Create confirmation overlay component
-   - Handle delete confirmation/cancellation actions
-   - Implement document deletion from database
+3. **Create Version Management**:
+   - Track image versions as `_files` in the document (as requested)
+   - Implement navigation between versions with proper ARIA attributes
+   - Add keyboard shortcut support (← → arrows for navigation)
 
-4. **New/Modified Components**:
-   - `ImgGenOverlay`: For displaying caption and controls
-   - `ImgGenDeleteConfirmation`: For delete confirmation
-   - `ImgGenVersionControls`: For version navigation
+4. **Implement Delete Functionality**:
+   - Create `DeleteConfirmation` component with two-step confirmation
+   - Add additional data layer confirmation as security precaution
+   - Implement document deletion from database with proper cleanup
 
 ## Component Architecture
 
 ```tsx
 <ImgGen>
-  └── <ImgGenDisplay>
-      ├── <ImgFile /> (from use-fireproof)
-      ├── <DeleteButton />
-      ├── <ImgGenOverlay>
-      │   ├── <PromptDisplay />
+  └── <ImgGenViewer> {/* New parent component for state management */}
+      ├── <ImageFrame> {/* Image + hover controls */}
+      │   ├── <ImgFile /> {/* from use-fireproof, wrapped in React.memo */}
+      │   └── <DeleteButton /> {/* Only visible on hover or when overlay is open */}
+      ├── <CaptionOverlay> {/* Controlled by isOverlayOpen state */}
+      │   ├── <PromptDisplay /> {/* With appropriate escaping for security */}
       │   └── <ControlsBar>
-      │       ├── <InfoButton />
-      │       ├── <VersionNavigation />
+      │       ├── <InfoButton aria-expanded={isOverlayOpen} />
+      │       ├── <VersionNavigation aria-live="polite" />
       │       └── <RefreshButton />
-      └── <DeleteConfirmation /> (conditionally rendered)
+      └── <DeleteConfirmation focusTrap /> {/* Modal with focus trap */}
 ```
 
-## CSS Considerations
+## CSS & Accessibility Considerations
 
-- Use transition-opacity for fade animations
-- Implement hover states for all interactive elements
-- Ensure version buttons are properly disabled when no additional versions exist
-- Use backdrop-blur for overlay background as shown in the mockup
+- Replace inline styles with Tailwind classes or CSS modules for maintainability
+- Use `transition-opacity` and `duration-200` classes for animations
+- Add `aria-label` to all buttons and `aria-live="polite"` to version counter
+- Implement visible focus states with `focus-visible:outline-2 focus-visible:outline-offset-2`
+- Ensure all interactive elements have proper roles and keyboard support
+- Use `backdrop-blur-sm` for overlay background
 
 ## Testing Approach
 
-- Verify all six states function correctly
-- Test version navigation with multiple generated images
-- Ensure proper error handling for regeneration failures
-- Verify delete confirmation works as expected
+- **Unit Tests**:
+  - Test state management logic in isolation (useReducer actions)
+  - Test version navigation utilities without DOM dependencies
 
-## Implementation Timeline
+- **Component Tests**:
+  - Verify all states function correctly (`READY`, `OVERLAY_OPEN`, etc.)
+  - Test keyboard interactions (arrows, ESC, Tab trapping)
+  - Ensure proper error handling for regeneration failures
 
-1. Create the overlay component with info button
-2. Implement version management and navigation
-3. Add delete confirmation functionality
-4. Finalize styling to match the mockup
+- **Browser Tests**:
+  - Mock `call-ai` with MSW or similar
+  - Test the full flow from generation → overlay → version navigation → deletion
+  - Avoid adding environment-specific flags in src/ code
+
+## Incremental Implementation Plan
+
+1. Refactor: Extract `ImgGenViewer` with state machine, keeping current functionality
+2. Add overlay with info button and rudimentary controls
+3. Implement version navigation between _files in document
+4. Add delete confirmation flow
+5. Enhance with keyboard support and accessibility features
+6. Replace inline styles with Tailwind classes
+
+All code changes will follow pnpm scripts for linting and testing to ensure high quality.
