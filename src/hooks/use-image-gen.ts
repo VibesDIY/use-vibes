@@ -1,8 +1,32 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { imageGen } from 'call-ai';
+import { imageGen as originalImageGen } from 'call-ai';
 import type { ImageGenOptions, ImageResponse } from 'call-ai';
 import { useFireproof } from 'use-fireproof';
 import type { DocFileMeta } from 'use-fireproof';
+
+// Keep track of ongoing image generation calls to prevent duplicates
+const pendingImageGenCalls: Record<string, Promise<ImageResponse>> = {};
+
+// Wrapper for imageGen that prevents duplicate calls
+function imageGen(prompt: string, options?: ImageGenOptions): Promise<ImageResponse> {
+  const key = `${prompt}-${JSON.stringify(options || {})}`;
+  
+  if (key in pendingImageGenCalls) {
+    console.log(`[ImgGen Debug] Using existing imageGen call for: ${prompt}`);
+    return pendingImageGenCalls[key];
+  }
+  
+  console.log(`[ImgGen Debug] New imageGen call for: ${prompt}`);
+  const promise = originalImageGen(prompt, options);
+  pendingImageGenCalls[key] = promise;
+  
+  // Clean up after the promise resolves or rejects
+  promise.finally(() => {
+    delete pendingImageGenCalls[key];
+  });
+  
+  return promise;
+}
 
 /**
  * Hash function to create a key from the prompt string
@@ -272,7 +296,9 @@ export function useImageGen({
       }
     };
 
-    generateImage();
+    // if (prompt) {
+      generateImage();
+    // }
 
     return () => {
       isMounted = false;
