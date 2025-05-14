@@ -2,11 +2,6 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { imageGen } from 'call-ai';
 import type { ImageGenOptions, ImageResponse } from 'call-ai';
 import { useFireproof } from 'use-fireproof';
-
-// For tracking render/effect cycles
-let renderCount = 0;
-let effectRunCount = 0;
-let imageGenCallCount = 0;
 import type { DocFileMeta } from 'use-fireproof';
 
 /**
@@ -118,13 +113,10 @@ export function useImageGen({
     // Add any other properties from options that matter for image generation
   ]);
 
-  // Track renders for debugging
-  renderCount++;
-  console.log(`[ImgGen Debug] Render #${renderCount}, prompt: ${prompt}, _id: ${_id}`);
+  // No debug tracking for renders
   
   // Reset state when prompt, _id, or options change
   useEffect(() => {
-    console.log(`[ImgGen Debug] Reset effect running, prompt: ${prompt}, _id: ${_id}`);
     setImageData(null);
     setError(null);
     setProgress(0);
@@ -145,8 +137,6 @@ export function useImageGen({
 
   // Generate the image when prompt or options change or load by ID
   useEffect(() => {
-    effectRunCount++;
-    console.log(`[ImgGen Debug] Generate image effect #${effectRunCount}, prompt: ${prompt}, _id: ${_id}`);
     
     let isMounted = true;
 
@@ -161,8 +151,7 @@ export function useImageGen({
     setError(null);
 
     const generateImage = async () => {
-      imageGenCallCount++;
-      console.log(`[ImgGen Debug] imageGen called #${imageGenCallCount}, prompt: ${prompt}, _id: ${_id}`);
+      console.log(`[ImgGen Debug] imageGen call for prompt: ${prompt}, _id: ${_id}`); // Keep only this log
       try {
         
         // Start the progress animation only when loading starts
@@ -287,7 +276,6 @@ export function useImageGen({
 
     return () => {
       isMounted = false;
-      console.log(`[ImgGen Debug] Effect cleanup, prompt: ${prompt}, _id: ${_id}`);
     };
   }, [prompt, _id, memoizedOptions, promptKey, database]); // Using memoizedOptions
 
