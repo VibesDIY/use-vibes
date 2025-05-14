@@ -1,12 +1,12 @@
 {
   "name": "use-vibes",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "type": "module",
   "description": "Transform any DOM element into an AI-powered micro-app",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": "./dist/index.js",
+  "main": "dist/index.js",
+  "browser": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "build:browser": "node scripts/build-browser.js",
@@ -40,11 +40,7 @@
   "author": "",
   "license": "MIT",
   "files": [
-    "dist/",
-    "lib/",
-    "src/",
-    "LICENSE",
-    "README.md"
+    "dist"
   ],
   "devDependencies": {
     "@playwright/test": "^1.41.2",
