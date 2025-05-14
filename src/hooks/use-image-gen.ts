@@ -75,20 +75,17 @@ function imageGen(prompt: string, options?: ImageGenOptions): Promise<ImageRespo
   promise
     .then(response => {
       console.log(`[ImgGen Debug] Request #${requestId} succeeded [key:${stableKey.slice(0, 12)}...]`);
+      // Remove from processing set but KEEP in pendingPrompts to ensure deduplication persists
+      // until page reload
+      MODULE_STATE.processingRequests.delete(stableKey);
       return response; 
     })
     .catch(error => {
       console.error(`[ImgGen Debug] Request #${requestId} failed [key:${stableKey.slice(0, 12)}...]: ${error}`);
+      // Even on failure, we'll keep the key in pendingPrompts to prevent repeated failures
+      // but remove it from processing to allow potential retries after page reload
+      MODULE_STATE.processingRequests.delete(stableKey);
       return Promise.reject(error);
-    })
-    .finally(() => {
-      // After request completes, wait a short time before allowing new requests with the same key
-      // This prevents immediate duplicate requests during React's render cycles
-      setTimeout(() => {
-        MODULE_STATE.processingRequests.delete(stableKey);
-        MODULE_STATE.pendingPrompts.delete(stableKey); 
-        MODULE_STATE.pendingImageGenCalls.delete(stableKey);
-      }, 500); // Short delay to prevent new requests during render cycles
     });
   
   return promise;
