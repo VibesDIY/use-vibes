@@ -95,12 +95,6 @@ function App() {
               <div key={doc._id} className="image-item">
                 <div
                   className="thumbnail-container"
-                  onClick={() => {
-                    // Load the selected image by ID in the main viewer
-                    setSelectedImageId(doc._id);
-                    // Clear the active prompt when loading by ID
-                    setActivePrompt('');
-                  }}
                 >
                   <ImgGen _id={doc._id} className="thumbnail-img" options={{
                     quality: 'low',
