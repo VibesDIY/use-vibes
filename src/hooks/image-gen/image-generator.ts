@@ -14,10 +14,8 @@ export function imageGen(prompt: string, options?: ImageGenOptions): Promise<Ima
   // Get the relevant options to form a stable key
   const relevantOptions = getRelevantOptions(options);
 
-  // Log regeneration parameters if present (for debugging)
-  if (options?._regenerationId) {
-
-  }
+  // Track regeneration requests when an ID is provided
+  // This was previously used for logging, which has been removed
 
   // Create a stable key for the request cache
   // Include regeneration ID if present to ensure unique keys for regeneration requests

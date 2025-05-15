@@ -179,7 +179,7 @@ export function addNewVersion(document: any, newImageFile: File, newPrompt?: str
   const { prompts, currentPromptKey } = getPromptsFromDocument(document);
   
   // Handle prompt versioning
-  let updatedPrompts = { ...prompts };
+  const updatedPrompts = { ...prompts };
   let updatedCurrentPromptKey = currentPromptKey;
   
   // If a new prompt is provided and it's different from the current one, create a new prompt version

@@ -31,10 +31,8 @@ export function useImageGen({
 }: UseImageGenOptions): UseImageGenResult {
 
   
-  // If both are provided, warn that _id takes precedence
-  if (prompt && _id) {
-
-  }
+  // If both are provided, _id takes precedence
+  // This silently prioritizes the document's internal prompt
   const [imageData, setImageData] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
@@ -82,10 +80,8 @@ export function useImageGen({
     previousIdRef.current = _id;
     previousRegenerateRef.current = regenerate;
     
-    // Log regeneration state changes for debugging
-    if (regenerateChanged) {
-
-    }
+    // Track regeneration state changes
+    // Previously used for logging, now handled via the ref
     
     // Reset all state when inputs change
     setImageData(null);
@@ -404,7 +400,8 @@ export function useImageGen({
                   // Store the promise for other subscribers
                   MODULE_STATE.pendingDocumentCreations.set(stableKey, documentCreationPromise);
                 } else {
-
+                  // Reusing existing document creation promise
+                  // No additional action needed
                 }
                 
                 try {

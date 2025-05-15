@@ -113,7 +113,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
           console.error(`Failed to delete document: ${docId}`, err);
         });
     } else {
-
+      // No database available for deletion
     }
   }, [onDelete, db]);
 
