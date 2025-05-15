@@ -10,7 +10,7 @@ interface ExtendedImageGenOptions extends BaseImageGenOptions {
 
 // Use our extended type throughout the hook
 type ImageGenOptions = ExtendedImageGenOptions;
-import { hashInput, base64ToFile, addNewVersion, getVersionsFromDocument, getPromptsFromDocument, generatePromptKey, generateVersionId, MODULE_STATE, cleanupRequestKey } from './utils';
+import { hashInput, base64ToFile, addNewVersion, getVersionsFromDocument, getPromptsFromDocument, generatePromptKey, generateVersionId, MODULE_STATE, cleanupRequestKey, getRelevantOptions } from './utils';
 import { imageGen, createImageGenerator } from './image-generator';
 
 /**
@@ -171,10 +171,11 @@ export function useImageGen({
               if (regenerate && currentPromptText) {
                 console.log(`[ImgGen Debug] Regenerating image for document ${_id} with prompt: ${currentPromptText}`);
                 
-                // Add a unique regeneration ID to ensure this request gets a unique key
+                // Create a completely unique key for the regeneration request to avoid deduplication
+                // at the image generation API call level (not just the document level)
                 const regenerationOptions = {
                   ...options,
-                  _regenerationId: Date.now() // Add unique timestamp
+                  _regenerationId: Date.now() // Add timestamp for uniqueness
                 };
                 
                 // Generate a new image using the document's prompt
@@ -315,10 +316,17 @@ export function useImageGen({
                 _id || '',
                 // For regenerate requests, add a timestamp to ensure uniqueness
                 regenerate ? `regen-${Date.now()}` : '0',
-                JSON.stringify(options)
+                // Stringify only relevant options to avoid spurious cache misses
+                JSON.stringify(getRelevantOptions(options))
               ].join('|');
               
               console.debug(`[ImgGen Debug] Generated stable key: ${stableKey}`);
+              
+              // Schedule cleanup of this request from the cache maps 
+              // to ensure future requests don't reuse this one
+              setTimeout(() => {
+                cleanupRequestKey(stableKey);
+              }, 100); // Clear after a short delay
               
               try {
                 // First check if there's already a document ID for this request
