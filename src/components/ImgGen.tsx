@@ -31,9 +31,6 @@ export interface ImgGenProps {
   
   /** Callback when document is deleted */
   onDelete?: (docId: string) => void;
-  
-  /** Callback when a new version should be generated */
-  onGenerateNewVersion?: (docId: string, prompt: string) => void;
 }
 
 /**
@@ -51,8 +48,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     database, 
     onLoad, 
     onError,
-    onDelete,
-    onGenerateNewVersion 
+    onDelete 
   } = props;
   
   // Create state to track when we need to regenerate an image
@@ -75,25 +71,21 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   });
   
   // Handle refresh/regenerate request
-  const handleRefresh = React.useCallback((docId: string) => {
-    console.log(`Regenerating image for document ${docId}`);
-    // If user provided a callback, use that
-    if (onGenerateNewVersion && document) {
-      // Get current prompt from document's prompt structure
-      const currentPrompt = document.prompts && document.currentPromptKey
-        ? document.prompts[document.currentPromptKey]?.text
-        : document.prompt || ''; // Fallback for legacy documents
-      
-      onGenerateNewVersion(docId, currentPrompt);
+  const handleGenerateNewVersion = React.useCallback(() => {
+    // If we don't have a doc ID, there's nothing to refresh
+    if (!_id) {
+      console.debug('[ImgGen] No document ID available for regeneration');
       return;
     }
     
-    // Otherwise, use the current document to generate a new version
+    console.debug(`[ImgGen] Regenerating: ${_id}`);
+    
+    // Use the current document to generate a new version
     if (document) {
       // Set regenerate flag to true to trigger a new image generation
       setShouldRegenerate(true);
     }
-  }, [document, onGenerateNewVersion]);
+  }, [document, _id]);
   
   // Handle delete request
   const handleDelete = React.useCallback((docId: string) => {
@@ -144,7 +136,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
             className={className} 
             alt={altText}
             onDelete={handleDelete}
-            onRefresh={handleRefresh}
+            onRefresh={handleGenerateNewVersion}
           />
           
           {/* Show progress overlay during regeneration */}
