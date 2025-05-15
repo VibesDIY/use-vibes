@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useFireproof } from 'use-fireproof';
-import { ImageGenOptions as BaseImageGenOptions, ImageResponse } from 'call-ai';
+import { ImageResponse } from 'call-ai';
 import { UseImageGenOptions, UseImageGenResult, ImageDocument } from './types';
 
 // We previously extended ImageGenOptions to include regenerate flag, but this isn't needed

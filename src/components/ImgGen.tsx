@@ -3,6 +3,7 @@ import { v4 as uuid } from 'uuid';
 import type { ImageGenOptions } from 'call-ai';
 import { useImageGen } from '../hooks/image-gen/use-image-gen';
 import { useFireproof, Database } from 'use-fireproof';
+import { ImageDocument } from '../hooks/image-gen/types';
 import { ImgGenPromptWaiting, ImgGenPlaceholder, ImgGenDisplay, ImgGenError } from './ImgGenUtils';
 
 export interface ImgGenProps {
@@ -28,9 +29,11 @@ export interface ImgGenProps {
   onLoad?: () => void;
 
   /** Callback when image load fails */
+  // eslint-disable-next-line no-unused-vars
   onError?: (error: Error) => void;
   
   /** Callback when document is deleted */
+  // eslint-disable-next-line no-unused-vars
   onDelete?: (id: string) => void;
 }
 
@@ -164,10 +167,16 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
           : document.prompt || '');
       
       // Show the document display with regeneration state if applicable
+      // Ensure document has a defined _id for display
+      if (!document._id) {
+        console.error('Document is missing _id', document);
+        return <div>Error: Invalid document</div>;
+      }
+      
       return (
         <div style={{ position: 'relative' }}>
           <ImgGenDisplay 
-            document={document} 
+            document={document as (ImageDocument & { _id: string })} 
             className={className} 
             alt={altText}
             onDelete={handleDelete}

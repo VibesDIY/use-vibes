@@ -8,9 +8,9 @@ export interface PromptEntry {
   created: number;   // Timestamp when this prompt was created
 }
 
-export interface ImageDocument extends Record<string, unknown> {
-  _id: string;
-  type: 'image';
+export interface ImageDocument {
+  _id?: string;   // Must be defined when saving to database, but may be absent when creating
+  type?: 'image';  // Document type identifier
   prompt?: string;   // Legacy field, superseded by prompts/currentPromptKey
   _files?: Record<string, File | DocFileMeta>; // Files keyed by version ID (v1, v2, etc.)
   created?: number;

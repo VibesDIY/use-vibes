@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { DocFileMeta } from 'use-fireproof';
 import { ImgFile } from 'use-fireproof';
+import { ImageDocument, VersionInfo } from '../hooks/image-gen/types';
 
 // Component for when neither prompt nor _id is provided
 export function ImgGenPromptWaiting({ className }: { className?: string }) {
@@ -241,24 +242,14 @@ export function ImgGenPlaceholder({
 
 // Props for the image display component
 export interface ImgGenDisplayProps {
-  document: {
-    _id: string;
-    _files?: Record<string, File | DocFileMeta>;
-    // Legacy field
-    prompt?: string;
-    // New prompt structure
-    prompts?: Record<string, { text: string; created: number }>;
-    currentPromptKey?: string;
-    // Version tracking (now 0-based index)
-    currentVersion?: number;
-    versions?: Array<{ id: string; created: number; promptKey?: string }>;
-    created?: number;
-  };
+  document: ImageDocument & { _id: string }; // Ensure _id is required for display
   className?: string;
   alt?: string;
   /** Callback when delete is confirmed - receives document ID */
+  // eslint-disable-next-line no-unused-vars
   onDelete?: (id: string) => void;
   /** Callback when refresh is requested - receives document ID */
+  // eslint-disable-next-line no-unused-vars
   onRefresh?: (id: string) => void;
 }
 

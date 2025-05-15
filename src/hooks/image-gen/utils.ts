@@ -1,5 +1,5 @@
 import { ImageGenOptions } from 'call-ai';
-import { ModuleState } from './types';
+import { ModuleState, ImageDocument, VersionInfo, PromptEntry } from './types';
 
 // Module-level state for tracking and preventing duplicate calls
 export const MODULE_STATE: ModuleState = {
@@ -104,12 +104,12 @@ export function generateVersionId(versionNumber: number): string {
  * @param document - The image document
  * @returns Array of version info objects
  */
-export function getVersionsFromDocument(document: Record<string, unknown>): { versions: Array<{id: string; created: number; promptKey?: string}>, currentVersion: number } {
+export function getVersionsFromDocument(document: Partial<ImageDocument>): { versions: Array<VersionInfo>, currentVersion: number } {
   // Check if document has proper version structure
-  if (document?.versions?.length > 0) {
+  if (document?.versions && document.versions.length > 0) {
     return {
       versions: document.versions,
-      currentVersion: document.currentVersion || document.versions.length
+      currentVersion: document.currentVersion ?? document.versions.length
     };
   }
   
@@ -139,7 +139,7 @@ export function generatePromptKey(promptNumber: number): string {
  * @param document - The image document 
  * @returns Object with prompts record and currentPromptKey
  */
-export function getPromptsFromDocument(document: Record<string, unknown>): { prompts: Record<string, {text: string; created: number}>, currentPromptKey: string } {
+export function getPromptsFromDocument(document: Partial<ImageDocument>): { prompts: Record<string, PromptEntry>, currentPromptKey: string } {
   // Check if document has proper prompts structure
   if (document?.prompts && document?.currentPromptKey) {
     return {
@@ -169,7 +169,7 @@ export function getPromptsFromDocument(document: Record<string, unknown>): { pro
  * @param newPrompt - Optional new prompt to use for this version
  * @returns Updated document with the new version added
  */
-export function addNewVersion(document: Record<string, unknown>, newImageFile: File, newPrompt?: string): Record<string, unknown> {
+export function addNewVersion(document: Partial<ImageDocument>, newImageFile: File, newPrompt?: string): ImageDocument {
   // Get existing versions or initialize
   const { versions } = getVersionsFromDocument(document);
   const versionCount = versions.length + 1;
@@ -231,12 +231,14 @@ export function addNewVersion(document: Record<string, unknown>, newImageFile: F
  * to avoid unnecessary re-renders or regenerations
  */
 export function getRelevantOptions(options?: ImageGenOptions): Record<string, unknown> {
-  return options
-    ? {
-        size: options.size,
-        quality: options.quality,
-        model: options.model,
-        style: options.style,
-      }
-    : {};
+  if (!options) return {};
+  
+  const relevantOptions: Record<string, unknown> = {};
+  
+  if (options.size) relevantOptions.size = options.size;
+  if (options.quality) relevantOptions.quality = options.quality;
+  if (options.model) relevantOptions.model = options.model;
+  if (options.style) relevantOptions.style = options.style;
+  
+  return relevantOptions;
 }
