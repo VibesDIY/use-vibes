@@ -2,6 +2,7 @@ import * as React from 'react';
 import { v4 as uuid } from 'uuid';
 import type { ImageGenOptions, ImageResponse } from 'call-ai';
 import { useImageGen } from '../hooks/image-gen/use-image-gen';
+import { useFireproof } from 'use-fireproof';
 import { ImgGenPromptWaiting, ImgGenPlaceholder, ImgGenDisplay, ImgGenError } from './ImgGenUtils';
 
 export interface ImgGenProps {
@@ -51,6 +52,9 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     onDelete 
   } = props;
   
+  // Get access to the Fireproof database directly
+  const { database: db } = useFireproof(database || 'ImgGen');
+  
   // Create state to track regeneration requests with a toggle pattern
   // We use a number as a counter - each regeneration increments it
   const [regenerateCounter, setRegenerateCounter] = React.useState(0);
@@ -96,11 +100,22 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Handle delete request
   const handleDelete = React.useCallback((docId: string) => {
     if (onDelete) {
+      // If custom delete handler provided, use it
       onDelete(docId);
+    } else if (db) {
+      // Otherwise use the database directly
+      console.log(`Deleting document: ${docId}`);
+      db.del(docId)
+        .then(() => {
+          console.log(`Successfully deleted document: ${docId}`);
+        })
+        .catch((err: Error) => {
+          console.error(`Failed to delete document: ${docId}`, err);
+        });
     } else {
-      console.log(`Document ${docId} would be deleted (no onDelete handler provided)`);
+      console.log(`Document ${docId} would be deleted (no database available)`);
     }
-  }, [onDelete]);
+  }, [onDelete, db]);
 
   // Load/error effect - always declare in the same order
   React.useEffect(() => {
