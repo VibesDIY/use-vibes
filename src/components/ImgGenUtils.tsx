@@ -1,7 +1,6 @@
 import * as React from 'react';
-import type { DocFileMeta } from 'use-fireproof';
 import { ImgFile } from 'use-fireproof';
-import { ImageDocument, VersionInfo } from '../hooks/image-gen/types';
+import { ImageDocument } from '../hooks/image-gen/types';
 
 // Component for when neither prompt nor _id is provided
 export function ImgGenPromptWaiting({ className }: { className?: string }) {
