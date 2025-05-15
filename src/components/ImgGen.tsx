@@ -51,8 +51,13 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     onDelete 
   } = props;
   
-  // Create state to track when we need to regenerate an image
-  const [shouldRegenerate, setShouldRegenerate] = React.useState(false);
+  // Create state to track regeneration requests with a toggle pattern
+  // We use a number as a counter - each regeneration increments it
+  const [regenerateCounter, setRegenerateCounter] = React.useState(0);
+  
+  // Derive boolean flag from counter - odd values are true, even values are false
+  // This allows us to toggle between regeneration states
+  const shouldRegenerate = regenerateCounter % 2 === 1;
   
   // Calculate isPlaceholder as derived value, not state
   const isPlaceholder = React.useMemo(() => !prompt && !_id, [prompt, _id]);
@@ -82,8 +87,9 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     
     // Use the current document to generate a new version
     if (document) {
-      // Set regenerate flag to true to trigger a new image generation
-      setShouldRegenerate(true);
+      // Increment counter to trigger a new image generation
+      // This ensures we get a new state value every time
+      setRegenerateCounter(prev => prev + 1);
     }
   }, [document, _id]);
   
@@ -108,7 +114,21 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
       }
     }
   }, [loading, error, document, onLoad, onError]);
-  
+
+  // Detect completion of regeneration to prepare for next one
+  React.useEffect(() => {
+    // When loading finishes and we were in a regeneration state (odd counter),
+    // increment the counter again to reach an even number (ready state)
+    if (!loading && shouldRegenerate) {
+      // Using a small delay to ensure the UI fully updates first
+      const timer = setTimeout(() => {
+        setRegenerateCounter(prev => prev + 1);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [loading, shouldRegenerate]);
+
   // Render function that determines what to show
   const renderContent = () => {
     // If we don't have a prompt or ID, show the waiting component

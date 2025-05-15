@@ -73,9 +73,19 @@ export function useImageGen({
   // Reset state when prompt, _id, or regenerate flag changes
   useEffect(() => {
     const idChanged = _id !== previousIdRef.current;
+    
+    // Detect regeneration request when the flag changes to true
+    // This works with boolean flags and also with toggle patterns
     const regenerateChanged = regenerate && regenerate !== previousRegenerateRef.current;
+    
+    // Update tracking refs
     previousIdRef.current = _id;
     previousRegenerateRef.current = regenerate;
+    
+    // Log regeneration state changes for debugging
+    if (regenerateChanged) {
+      console.debug(`[ImgGen Debug] Regeneration triggered: ${regenerate}`);
+    }
     
     // Reset all state when inputs change
     setImageData(null);
@@ -161,10 +171,15 @@ export function useImageGen({
               if (regenerate && currentPromptText) {
                 console.log(`[ImgGen Debug] Regenerating image for document ${_id} with prompt: ${currentPromptText}`);
                 
-                // Generate a new image using the document's prompt
-                data = await callImageGeneration(currentPromptText, options);
+                // Add a unique regeneration ID to ensure this request gets a unique key
+                const regenerationOptions = {
+                  ...options,
+                  _regenerationId: Date.now() // Add unique timestamp
+                };
                 
-                // Process the response and add a new version to the document
+                // Generate a new image using the document's prompt
+                data = await callImageGeneration(currentPromptText, regenerationOptions);
+                
                 if (data?.data?.[0]?.b64_json) {
                   // Create a File object from the base64 data
                   const newImageFile = base64ToFile(data.data[0].b64_json, 'image.png');
@@ -293,13 +308,17 @@ export function useImageGen({
               const imageFile = base64ToFile(data.data[0].b64_json, 'image.png');
               
               // Define a stable key for deduplication based on all relevant parameters.
-              // Include _id (if present) and regenerate flag to avoid incorrect deduplication
+              // Include _id (if present) and current time for regeneration requests
+              // to ensure each regeneration gets a unique key
               const stableKey = [
                 prompt || '',
                 _id || '',
-                regenerate ? '1' : '0',
+                // For regenerate requests, add a timestamp to ensure uniqueness
+                regenerate ? `regen-${Date.now()}` : '0',
                 JSON.stringify(options)
               ].join('|');
+              
+              console.debug(`[ImgGen Debug] Generated stable key: ${stableKey}`);
               
               try {
                 // First check if there's already a document ID for this request
