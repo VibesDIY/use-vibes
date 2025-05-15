@@ -171,7 +171,7 @@ export function getPromptsFromDocument(document: any): { prompts: Record<string,
  */
 export function addNewVersion(document: any, newImageFile: File, newPrompt?: string): any {
   // Get existing versions or initialize
-  const { versions, currentVersion } = getVersionsFromDocument(document);
+  const { versions } = getVersionsFromDocument(document);
   const versionCount = versions.length + 1;
   const newVersionId = generateVersionId(versionCount);
   

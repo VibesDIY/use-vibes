@@ -118,7 +118,7 @@ export function ImgGenPlaceholder({
             }}
           >
             {(() => {
-              const { title, body, code } = parseErrorInfo(error);
+              const { title, body } = parseErrorInfo(error);
               return (
                 <>
                   <h3
@@ -315,7 +315,7 @@ export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }:
   };
 
   const { versions, currentVersion } = getVersionInfo();
-  const { currentPrompt, prompts, currentPromptKey } = getPromptInfo();
+  const { currentPrompt } = getPromptInfo();
   const [versionIndex, setVersionIndex] = React.useState(currentVersion);
   
   // Update versionIndex when the document changes and has new versions

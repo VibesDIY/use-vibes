@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { v4 as uuid } from 'uuid';
-import type { ImageGenOptions, ImageResponse } from 'call-ai';
+import type { ImageGenOptions } from 'call-ai';
 import { useImageGen } from '../hooks/image-gen/use-image-gen';
 import { useFireproof } from 'use-fireproof';
 import { ImgGenPromptWaiting, ImgGenPlaceholder, ImgGenDisplay, ImgGenError } from './ImgGenUtils';
@@ -28,7 +28,7 @@ export interface ImgGenProps {
   onLoad?: () => void;
 
   /** Callback when image load fails */
-  onError?: (error: Error) => void;
+  onError?: (err: Error) => void;
   
   /** Callback when document is deleted */
   onDelete?: (docId: string) => void;
@@ -122,7 +122,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     if (!loading) {
       if (error) {
         // Image generation failed
-        onError?.(error);
+        onError?.(error); // Pass error to callback
       } else if (document && document._files) {
         // Image generation succeeded - now supports both legacy and versioned files
         onLoad?.();

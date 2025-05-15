@@ -84,8 +84,8 @@ export function imageGen(prompt: string, options?: ImageGenOptions): Promise<Ima
  */
 export function createImageGenerator(requestHash: string) {
   return async (promptText: string, genOptions?: ImageGenOptions): Promise<ImageResponse> => {
-    // Create a key string based on the options to help identify duplicate calls
-    const optionsKey = JSON.stringify(getRelevantOptions(genOptions));
+    // Options key no longer used for logging
+    JSON.stringify(getRelevantOptions(genOptions)); // Still generate to maintain behavior
 
     // Log detailed information about this request - including request hash and options
 
@@ -96,7 +96,8 @@ export function createImageGenerator(requestHash: string) {
 
     try {
       const response = await imageGen(promptText, genOptions);
-      const duration = Date.now() - startTime;
+      // Time tracking no longer used
+      // Previously: const duration = Date.now() - startTime;
 
       return response;
     } catch (error) {
