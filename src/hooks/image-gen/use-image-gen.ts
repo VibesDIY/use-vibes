@@ -33,7 +33,7 @@ export function useImageGen({
   
   // If both are provided, warn that _id takes precedence
   if (prompt && _id) {
-    console.debug('[ImgGen] Both prompt and _id provided - using _id and ignoring prompt');
+
   }
   const [imageData, setImageData] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -84,7 +84,7 @@ export function useImageGen({
     
     // Log regeneration state changes for debugging
     if (regenerateChanged) {
-      console.debug(`[ImgGen Debug] Regeneration triggered: ${regenerate}`);
+
     }
     
     // Reset all state when inputs change
@@ -149,13 +149,13 @@ export function useImageGen({
         let data: ImageResponse | null = null;
         
         // Log the request for debugging
-        console.log(`[ImgGen Debug] imageGen call [ID:${requestId}] for prompt: ${prompt || 'N/A'} ${_id ? `with ID: ${_id}` : ''}`);
-        console.log(`[ImgGen Debug] Request options [ID:${requestId}]:`, options);
+
+
 
         try {
           // If we have a document ID, try to load the existing document
           if (_id) {
-            console.log(`[ImgGen Debug] Attempting to load document with ID: ${_id}`);
+
             const existingDoc = await db.get(_id).catch(() => null);
             
             if (existingDoc && existingDoc._files) {
@@ -169,7 +169,7 @@ export function useImageGen({
               
               // If regenerate flag is true, we're creating a new version
               if (regenerate && currentPromptText) {
-                console.log(`[ImgGen Debug] Regenerating image for document ${_id} with prompt: ${currentPromptText}`);
+
                 
                 // Create a completely unique key for the regeneration request to avoid deduplication
                 // at the image generation API call level (not just the document level)
@@ -179,13 +179,13 @@ export function useImageGen({
                   _regenerationId: timestamp // Add timestamp for uniqueness
                 };
                 
-                console.log(`[ImgGen Debug] Regeneration timestamp: ${timestamp}`);
-                console.log(`[ImgGen Debug] Regeneration options:`, JSON.stringify(regenerationOptions));
+
+
                 
                 // Clear any existing request with the same prompt from the cache
                 // This ensures we don't get a cached result
                 const requestKey = `${currentPromptText}-${JSON.stringify(getRelevantOptions(options))}`;
-                console.log(`[ImgGen Debug] Clearing any cached request for key: ${requestKey.slice(0, 20)}...`);
+
                 cleanupRequestKey(requestKey);
                 
                 // Generate a new image using the document's prompt
@@ -307,11 +307,11 @@ export function useImageGen({
             }
           } else if (prompt) {
             // No document ID provided but we have a prompt - generate a new image
-            console.log(`[ImgGen Debug] Starting imageGen call for prompt: ${prompt.substring(0, 15)}...`);
+
             
             // Generate the image
             data = await callImageGeneration(prompt, options);
-            console.log(`[ImgGen Debug] Generation succeeded for prompt: ${prompt.substring(0, 15)}...`);
+
             
             // Process the data response
             if (data?.data?.[0]?.b64_json) {
@@ -330,7 +330,7 @@ export function useImageGen({
                 JSON.stringify(getRelevantOptions(options))
               ].join('|');
               
-              console.debug(`[ImgGen Debug] Generated stable key: ${stableKey}`);
+
               
               // Schedule cleanup of this request from the cache maps 
               // to ensure future requests don't reuse this one
@@ -343,7 +343,7 @@ export function useImageGen({
                 const existingDocId = MODULE_STATE.createdDocuments.get(stableKey);
                 
                 if (existingDocId) {
-                  console.log(`[ImgGen Debug] Using existing document: ${existingDocId} for key: ${stableKey}`);
+
                   try {
                     // Try to get the existing document
                     const existingDoc = await db.get(existingDocId);
@@ -351,7 +351,7 @@ export function useImageGen({
                     setImageData(data.data[0].b64_json);
                     return; // Exit early, we're using the existing document
                   } catch (err) {
-                    console.log(`[ImgGen Debug] Existing document ${existingDocId} not found, will create new one`);
+
                     // Will continue to document creation below
                   }
                 }
@@ -361,7 +361,7 @@ export function useImageGen({
                 
                 if (!documentCreationPromise) {
                   // No document creation in progress, start a new one
-                  console.log(`[ImgGen Debug] Starting new document creation for key: ${stableKey}`);
+
                   
                   // This promise will be shared by all subscribers requesting the same document
                   documentCreationPromise = (async () => {
@@ -390,7 +390,7 @@ export function useImageGen({
                     
                     // Save the new document to Fireproof
                     const result = await db.put(imgDoc);
-                    console.log(`[ImgGen Debug] Created new document with ID: ${result.id}`);
+
                     
                     // Store the document ID in our tracking map to prevent duplicates
                     MODULE_STATE.createdDocuments.set(stableKey, result.id);
@@ -404,7 +404,7 @@ export function useImageGen({
                   // Store the promise for other subscribers
                   MODULE_STATE.pendingDocumentCreations.set(stableKey, documentCreationPromise);
                 } else {
-                  console.log(`[ImgGen Debug] Reusing existing document creation promise for key: ${stableKey}`);
+
                 }
                 
                 try {
@@ -442,11 +442,11 @@ export function useImageGen({
         } catch (error) {
           // Log the error
           console.error('Error retrieving from Fireproof:', error);
-          console.log(`[ImgGen Debug] Failed request [ID:${requestId}]:`, error);
+
 
           // Only try image generation as fallback for document load failures when we have a prompt
           if (prompt && !data && _id) {
-            console.log(`[ImgGen Debug] Attempting fallback generation with prompt: ${prompt}`);
+
             try {
               data = await callImageGeneration(prompt, options);
               if (data?.data?.[0]?.b64_json) {
@@ -472,7 +472,7 @@ export function useImageGen({
           }
           
           // Log completion time
-          console.log(`[ImgGen Debug] Completed request [ID:${requestId}] in ${Date.now()}ms`);
+
         }  
       } catch (err) {
         if (isMounted) {

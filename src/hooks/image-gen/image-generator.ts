@@ -16,7 +16,7 @@ export function imageGen(prompt: string, options?: ImageGenOptions): Promise<Ima
 
   // Log regeneration parameters if present (for debugging)
   if (options?._regenerationId) {
-    console.log(`[ImgGen Debug] Processing regeneration request with ID: ${options._regenerationId}`);
+
   }
 
   // Create a stable key for the request cache
@@ -25,16 +25,14 @@ export function imageGen(prompt: string, options?: ImageGenOptions): Promise<Ima
     ? `${prompt}-${JSON.stringify(relevantOptions)}-regen-${options._regenerationId}` 
     : `${prompt}-${JSON.stringify(relevantOptions)}`;
   
-  console.log(`[ImgGen Debug] Generated cache key: ${stableKey.slice(0, 20)}...`);
+
 
   // Create a unique ID for this specific request instance (for logging)
   const requestId = ++MODULE_STATE.requestCounter;
 
   // Check if this prompt+options combination is already being processed
   if (MODULE_STATE.pendingPrompts.has(stableKey)) {
-    console.log(
-      `[ImgGen Debug] DUPLICATE REQUEST #${requestId} DETECTED - Using existing imageGen call [key:${stableKey.slice(0, 12)}...] for: ${prompt}`
-    );
+
 
     // Return the existing promise for this prompt+options combination
     if (MODULE_STATE.pendingImageGenCalls.has(stableKey)) {
@@ -47,9 +45,7 @@ export function imageGen(prompt: string, options?: ImageGenOptions): Promise<Ima
   MODULE_STATE.processingRequests.add(stableKey);
   MODULE_STATE.requestTimestamps.set(stableKey, Date.now());
 
-  console.log(
-    `[ImgGen Debug] NEW REQUEST #${requestId} - Starting imageGen call [key:${stableKey.slice(0, 12)}...] for: ${prompt}`
-  );
+
   let promise: Promise<ImageResponse>;
 
   try {
@@ -66,9 +62,7 @@ export function imageGen(prompt: string, options?: ImageGenOptions): Promise<Ima
   // Clean up after the promise resolves or rejects
   promise
     .then((response) => {
-      console.log(
-        `[ImgGen Debug] Request #${requestId} succeeded [key:${stableKey.slice(0, 12)}...]`
-      );
+
       // Remove from processing set but KEEP in pendingPrompts to ensure deduplication persists
       // until page reload
       MODULE_STATE.processingRequests.delete(stableKey);
@@ -96,8 +90,8 @@ export function createImageGenerator(requestHash: string) {
     const optionsKey = JSON.stringify(getRelevantOptions(genOptions));
 
     // Log detailed information about this request - including request hash and options
-    console.log(`[ImgGen Debug] imageGen call [ID:${requestHash}] for prompt: ${promptText}`);
-    console.log(`[ImgGen Debug] Request options [ID:${requestHash}]: ${optionsKey}`);
+
+
 
     // Track the time it takes to generate the image
     const startTime = Date.now();
@@ -105,7 +99,7 @@ export function createImageGenerator(requestHash: string) {
     try {
       const response = await imageGen(promptText, genOptions);
       const duration = Date.now() - startTime;
-      console.log(`[ImgGen Debug] Completed request [ID:${requestHash}] in ${duration}ms`);
+
       return response;
     } catch (error) {
       console.error(`[ImgGen Debug] Failed request [ID:${requestHash}]: ${error}`);

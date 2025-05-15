@@ -83,11 +83,11 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   const handleGenerateNewVersion = React.useCallback(() => {
     // If we don't have a doc ID, there's nothing to refresh
     if (!_id) {
-      console.debug('[ImgGen] No document ID available for regeneration');
+
       return;
     }
     
-    console.debug(`[ImgGen] Regenerating: ${_id}`);
+
     
     // Use the current document to generate a new version
     if (document) {
@@ -104,16 +104,16 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
       onDelete(docId);
     } else if (db) {
       // Otherwise use the database directly
-      console.log(`Deleting document: ${docId}`);
+
       db.del(docId)
         .then(() => {
-          console.log(`Successfully deleted document: ${docId}`);
+
         })
         .catch((err: Error) => {
           console.error(`Failed to delete document: ${docId}`, err);
         });
     } else {
-      console.log(`Document ${docId} would be deleted (no database available)`);
+
     }
   }, [onDelete, db]);
 
