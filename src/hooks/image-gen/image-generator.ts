@@ -1,16 +1,31 @@
-import { ImageGenOptions, ImageResponse, imageGen as originalImageGen } from 'call-ai';
+import { ImageGenOptions as BaseImageGenOptions, ImageResponse, imageGen as originalImageGen } from 'call-ai';
 import { MODULE_STATE, getRelevantOptions } from './utils';
+
+// Extend the ImageGenOptions type to include our regeneration ID
+interface ImageGenOptions extends BaseImageGenOptions {
+  _regenerationId?: number;
+}
 
 /**
  * Wrapper for imageGen that prevents duplicate calls
  * This function maintains a module-level cache to prevent duplicate API calls
  */
 export function imageGen(prompt: string, options?: ImageGenOptions): Promise<ImageResponse> {
-  // Get the relevant options to form a stable cache key
+  // Get the relevant options to form a stable key
   const relevantOptions = getRelevantOptions(options);
 
+  // Log regeneration parameters if present (for debugging)
+  if (options?._regenerationId) {
+    console.log(`[ImgGen Debug] Processing regeneration request with ID: ${options._regenerationId}`);
+  }
+
   // Create a stable key for the request cache
-  const stableKey = `${prompt}-${JSON.stringify(relevantOptions)}`;
+  // Include regeneration ID if present to ensure unique keys for regeneration requests
+  const stableKey = options?._regenerationId 
+    ? `${prompt}-${JSON.stringify(relevantOptions)}-regen-${options._regenerationId}` 
+    : `${prompt}-${JSON.stringify(relevantOptions)}`;
+  
+  console.log(`[ImgGen Debug] Generated cache key: ${stableKey.slice(0, 20)}...`);
 
   // Create a unique ID for this specific request instance (for logging)
   const requestId = ++MODULE_STATE.requestCounter;

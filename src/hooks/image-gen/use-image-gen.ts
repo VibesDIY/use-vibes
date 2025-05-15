@@ -173,10 +173,20 @@ export function useImageGen({
                 
                 // Create a completely unique key for the regeneration request to avoid deduplication
                 // at the image generation API call level (not just the document level)
+                const timestamp = Date.now();
                 const regenerationOptions = {
                   ...options,
-                  _regenerationId: Date.now() // Add timestamp for uniqueness
+                  _regenerationId: timestamp // Add timestamp for uniqueness
                 };
+                
+                console.log(`[ImgGen Debug] Regeneration timestamp: ${timestamp}`);
+                console.log(`[ImgGen Debug] Regeneration options:`, JSON.stringify(regenerationOptions));
+                
+                // Clear any existing request with the same prompt from the cache
+                // This ensures we don't get a cached result
+                const requestKey = `${currentPromptText}-${JSON.stringify(getRelevantOptions(options))}`;
+                console.log(`[ImgGen Debug] Clearing any cached request for key: ${requestKey.slice(0, 20)}...`);
+                cleanupRequestKey(requestKey);
                 
                 // Generate a new image using the document's prompt
                 data = await callImageGeneration(currentPromptText, regenerationOptions);
