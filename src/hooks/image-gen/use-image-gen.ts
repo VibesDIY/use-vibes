@@ -1,20 +1,40 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useFireproof } from 'use-fireproof';
-import { ImageGenOptions, ImageResponse } from 'call-ai';
-import { UseImageGenOptions, UseImageGenResult, ImageDocument } from './types';
-import { hashInput, base64ToFile } from './utils';
+import { ImageGenOptions as BaseImageGenOptions, ImageResponse } from 'call-ai';
+import { UseImageGenOptions, UseImageGenResult, ImageDocument, PromptEntry } from './types';
+
+// Extend ImageGenOptions to include regenerate flag
+interface ExtendedImageGenOptions extends BaseImageGenOptions {
+  regenerate?: boolean;
+}
+
+// Use our extended type throughout the hook
+type ImageGenOptions = ExtendedImageGenOptions;
+import { hashInput, base64ToFile, addNewVersion, getVersionsFromDocument, getPromptsFromDocument, generatePromptKey, generateVersionId, MODULE_STATE, cleanupRequestKey } from './utils';
 import { imageGen, createImageGenerator } from './image-generator';
 
 /**
  * Hook for generating images with call-ai's imageGen
  * Provides automatic caching, reactive updates, and progress handling
+ * 
+ * The hook allows for two modes of operation:
+ * 1. Generate a new image with a prompt (no _id provided)
+ * 2. Load or update an existing image document (_id provided)
  */
 export function useImageGen({
   prompt,
   _id,
   options = {},
   database = 'ImgGen',
+  skip = false, // Skip processing flag
+  regenerate = false, // Flag to force regeneration
 }: UseImageGenOptions): UseImageGenResult {
+
+  
+  // If both are provided, warn that _id takes precedence
+  if (prompt && _id) {
+    console.debug('[ImgGen] Both prompt and _id provided - using _id and ignoring prompt');
+  }
   const [imageData, setImageData] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
@@ -41,17 +61,32 @@ export function useImageGen({
     ]
   );
 
-  // Memoize the request hash to prevent recalculation on each render
-  const requestHash = useMemo(() => {
-    // Generate a unique hash based on prompt and options
-    return hashInput(prompt, options);
-  }, [prompt, options?.size, options?.quality, options?.model, options?.style]);
+  // Create a unique request ID for logging/debugging only (not for document ID generation)
+  const requestId = useMemo(() => {
+    return hashInput(prompt || _id || 'unknown', options);
+  }, [prompt, _id, options?.size, options?.quality, options?.model, options?.style]);
 
-  // Reset state when prompt, _id, or options change
+  // Track ID and regeneration state changes
+  const previousIdRef = useRef<string | undefined>(_id);
+  const previousRegenerateRef = useRef<boolean>(regenerate);
+  
+  // Reset state when prompt, _id, or regenerate flag changes
   useEffect(() => {
+    const idChanged = _id !== previousIdRef.current;
+    const regenerateChanged = regenerate && regenerate !== previousRegenerateRef.current;
+    previousIdRef.current = _id;
+    previousRegenerateRef.current = regenerate;
+    
+    // Reset all state when inputs change
     setImageData(null);
     setError(null);
     setProgress(0);
+    
+    // Clear document state when ID changes
+    // This ensures a clean start when navigating to a new document
+    if (idChanged) {
+      setDocument(null);
+    }
 
     // Clear any existing progress timer
     if (progressTimerRef.current) {
@@ -65,15 +100,18 @@ export function useImageGen({
         clearInterval(progressTimerRef.current);
       }
     };
-  }, [prompt, _id, memoizedOptions]); // Using memoizedOptions instead of JSON.stringify
+  }, [prompt, _id, memoizedOptions]); // Dependencies that require state reset
 
   // Generate the image when prompt or options change or load by ID
   useEffect(() => {
     let isMounted = true;
 
-    // Don't generate image if both prompt and _id are falsy
-    if (!prompt && !_id) {
+    // Skip processing if explicitly told to or if both prompt and _id are falsy
+    if (skip || (!prompt && !_id)) {
       setLoading(false);
+      if (!skip) {
+        setError(new Error('Either prompt or _id must be provided'));
+      }
       return;
     }
 
@@ -81,8 +119,8 @@ export function useImageGen({
     setProgress(0);
     setError(null);
 
-    // Create a generator function with the current request hash
-    const callImageGeneration = createImageGenerator(requestHash);
+    // Create a generator function with the current request ID
+    const callImageGeneration = createImageGenerator(requestId);
 
     // Main function that handles the image loading/generation process
     const loadOrGenerateImage = async () => {
@@ -99,104 +137,291 @@ export function useImageGen({
         progressTimerRef.current = timer;
 
         let data: ImageResponse | null = null;
-        // If _id is provided, use that directly, otherwise use the requestHash
-        const docId = _id || `img:${requestHash}`;
+        
+        // Log the request for debugging
+        console.log(`[ImgGen Debug] imageGen call [ID:${requestId}] for prompt: ${prompt || 'N/A'} ${_id ? `with ID: ${_id}` : ''}`);
+        console.log(`[ImgGen Debug] Request options [ID:${requestId}]:`, options);
 
         try {
-          // Try to get from Fireproof first
-          const existingDoc = await db.get(docId).catch(() => null);
+          // If we have a document ID, try to load the existing document
+          if (_id) {
+            console.log(`[ImgGen Debug] Attempting to load document with ID: ${_id}`);
+            const existingDoc = await db.get(_id).catch(() => null);
+            
+            if (existingDoc && existingDoc._files) {
+              // Document exists, set it
+              setDocument(existingDoc as unknown as ImageDocument);
+              
+              // Extract prompt information from the document
+              const { prompts, currentPromptKey } = getPromptsFromDocument(existingDoc);
+              const currentPromptText = currentPromptKey && prompts[currentPromptKey]?.text || 
+                (existingDoc as unknown as ImageDocument).prompt || '';
+              
+              // If regenerate flag is true, we're creating a new version
+              if (regenerate && currentPromptText) {
+                console.log(`[ImgGen Debug] Regenerating image for document ${_id} with prompt: ${currentPromptText}`);
+                
+                // Generate a new image using the document's prompt
+                data = await callImageGeneration(currentPromptText, options);
+                
+                // Process the response and add a new version to the document
+                if (data?.data?.[0]?.b64_json) {
+                  // Create a File object from the base64 data
+                  const newImageFile = base64ToFile(data.data[0].b64_json, 'image.png');
+                  
+                  // Ensure we preserve the original document ID
+                  const originalDocId = _id;
+                  
+                  // Add the new version to the document
+                  const updatedDoc = addNewVersion(existingDoc, newImageFile, currentPromptText);
+                  
+                  // Make sure the _id is preserved exactly
+                  updatedDoc._id = originalDocId;
+                  
+                  // Save the updated document
+                  await db.put(updatedDoc);
+                  
+                  // Get the updated document with the new version using the original ID
+                  const refreshedDoc = await db.get(originalDocId);
+                  setDocument(refreshedDoc as unknown as ImageDocument);
+                  
+                  // Set the image data from the new version
+                  const reader = new FileReader();
+                  reader.readAsDataURL(newImageFile);
+                  await new Promise<void>((resolve) => {
+                    reader.onloadend = () => {
+                      if (typeof reader.result === 'string') {
+                        setImageData(reader.result);
+                      }
+                      resolve();
+                    };
+                  });
+                  
+                  // Set progress to 100%
+                  setProgress(100);
+                  return;
+                }
+              }
 
-          if (existingDoc && existingDoc._files) {
-            // Document exists, set it
-            setDocument(existingDoc as unknown as ImageDocument);
-
-            // If we have a file in the document, read it for backward compatibility with our state
-            if (
-              existingDoc._files.image &&
-              'file' in existingDoc._files.image &&
-              typeof existingDoc._files.image.file === 'function'
-            ) {
-              const fileObj = await existingDoc._files.image.file();
-              // Read the file as base64
-              const reader = new FileReader();
-              const base64Promise = new Promise<string>((resolve, reject) => {
-                reader.onload = () => {
-                  const base64 = reader.result as string;
-                  // Strip the data URL prefix if present
-                  const base64Data = base64.split(',')[1] || base64;
-                  resolve(base64Data);
-                };
-                reader.onerror = reject;
-              });
-              reader.readAsDataURL(fileObj);
-              const base64Data = await base64Promise;
-
-              // Create a response-like object
-              data = {
-                created: Date.now(),
-                data: [
-                  {
-                    b64_json: base64Data,
-                    url: undefined,
-                    revised_prompt: prompt,
-                  },
-                ],
-              };
-
-              setImageData(base64Data);
+              try {
+                // Select the current version's file
+                const { versions, currentVersion } = getVersionsFromDocument(existingDoc);
+                // Get prompts information
+                const { prompts, currentPromptKey } = getPromptsFromDocument(existingDoc);
+                
+                if (versions.length > 0) {
+                  // Use the current version ID to get the file
+                  const versionId = versions[currentVersion]?.id || versions[0]?.id;
+                  if (!versionId || !existingDoc._files[versionId]) {
+                    throw new Error(`Version ${versionId} not found in document files`);
+                  }
+                  
+                  const imageFile = existingDoc._files[versionId];
+                  let fileObj: Blob;
+                  
+                  // Handle different file access methods
+                  if ('file' in imageFile && typeof imageFile.file === 'function') {
+                    // DocFileMeta interface from Fireproof
+                    fileObj = await imageFile.file();
+                  } else {
+                    // Direct File object
+                    fileObj = imageFile as unknown as File;
+                  }
+                  
+                  // Read the file as base64
+                  const reader = new FileReader();
+                  const base64Promise = new Promise<string>((resolve, reject) => {
+                    reader.onload = () => {
+                      const base64 = reader.result as string;
+                      // Strip the data URL prefix if present
+                      const base64Data = base64.split(',')[1] || base64;
+                      resolve(base64Data);
+                    };
+                    reader.onerror = reject;
+                  });
+                  reader.readAsDataURL(fileObj);
+                  const base64Data = await base64Promise;
+                  
+                  setImageData(base64Data);
+                } else {
+                  // Handle legacy files structure
+                  if (existingDoc._files.image) {
+                    const imageFile = existingDoc._files.image;
+                    let fileObj: Blob;
+                    
+                    if ('file' in imageFile && typeof imageFile.file === 'function') {
+                      fileObj = await imageFile.file();
+                    } else {
+                      fileObj = imageFile as unknown as File;
+                    }
+                    
+                    // Read the file as base64
+                    const reader = new FileReader();
+                    const base64Promise = new Promise<string>((resolve, reject) => {
+                      reader.onload = () => {
+                        const base64 = reader.result as string;
+                        // Strip the data URL prefix if present
+                        const base64Data = base64.split(',')[1] || base64;
+                        resolve(base64Data);
+                      };
+                      reader.onerror = reject;
+                    });
+                    reader.readAsDataURL(fileObj);
+                    const base64Data = await base64Promise;
+                    
+                    setImageData(base64Data);
+                  }
+                }
+              } catch (err) {
+                console.error('Error loading image file:', err);
+                throw new Error(`Failed to load image from document: ${err instanceof Error ? err.message : String(err)}`);
+              }  
+            } else {
+              throw new Error(`Document exists but has no files: ${_id}`);
             }
           } else if (prompt) {
-            // Document doesn't exist, generate new image
+            // No document ID provided but we have a prompt - generate a new image
+            console.log(`[ImgGen Debug] Starting imageGen call for prompt: ${prompt.substring(0, 15)}...`);
+            
+            // Generate the image
             data = await callImageGeneration(prompt, options);
-
-            // Store in Fireproof
-            if (data && data.data && data.data[0] && data.data[0].b64_json) {
+            console.log(`[ImgGen Debug] Generation succeeded for prompt: ${prompt.substring(0, 15)}...`);
+            
+            // Process the data response
+            if (data?.data?.[0]?.b64_json) {
+              // Create a File object from the base64 data
+              const imageFile = base64ToFile(data.data[0].b64_json, 'image.png');
+              
+              // Define a stable key for deduplication based on all relevant parameters.
+              // Include _id (if present) and regenerate flag to avoid incorrect deduplication
+              const stableKey = [
+                prompt || '',
+                _id || '',
+                regenerate ? '1' : '0',
+                JSON.stringify(options)
+              ].join('|');
+              
               try {
-                // Create a File object from the base64 data
-                const imageFile = base64ToFile(data.data[0].b64_json, 'image.png');
-
-                // Create or update the document
-                const imgDoc: ImageDocument = {
-                  _id: docId,
-                  type: 'image',
-                  prompt,
-                  options,
-                  created: Date.now(),
-                  _files: {
-                    image: imageFile,
-                  },
-                };
-                const result = await db.put(imgDoc);
-
-                // Get the document with the file attached
-                const doc = await db.get(result.id);
-                setDocument(doc as unknown as ImageDocument);
-
-                setImageData(data.data[0].b64_json);
+                // First check if there's already a document ID for this request
+                const existingDocId = MODULE_STATE.createdDocuments.get(stableKey);
+                
+                if (existingDocId) {
+                  console.log(`[ImgGen Debug] Using existing document: ${existingDocId} for key: ${stableKey}`);
+                  try {
+                    // Try to get the existing document
+                    const existingDoc = await db.get(existingDocId);
+                    setDocument(existingDoc as unknown as ImageDocument);
+                    setImageData(data.data[0].b64_json);
+                    return; // Exit early, we're using the existing document
+                  } catch (err) {
+                    console.log(`[ImgGen Debug] Existing document ${existingDocId} not found, will create new one`);
+                    // Will continue to document creation below
+                  }
+                }
+                
+                // Check if there's already a document creation in progress
+                let documentCreationPromise = MODULE_STATE.pendingDocumentCreations.get(stableKey);
+                
+                if (!documentCreationPromise) {
+                  // No document creation in progress, start a new one
+                  console.log(`[ImgGen Debug] Starting new document creation for key: ${stableKey}`);
+                  
+                  // This promise will be shared by all subscribers requesting the same document
+                  documentCreationPromise = (async () => {
+                    // Create a new document with initial version and prompt
+                    const imgDoc: ImageDocument = {
+                      _id: '', // Will be assigned by Fireproof
+                      type: 'image',
+                      created: Date.now(),
+                      currentVersion: 0, // 0-based indexing for versions array
+                      versions: [{ 
+                        id: 'v1', 
+                        created: Date.now(),
+                        promptKey: 'p1' 
+                      }],
+                      prompts: {
+                        p1: { 
+                          text: prompt, 
+                          created: Date.now() 
+                        }
+                      },
+                      currentPromptKey: 'p1',
+                      _files: {
+                        v1: imageFile,
+                      },
+                    };
+                    
+                    // Save the new document to Fireproof
+                    const result = await db.put(imgDoc);
+                    console.log(`[ImgGen Debug] Created new document with ID: ${result.id}`);
+                    
+                    // Store the document ID in our tracking map to prevent duplicates
+                    MODULE_STATE.createdDocuments.set(stableKey, result.id);
+                    
+                    // Get the document with the file attached
+                    const doc = await db.get(result.id) as unknown as ImageDocument;
+                    
+                    return { id: result.id, doc };
+                  })();
+                  
+                  // Store the promise for other subscribers
+                  MODULE_STATE.pendingDocumentCreations.set(stableKey, documentCreationPromise);
+                } else {
+                  console.log(`[ImgGen Debug] Reusing existing document creation promise for key: ${stableKey}`);
+                }
+                
+                try {
+                  // Wait for the document creation to complete
+                  const { doc } = await documentCreationPromise;
+                  setDocument(doc);
+                  setImageData(data.data[0].b64_json);
+                } catch (e) {
+                  console.error('Error in document creation:', e);
+                  // Still show the image even if document creation fails
+                  setImageData(data.data[0].b64_json);
+                  // Clean up the failed promise so future requests can try again
+                  MODULE_STATE.pendingDocumentCreations.delete(stableKey);
+                }
+                // Empty block - all document creation logic is now handled by the Promise
               } catch (e) {
                 console.error('Error saving to Fireproof:', e);
-                // Even if we fail to save to Fireproof, we still have the image data so don't throw
+                // Even if we fail to save to Fireproof, we still have the image data
                 setImageData(data.data[0].b64_json);
+              } finally {
+                // Clean up processing flag
+                MODULE_STATE.processingRequests.delete(stableKey);
+                
+                // Clean up the document creation promise if successful
+                // This prevents memory leaks while preserving the document ID in createdDocuments
+                if (MODULE_STATE.createdDocuments.has(stableKey)) {
+                  MODULE_STATE.pendingDocumentCreations.delete(stableKey);
+                  MODULE_STATE.requestTimestamps.delete(stableKey);
+                }
               }
             }
           } else {
             throw new Error('Document not found and no prompt provided for generation');
           }
         } catch (error) {
-          // Log but don't attempt a second generation if we already tried once
+          // Log the error
           console.error('Error retrieving from Fireproof:', error);
+          console.log(`[ImgGen Debug] Failed request [ID:${requestId}]:`, error);
 
-          // Only try image generation as fallback if we haven't already done it
-          // and we have a prompt to use
-          if (prompt && !data && !docId.startsWith('img:')) {
-            // This is likely for a document lookup that failed, so try generation as last resort
-            data = await callImageGeneration(prompt, options);
-            if (data && data.data && data.data[0] && data.data[0].b64_json) {
-              setImageData(data.data[0].b64_json);
+          // Only try image generation as fallback for document load failures when we have a prompt
+          if (prompt && !data && _id) {
+            console.log(`[ImgGen Debug] Attempting fallback generation with prompt: ${prompt}`);
+            try {
+              data = await callImageGeneration(prompt, options);
+              if (data?.data?.[0]?.b64_json) {
+                setImageData(data.data[0].b64_json);
+              }
+            } catch (genError) {
+              console.error('Fallback generation also failed:', genError);
+              throw genError;
             }
           } else {
             throw error;
-          }
+          }  
         }
 
         // Update state with the image data
@@ -208,9 +433,10 @@ export function useImageGen({
             clearInterval(progressTimerRef.current);
             progressTimerRef.current = null;
           }
-
-          // All done successfully
-        }
+          
+          // Log completion time
+          console.log(`[ImgGen Debug] Completed request [ID:${requestId}] in ${Date.now()}ms`);
+        }  
       } catch (err) {
         if (isMounted) {
           setError(err instanceof Error ? err : new Error(String(err)));
@@ -233,7 +459,7 @@ export function useImageGen({
     return () => {
       isMounted = false;
     };
-  }, [prompt, _id, memoizedOptions, requestHash, database]); // Using memoizedOptions and requestHash
+  }, [prompt, _id, memoizedOptions, requestId, database, skip, regenerate]); // Dependencies that trigger image loading/generation
 
   return {
     imageData,

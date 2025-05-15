@@ -77,6 +77,7 @@ function App() {
           prompt={activePrompt}
           _id={selectedImageId}
           options={{
+            quality: 'low',
             imgUrl: 'https://vibecode.garden',
             size: '1024x1024',
           }}
@@ -101,9 +102,12 @@ function App() {
                     setActivePrompt('');
                   }}
                 >
-                  <ImgGen _id={doc._id} alt={doc.prompt} className="thumbnail-img" />
+                  <ImgGen _id={doc._id} className="thumbnail-img" options={{
+                    quality: 'low',
+                    imgUrl: 'https://vibecode.garden',
+                    size: '1024x1024',
+                  }} />
                 </div>
-                <div className="prompt-text">{doc.prompt}</div>
               </div>
             ))}
           </div>
