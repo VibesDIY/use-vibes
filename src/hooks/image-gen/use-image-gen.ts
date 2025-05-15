@@ -3,15 +3,10 @@ import { useFireproof } from 'use-fireproof';
 import { ImageGenOptions as BaseImageGenOptions, ImageResponse } from 'call-ai';
 import { UseImageGenOptions, UseImageGenResult, ImageDocument } from './types';
 
-// Extend ImageGenOptions to include regenerate flag
-interface ExtendedImageGenOptions extends BaseImageGenOptions {
-  regenerate?: boolean;
-}
-
-// Use our extended type throughout the hook
-type ImageGenOptions = ExtendedImageGenOptions;
-import { hashInput, base64ToFile, addNewVersion, getVersionsFromDocument, getPromptsFromDocument, generatePromptKey, generateVersionId, MODULE_STATE, cleanupRequestKey, getRelevantOptions } from './utils';
-import { imageGen, createImageGenerator } from './image-generator';
+// We previously extended ImageGenOptions to include regenerate flag, but this isn't needed
+// The regenerate flag is handled at the hook level directly
+import { hashInput, base64ToFile, addNewVersion, getVersionsFromDocument, getPromptsFromDocument, MODULE_STATE, cleanupRequestKey, getRelevantOptions } from './utils';
+import { createImageGenerator } from './image-generator';
 
 /**
  * Hook for generating images with call-ai's imageGen
@@ -80,18 +75,18 @@ export function useImageGen({
     previousIdRef.current = _id;
     previousRegenerateRef.current = regenerate;
     
-    // Track regeneration state changes
-    // Previously used for logging, now handled via the ref
-    
-    // Reset all state when inputs change
-    setImageData(null);
-    setError(null);
-    setProgress(0);
-    
-    // Clear document state when ID changes
-    // This ensures a clean start when navigating to a new document
-    if (idChanged) {
-      setDocument(null);
+    // Only proceed with state resets when needed
+    if (idChanged || regenerateChanged) {
+      // Reset all state when inputs change
+      setImageData(null);
+      setError(null);
+      setProgress(0);
+      
+      // Clear document state when ID changes
+      // This ensures a clean start when navigating to a new document
+      if (idChanged) {
+        setDocument(null);
+      }
     }
 
     // Clear any existing progress timer
@@ -228,8 +223,8 @@ export function useImageGen({
               try {
                 // Select the current version's file
                 const { versions, currentVersion } = getVersionsFromDocument(existingDoc);
-                // Get prompts information
-                const { prompts, currentPromptKey } = getPromptsFromDocument(existingDoc);
+                // Get prompt information but we don't need it here
+                // const promptInfo = getPromptsFromDocument(existingDoc);
                 
                 if (versions.length > 0) {
                   // Use the current version ID to get the file
@@ -346,8 +341,8 @@ export function useImageGen({
                     setDocument(existingDoc as unknown as ImageDocument);
                     setImageData(data.data[0].b64_json);
                     return; // Exit early, we're using the existing document
-                  } catch (err) {
-
+                  } catch {
+                    // Error fetching existing document, ignore silently
                     // Will continue to document creation below
                   }
                 }

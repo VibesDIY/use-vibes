@@ -1,4 +1,4 @@
-import type { DocFileMeta } from 'use-fireproof';
+import type { DocFileMeta, Database } from 'use-fireproof';
 import { ImageGenOptions, ImageResponse } from 'call-ai';
 
 // Interface for our image documents in Fireproof
@@ -8,7 +8,7 @@ export interface PromptEntry {
   created: number;   // Timestamp when this prompt was created
 }
 
-export interface ImageDocument extends Record<string, any> {
+export interface ImageDocument extends Record<string, unknown> {
   _id: string;
   type: 'image';
   prompt?: string;   // Legacy field, superseded by prompts/currentPromptKey
@@ -38,7 +38,7 @@ export interface UseImageGenOptions {
   options?: ImageGenOptions;
 
   /** Fireproof database name or instance */
-  database?: string | any;
+  database?: string | Database;
   
   /** Flag to force regeneration of the image */
   regenerate?: boolean;

@@ -91,9 +91,6 @@ export function createImageGenerator(requestHash: string) {
 
 
 
-    // Track the time it takes to generate the image
-    const startTime = Date.now();
-
     try {
       const response = await imageGen(promptText, genOptions);
       // Time tracking no longer used

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { v4 as uuid } from 'uuid';
 import type { ImageGenOptions } from 'call-ai';
 import { useImageGen } from '../hooks/image-gen/use-image-gen';
-import { useFireproof } from 'use-fireproof';
+import { useFireproof, Database } from 'use-fireproof';
 import { ImgGenPromptWaiting, ImgGenPlaceholder, ImgGenDisplay, ImgGenError } from './ImgGenUtils';
 
 export interface ImgGenProps {
@@ -22,16 +22,16 @@ export interface ImgGenProps {
   options?: ImageGenOptions;
 
   /** Database name or instance to use for storing images */
-  database?: string | any;
+  database?: string | Database;
 
   /** Callback when image load completes successfully */
   onLoad?: () => void;
 
   /** Callback when image load fails */
-  onError?: (err: Error) => void;
+  onError?: (error: Error) => void;
   
   /** Callback when document is deleted */
-  onDelete?: (docId: string) => void;
+  onDelete?: (id: string) => void;
 }
 
 /**
@@ -98,19 +98,19 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   }, [document, _id]);
   
   // Handle delete request
-  const handleDelete = React.useCallback((docId: string) => {
+  const handleDelete = React.useCallback((id: string) => {
     if (onDelete) {
       // If custom delete handler provided, use it
-      onDelete(docId);
+      onDelete(id);
     } else if (db) {
       // Otherwise use the database directly
 
-      db.del(docId)
+      db.del(id)
         .then(() => {
 
         })
         .catch((err: Error) => {
-          console.error(`Failed to delete document: ${docId}`, err);
+          console.error(`Failed to delete document: ${id}`, err);
         });
     } else {
       // No database available for deletion

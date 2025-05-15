@@ -45,7 +45,7 @@ setInterval(() => {
  * @param options Optional image generation options
  * @returns A hash string for the input
  */
-export function hashInput(prompt: string, options?: any): string {
+export function hashInput(prompt: string, options?: ImageGenOptions): string {
   // Create a string that includes both prompt and relevant options
   const inputString = JSON.stringify({
     prompt,
@@ -104,7 +104,7 @@ export function generateVersionId(versionNumber: number): string {
  * @param document - The image document
  * @returns Array of version info objects
  */
-export function getVersionsFromDocument(document: any): { versions: any[], currentVersion: number } {
+export function getVersionsFromDocument(document: Record<string, unknown>): { versions: Array<{id: string; created: number; promptKey?: string}>, currentVersion: number } {
   // Check if document has proper version structure
   if (document?.versions?.length > 0) {
     return {
@@ -139,7 +139,7 @@ export function generatePromptKey(promptNumber: number): string {
  * @param document - The image document 
  * @returns Object with prompts record and currentPromptKey
  */
-export function getPromptsFromDocument(document: any): { prompts: Record<string, any>, currentPromptKey: string } {
+export function getPromptsFromDocument(document: Record<string, unknown>): { prompts: Record<string, {text: string; created: number}>, currentPromptKey: string } {
   // Check if document has proper prompts structure
   if (document?.prompts && document?.currentPromptKey) {
     return {
@@ -169,7 +169,7 @@ export function getPromptsFromDocument(document: any): { prompts: Record<string,
  * @param newPrompt - Optional new prompt to use for this version
  * @returns Updated document with the new version added
  */
-export function addNewVersion(document: any, newImageFile: File, newPrompt?: string): any {
+export function addNewVersion(document: Record<string, unknown>, newImageFile: File, newPrompt?: string): Record<string, unknown> {
   // Get existing versions or initialize
   const { versions } = getVersionsFromDocument(document);
   const versionCount = versions.length + 1;
@@ -230,7 +230,7 @@ export function addNewVersion(document: any, newImageFile: File, newPrompt?: str
  * Extract only the options properties that matter for image generation
  * to avoid unnecessary re-renders or regenerations
  */
-export function getRelevantOptions(options?: ImageGenOptions): Record<string, any> {
+export function getRelevantOptions(options?: ImageGenOptions): Record<string, unknown> {
   return options
     ? {
         size: options.size,

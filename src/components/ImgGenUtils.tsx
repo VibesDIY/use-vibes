@@ -256,8 +256,10 @@ export interface ImgGenDisplayProps {
   };
   className?: string;
   alt?: string;
-  onDelete?: (docId: string) => void;
-  onRefresh?: (docId: string) => void;
+  /** Callback when delete is confirmed - receives document ID */
+  onDelete?: (id: string) => void;
+  /** Callback when refresh is requested - receives document ID */
+  onRefresh?: (id: string) => void;
 }
 
 // Component for displaying the generated image
