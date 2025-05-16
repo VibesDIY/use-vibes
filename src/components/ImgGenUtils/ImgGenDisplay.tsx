@@ -5,7 +5,6 @@ import { ImgGenDisplayProps } from './types';
 import { getCurrentFileKey, getPromptInfo, getVersionInfo } from './ImgGenDisplayUtils';
 import { DeleteConfirmationOverlay } from './overlays/DeleteConfirmationOverlay';
 import { ImageOverlay } from './overlays/ImageOverlay';
-import '../ImgGen.css';
 import { combineClasses, defaultClasses } from '../../utils/style-utils';
 
 // Component for displaying the generated image

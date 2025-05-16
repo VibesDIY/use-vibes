@@ -1,5 +1,4 @@
 import * as React from 'react';
-import '../../ImgGen.css';
 import { combineClasses, defaultClasses, ImgGenClasses } from '../../../utils/style-utils';
 
 interface DeleteConfirmationOverlayProps {

@@ -11,13 +11,20 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.js"
-    }
+    },
+    "./style-loader": {
+      "types": "./dist/style-loader.d.ts",
+      "import": "./dist/style-loader.js",
+      "require": "./dist/style-loader.js"
+    },
+    "./components/ImgGen.css": "./dist/components/ImgGen.css"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "pnpm clean && tsc && pnpm copy-css",
+    "copy-css": "mkdir -p dist/components && cp src/components/ImgGen.css dist/components/",
     "build:watch": "tsc --watch",
     "dev:build": "tsc --watch",
     "lint": "eslint src --ext .ts,.tsx",

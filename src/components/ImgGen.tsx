@@ -5,7 +5,6 @@ import { useImageGen } from '../hooks/image-gen/use-image-gen';
 import { useFireproof, Database } from 'use-fireproof';
 import { ImageDocument } from '../hooks/image-gen/types';
 import { ImgGenPromptWaiting, ImgGenPlaceholder, ImgGenDisplay, ImgGenError } from './ImgGenUtils';
-import './ImgGen.css';
 import { ImgGenClasses, defaultClasses, combineClasses } from '../utils/style-utils';
 
 export interface ImgGenProps {

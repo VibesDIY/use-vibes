@@ -8,6 +8,34 @@ A lightweight library that transforms any DOM element into an AI-powered micro-a
 pnpm add use-vibes
 ```
 
+### CSS Loading
+
+The ImgGen component requires CSS styles. You can include them in two ways:
+
+#### Option A: Explicit CSS link (recommended for production)
+
+Add a CSS link tag to your HTML:
+
+```html
+<link rel="stylesheet" href="/node_modules/use-vibes/dist/components/ImgGen.css">
+```
+
+Or for ESM/CDN environments like importmap scenarios:
+
+```html
+<link rel="stylesheet" href="https://esm.sh/use-vibes@0.3.0/components/ImgGen.css"> 
+```
+
+#### Option B: Automatic CSS loading (convenient for prototyping)
+
+Import the style-loader early in your application:
+
+```js
+import 'use-vibes/style-loader'; // Auto-loads CSS when imported
+```
+
+This approach is perfect for quick prototypes but for production sites, Option A gives you better control over CSS loading order and timing.
+
 ## Components
 
 ### ImgGen

@@ -1,5 +1,4 @@
 import * as React from 'react';
-import '../ImgGen.css';
 import { ImgGenErrorProps } from './types';
 import { combineClasses, defaultClasses } from '../../utils/style-utils';
 
