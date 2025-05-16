@@ -1,4 +1,6 @@
-import { ImageDocument } from '../../hooks/image-gen/types';
+// Type definitions for ImgGen components
+import type { ImageDocument } from '../../hooks/image-gen/types';
+import { ImgGenClasses } from '../../utils/style-utils';
 
 // Props for the placeholder component
 export interface ImgGenPlaceholderProps {
@@ -6,7 +8,8 @@ export interface ImgGenPlaceholderProps {
   alt?: string;
   prompt?: string;
   progress: number;
-  error: Error | null;
+  error?: Error | null;
+  classes?: ImgGenClasses;
 }
 
 // Props for the image display component
@@ -25,4 +28,16 @@ export interface ImgGenDisplayProps {
   /** Callback when prompt is edited - receives document ID and new prompt */
   // eslint-disable-next-line no-unused-vars
   onPromptEdit?: (id: string, newPrompt: string) => void;
+  /** Custom CSS classes for styling component parts */
+  classes?: ImgGenClasses;
+}
+
+// Props for the error component
+export interface ImgGenErrorProps {
+  /** Optional error message to display */
+  message?: string;
+  /** Optional CSS class name */
+  className?: string;
+  /** Custom CSS classes for styling component parts */
+  classes?: ImgGenClasses;
 }

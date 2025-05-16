@@ -1,4 +1,6 @@
 import * as React from 'react';
+import '../../ImgGen.css';
+import { combineClasses, defaultClasses, ImgGenClasses } from '../../../utils/style-utils';
 
 interface ImageOverlayProps {
   promptText: string;
@@ -13,6 +15,8 @@ interface ImageOverlayProps {
   handleRefresh: () => void;
   versionIndex: number;
   totalVersions: number;
+  /** Custom CSS classes for styling component parts */
+  classes?: ImgGenClasses;
 }
 
 export function ImageOverlay({
@@ -26,28 +30,14 @@ export function ImageOverlay({
   handleRefresh,
   versionIndex,
   totalVersions,
+  classes = defaultClasses,
 }: ImageOverlayProps) {
   return (
-    <div
-      className="img-gen-overlay"
-      style={{
-        position: 'absolute',
-        bottom: '0',
-        left: '0',
-        right: '0',
-        padding: '8px 12px',
-        backgroundColor: 'rgba(255, 255, 255, 0.5)',
-        backdropFilter: 'blur(4px)',
-        transition: 'opacity 0.2s ease',
-        zIndex: 10,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
+    <div className={combineClasses('imggen-overlay', classes.overlay)}>
       {/* Two row layout with prompt on top and controls below */}
-      <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+      <div className="imggen-controls">
         {/* Prompt text on top row - double-clickable for editing */}
-        <div className="text-gray-700 mb-2" style={{ width: '100%', padding: '4px' }}>
+        <div className={combineClasses('imggen-prompt', classes.prompt)}>
           {editedPrompt !== null ? (
             <input
               type="text"
@@ -63,17 +53,7 @@ export function ImageOverlay({
               }}
               onBlur={() => setEditedPrompt(null)} // Exit edit mode
               autoFocus
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '6px 8px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                color: '#333',
-                backgroundColor: 'white',
-              }}
+              className="imggen-prompt-input"
               aria-label="Edit prompt"
             />
           ) : (
@@ -86,16 +66,8 @@ export function ImageOverlay({
                   setEditedPrompt(promptText);
                 }
               }}
-              style={{
-                color: '#333',
-                width: '100%',
-                textAlign: 'center',
-                fontWeight: 'bold',
-                padding: '8px',
-                cursor: 'pointer',
-              }}
+              className="imggen-prompt-text imggen-truncate"
               title="Double-click to edit prompt"
-              className="truncate"
             >
               {/* Display prompt from either new structure or legacy field */}
               {promptText}
@@ -104,64 +76,26 @@ export function ImageOverlay({
         </div>
 
         {/* Controls on bottom row */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-          }}
-        >
+        <div className={combineClasses('imggen-controls', classes.controls)}>
           {/* Left side: Info button */}
           <button
             aria-label="Close info panel"
             onClick={toggleOverlay}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '24px',
-              color: '#333',
-              opacity: 0.5,
-              cursor: 'pointer',
-              padding: 0,
-              transition: 'opacity 0.2s ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
+            className={combineClasses('imggen-info-button', classes.button)}
+            style={{ color: 'var(--imggen-text-color)' }}
           >
             ⓘ
           </button>
 
           {/* Right side: Version controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="imggen-control-group">
             {/* Show version arrows only when there are multiple versions */}
             {totalVersions > 1 && (
               <button
                 aria-label="Previous version"
                 disabled={versionIndex === 0}
                 onClick={handlePrevVersion}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.7)',
-                  borderRadius: '50%',
-                  width: '28px',
-                  height: '28px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: 'none',
-                  cursor: versionIndex === 0 ? 'default' : 'pointer',
-                  opacity: versionIndex === 0 ? 0.3 : 0.5,
-                  transition: 'opacity 0.2s ease',
-                  padding: 0,
-                  fontSize: '14px',
-                }}
-                onMouseEnter={(e) =>
-                  !e.currentTarget.disabled && (e.currentTarget.style.opacity = '1')
-                }
-                onMouseLeave={(e) =>
-                  !e.currentTarget.disabled &&
-                  (e.currentTarget.style.opacity = versionIndex === 0 ? '0.3' : '0.5')
-                }
+                className={combineClasses('imggen-button', classes.button)}
               >
                 ◀︎
               </button>
@@ -169,16 +103,10 @@ export function ImageOverlay({
 
             {/* Version indicator - only display if we have versions */}
             <span
-              className="version-indicator"
+              className="imggen-version-indicator"
               aria-live="polite"
-              style={{
-                fontSize: '14px',
-                color: '#333',
-              }}
             >
-              <span style={{ fontSize: '14px' }}>
-                {versionIndex + 1} / {totalVersions}
-              </span>
+              {versionIndex + 1} / {totalVersions}
             </span>
 
             {/* Show version arrows only when there are multiple versions */}
@@ -187,29 +115,7 @@ export function ImageOverlay({
                 aria-label="Next version"
                 disabled={versionIndex >= totalVersions - 1}
                 onClick={handleNextVersion}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.7)',
-                  borderRadius: '50%',
-                  width: '28px',
-                  height: '28px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: 'none',
-                  cursor: versionIndex >= totalVersions - 1 ? 'default' : 'pointer',
-                  opacity: versionIndex >= totalVersions - 1 ? 0.3 : 0.5,
-                  transition: 'opacity 0.2s ease',
-                  padding: 0,
-                  fontSize: '14px',
-                }}
-                onMouseEnter={(e) =>
-                  !e.currentTarget.disabled && (e.currentTarget.style.opacity = '1')
-                }
-                onMouseLeave={(e) =>
-                  !e.currentTarget.disabled &&
-                  (e.currentTarget.style.opacity =
-                    versionIndex >= totalVersions - 1 ? '0.3' : '0.5')
-                }
+                className={combineClasses('imggen-button', classes.button)}
               >
                 ▶︎
               </button>
@@ -219,23 +125,7 @@ export function ImageOverlay({
             <button
               aria-label="Generate new version"
               onClick={handleRefresh}
-              style={{
-                background: 'rgba(255, 255, 255, 0.7)',
-                borderRadius: '50%',
-                width: '28px',
-                height: '28px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: 'none',
-                cursor: 'pointer',
-                opacity: 0.5,
-                transition: 'opacity 0.2s ease',
-                padding: 0,
-                fontSize: '14px',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
+              className={combineClasses('imggen-button', classes.button)}
             >
               ⟳
             </button>

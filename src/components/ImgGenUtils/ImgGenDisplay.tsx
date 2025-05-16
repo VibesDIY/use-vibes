@@ -5,6 +5,8 @@ import { ImgGenDisplayProps } from './types';
 import { getCurrentFileKey, getPromptInfo, getVersionInfo } from './ImgGenDisplayUtils';
 import { DeleteConfirmationOverlay } from './overlays/DeleteConfirmationOverlay';
 import { ImageOverlay } from './overlays/ImageOverlay';
+import '../ImgGen.css';
+import { combineClasses, defaultClasses } from '../../utils/style-utils';
 
 // Component for displaying the generated image
 export function ImgGenDisplay({
@@ -15,6 +17,7 @@ export function ImgGenDisplay({
   onDelete,
   onRefresh,
   onPromptEdit,
+  classes = defaultClasses,
 }: ImgGenDisplayProps) {
   const [isOverlayOpen, setIsOverlayOpen] = React.useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = React.useState(false);
@@ -171,24 +174,13 @@ export function ImgGenDisplay({
 
   return (
     <div
-      className="img-gen-container"
-      style={{
-        position: 'relative',
-        maxWidth: '100%',
-        borderRadius: '8px',
-        overflow: 'hidden',
-      }}
+      className={combineClasses('imggen-root', className, classes.root)}
     >
       <ImgFile
         file={currentFile}
-        className={`img-gen-image ${className || ''}`.trim()}
+        className={combineClasses('imggen-image', classes.image)}
         alt={alt || 'Generated image'}
-        style={{
-          width: '100%',
-          height: 'auto',
-          display: 'block',
-          borderRadius: '8px',
-        }}
+        style={{ width: '100%' }}
       />
 
       {/* Info button - visible when overlay is closed and showOverlay is true */}
@@ -196,21 +188,7 @@ export function ImgGenDisplay({
         <button
           aria-label="Image information"
           onClick={toggleOverlay}
-          style={{
-            position: 'absolute',
-            bottom: '10px',
-            left: '10px',
-            background: 'none',
-            border: 'none',
-            fontSize: '24px',
-            color: '#fff',
-            opacity: 0.5,
-            cursor: 'pointer',
-            padding: 0,
-            transition: 'opacity 0.2s ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
+          className={combineClasses('imggen-info-button', classes.button)}
         >
           ⓘ
         </button>
@@ -221,27 +199,7 @@ export function ImgGenDisplay({
         <button
           aria-label="Delete image"
           onClick={toggleDeleteConfirm}
-          style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            zIndex: 20,
-            backgroundColor: 'rgba(255, 255, 255, 0.7)',
-            borderRadius: '50%',
-            width: '30px',
-            height: '30px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            border: 'none',
-            fontSize: '16px',
-            opacity: 0.5,
-            transition: 'opacity 0.2s ease',
-            padding: 0,
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
+          className={combineClasses('imggen-delete-button', classes.button)}
         >
           ✕
         </button>
@@ -260,6 +218,7 @@ export function ImgGenDisplay({
           handleRefresh={handleRefresh}
           versionIndex={versionIndex}
           totalVersions={totalVersions}
+          classes={classes}
         />
       )}
 

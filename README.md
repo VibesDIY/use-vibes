@@ -39,6 +39,7 @@ function MyComponent() {
 - `onError`: Callback when image load fails, receives the error as parameter
 - `onDelete`: Callback when an image is deleted, receives the document ID
 - `onPromptEdit`: Callback when the prompt is edited, receives document ID and new prompt
+- `classes`: Object containing custom CSS classes for styling component parts (see Styling section)
 
 #### Features
 
@@ -56,6 +57,79 @@ Setting `overlay={false}` will hide all these controls, showing only the image.
 ##### Prompt Editing
 
 Double-click the prompt text in the overlay to edit it. Press Enter to submit changes and regenerate the image with the new prompt.
+
+#### Styling
+
+The ImgGen component uses CSS custom properties (variables) for styling, making it easy to customize the appearance while maintaining consistency. There are two primary ways to customize styling:
+
+##### 1. CSS Variables
+
+Override the default styles by setting CSS custom properties in your CSS:
+
+```css
+/* In your CSS file */
+:root {
+  --imggen-text-color: #222;
+  --imggen-overlay-bg: rgba(245, 245, 245, 0.85);
+  --imggen-accent: #0088ff;
+  --imggen-border-radius: 4px;
+}
+
+/* Dark theme example */
+.dark-theme {
+  --imggen-text-color: #f0f0f0;
+  --imggen-overlay-bg: rgba(25, 25, 25, 0.85);
+  --imggen-accent: #66b2ff;
+}
+```
+
+##### 2. Custom Classes
+
+For more granular control, provide a `classes` object with custom CSS classes for specific component parts:
+
+```jsx
+<ImgGen 
+  prompt="A futuristic cityscape"
+  classes={{
+    root: 'my-custom-container',
+    image: 'rounded-xl shadow-lg',
+    overlay: 'bg-slate-800/70 text-white',
+    progress: 'h-2 bg-green-500',
+    button: 'hover:bg-blue-600',
+  }}
+/>
+```
+
+The component uses these classes in addition to the default ones, allowing you to extend or override styles as needed.
+
+##### Available CSS Variables
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `--imggen-text-color` | `#333` | Main text color |
+| `--imggen-background` | `#333333` | Background color for placeholder |
+| `--imggen-overlay-bg` | `rgba(255, 255, 255, 0.5)` | Overlay panel background |
+| `--imggen-accent` | `#0066cc` | Accent color (progress bar, etc.) |
+| `--imggen-error-text` | `#ff6666` | Error message text color |
+| `--imggen-border-radius` | `8px` | Border radius for containers |
+| `--imggen-button-bg` | `rgba(255, 255, 255, 0.7)` | Button background color |
+| `--imggen-font-size` | `14px` | Default font size |
+
+##### Available Class Slots
+
+| Class Property | Description |
+| --- | --- |
+| `root` | Main container element |
+| `image` | The image element |
+| `container` | Container for image and controls |
+| `overlay` | Overlay panel with controls |
+| `progress` | Progress indicator |
+| `placeholder` | Placeholder shown during loading |
+| `error` | Error message container |
+| `controls` | Control buttons container |
+| `button` | Individual buttons |
+| `prompt` | Prompt text/input container |
+| `deleteOverlay` | Delete confirmation dialog |
 
 ## Development
 

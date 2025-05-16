@@ -5,6 +5,8 @@ import { useImageGen } from '../hooks/image-gen/use-image-gen';
 import { useFireproof, Database } from 'use-fireproof';
 import { ImageDocument } from '../hooks/image-gen/types';
 import { ImgGenPromptWaiting, ImgGenPlaceholder, ImgGenDisplay, ImgGenError } from './ImgGenUtils';
+import './ImgGen.css';
+import { ImgGenClasses, defaultClasses, combineClasses } from '../utils/style-utils';
 
 export interface ImgGenProps {
   /** Text prompt for image generation (required unless _id is provided) */
@@ -42,6 +44,9 @@ export interface ImgGenProps {
   /** Callback when prompt is edited */
   // eslint-disable-next-line no-unused-vars
   onPromptEdit?: (id: string, newPrompt: string) => void;
+  
+  /** Custom CSS classes for styling component parts */
+  classes?: ImgGenClasses;
 }
 
 /**
@@ -62,6 +67,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     onError,
     onDelete,
     onPromptEdit,
+    classes = defaultClasses,
   } = props;
 
   // Get access to the Fireproof database directly
@@ -222,7 +228,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   const renderContent = () => {
     // If we don't have a prompt or ID, show the waiting component
     if (isPlaceholder) {
-      return <ImgGenPromptWaiting className={className} />;
+      return <ImgGenPromptWaiting className={className} classes={classes} />;
     }
 
     // Check if we have a document, even if we're still loading (for regeneration case)
@@ -246,7 +252,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
       }
 
       return (
-        <div style={{ position: 'relative' }}>
+        <div className="imggen-container">
           <ImgGenDisplay
             document={document as ImageDocument & { _id: string }}
             className={className}
@@ -255,27 +261,16 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
             onRefresh={handleGenerateNewVersion}
             onPromptEdit={handlePromptEdit}
             showOverlay={overlay}
+            classes={classes}
           />
 
           {/* Show progress overlay during regeneration */}
           {loading && regenerateRef.current && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                zIndex: 50,
-              }}
-            >
+            <div className="imggen-progress-container">
               {/* Progress bar */}
-              <div
-                style={{
-                  height: '8px',
-                  width: `${progress}%`,
-                  backgroundColor: '#0066cc',
-                  transition: 'width 0.3s ease-in-out',
-                }}
+              <div 
+                className={combineClasses('imggen-progress', classes.progress)}
+                style={{ width: `${progress}%` }}
                 aria-hidden="true"
               />
             </div>
@@ -293,12 +288,13 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
           prompt={prompt}
           progress={progress}
           error={error}
+          classes={classes}
         />
       );
     }
 
     // Fallback for any other unexpected state
-    return <ImgGenError />;
+    return <ImgGenError classes={classes} />;
   };
 
   // Always render through the render function - no conditional returns in the main component body
@@ -311,6 +307,8 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
  * Uses a mountKey to ensure clean state when switching documents
  */
 export function ImgGen(props: ImgGenProps): React.ReactElement {
+  // Destructure key props for identity-change tracking
+  // classes prop is used via the props spread to ImgGenCore
   const { _id, prompt } = props;
 
   // Generate a unique mountKey for this instance

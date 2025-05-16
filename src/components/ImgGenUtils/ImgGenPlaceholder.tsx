@@ -1,5 +1,7 @@
 import * as React from 'react';
 import { ImgGenPlaceholderProps } from './types';
+import { combineClasses, defaultClasses } from '../../utils/style-utils';
+import '../ImgGen.css';
 
 // Component for loading/placeholder state
 export function ImgGenPlaceholder({
@@ -8,6 +10,7 @@ export function ImgGenPlaceholder({
   prompt,
   progress,
   error,
+  classes = defaultClasses,
 }: ImgGenPlaceholderProps) {
   // State to track the visible progress width for animation
   const [visibleProgress, setVisibleProgress] = React.useState(0);
@@ -77,66 +80,19 @@ export function ImgGenPlaceholder({
 
   return (
     <div
-      className={`img-gen-placeholder ${className || ''}`}
-      style={{
-        width: '100%',
-        height: '100%',
-        backgroundColor: '#333333',
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxSizing: 'border-box',
-      }}
+      className={combineClasses('imggen-placeholder', className, classes.placeholder)}
       aria-label={alt || prompt || 'Image placeholder'}
       role="img"
     >
       <div style={{ textAlign: 'center', padding: '10px', width: '100%', wordWrap: 'break-word' }}>
         {error ? (
-          <div
-            className="img-gen-error"
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              padding: '20px',
-              borderRadius: '8px',
-              margin: '15px',
-              border: '1px solid #ff6666',
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-              maxWidth: '90%',
-              maxHeight: '80%',
-              overflow: 'auto',
-            }}
-          >
+          <div className={combineClasses('imggen-error', classes.error)}>
             {(() => {
               const { title, body } = parseErrorInfo(error);
               return (
                 <>
-                  <h3
-                    style={{
-                      color: '#ff6666',
-                      marginTop: 0,
-                      fontWeight: 'bold',
-                      fontSize: '18px',
-                      marginBottom: '12px',
-                      textAlign: 'center',
-                    }}
-                  >
-                    {title}
-                  </h3>
-                  <p
-                    style={{
-                      whiteSpace: 'pre-wrap',
-                      color: '#ffffff',
-                      fontSize: '14px',
-                      lineHeight: '1.5',
-                      textAlign: 'left',
-                      fontFamily: 'monospace, sans-serif',
-                      marginBottom: 0,
-                    }}
-                  >
-                    {body}
-                  </p>
+                  <h3 className="imggen-error-title">{title}</h3>
+                  <p className="imggen-error-message">{body}</p>
                 </>
               );
             })()}
@@ -152,50 +108,18 @@ export function ImgGenPlaceholder({
       {prompt && !error && (
         <>
           {/* Thicker progress bar at the top of the overlay */}
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              height: '8px',
-              width: `${visibleProgress}%`,
-              backgroundColor: '#0066cc',
-              transition: 'width 0.3s ease-in-out',
-              zIndex: 11, // Ensure it appears above the overlay
-            }}
+          <div 
+            className={combineClasses('imggen-progress', classes.progress)} 
+            style={{ width: `${visibleProgress}%` }}
             aria-hidden="true"
           />
 
           {/* Use the same overlay style as in ImgGenDisplay */}
-          <div
-            className="img-gen-overlay"
-            style={{
-              position: 'absolute',
-              bottom: '0',
-              left: '0',
-              right: '0',
-              padding: '8px 12px',
-              backgroundColor: 'rgba(255, 255, 255, 0.5)',
-              backdropFilter: 'blur(4px)',
-              transition: 'opacity 0.2s ease',
-              zIndex: 10,
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
+          <div className={combineClasses('imggen-overlay', classes.overlay)}>
             {/* Two row layout with prompt on top and controls below */}
-            <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+            <div className="imggen-controls">
               {/* Prompt text on top row */}
-              <div
-                className="text-gray-700 truncate mb-2"
-                style={{
-                  color: '#333',
-                  width: '100%',
-                  textAlign: 'center',
-                  fontWeight: 'bold',
-                  padding: '8px',
-                }}
-              >
+              <div className={combineClasses('imggen-prompt', 'imggen-truncate', classes.prompt)}>
                 {/* Display the prompt */}
                 {prompt}
               </div>

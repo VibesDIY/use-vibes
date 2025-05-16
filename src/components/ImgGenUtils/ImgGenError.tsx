@@ -1,10 +1,20 @@
 import * as React from 'react';
+import '../ImgGen.css';
+import { ImgGenErrorProps } from './types';
+import { combineClasses, defaultClasses } from '../../utils/style-utils';
 
 // Component for displaying errors
-export function ImgGenError({ message }: { message?: string }) {
+export function ImgGenError({ 
+  message, 
+  className,
+  classes = defaultClasses 
+}: ImgGenErrorProps) {
   return (
-    <div className="img-gen-error">
-      {message ? <p>Error: {message}</p> : 'Failed to render image'}
+    <div className={combineClasses('imggen-error', className, classes.error)}>
+      <h3 className="imggen-error-title">Error</h3>
+      <p className="imggen-error-message">
+        {message || 'Failed to render image'}
+      </p>
     </div>
   );
 }

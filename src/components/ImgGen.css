@@ -1,0 +1,324 @@
+/* ImgGen Component Styling System
+ * This file contains all base styles for the ImgGen component hierarchy
+ * Uses CSS custom properties to enable easy theming without affecting layout
+ */
+
+/* ---- CSS Custom Properties (Variables) ---- */
+:root {
+  /* Colors */
+  --imggen-text-color: #333;
+  --imggen-background: #333333;
+  --imggen-overlay-bg: rgba(255, 255, 255, 0.5);
+  --imggen-accent: #0066cc;
+  --imggen-error-bg: rgba(0, 0, 0, 0.7);
+  --imggen-error-border: #ff6666;
+  --imggen-error-text: #ff6666;
+  --imggen-button-bg: rgba(255, 255, 255, 0.7);
+  --imggen-error-text-body: #ffffff;
+  
+  /* Dimensions */
+  --imggen-border-radius: 8px;
+  --imggen-padding: 8px 12px;
+  --imggen-button-size: 28px;
+  --imggen-progress-height: 8px;
+  
+  /* Typography */
+  --imggen-font-size: 14px;
+  --imggen-font-weight: bold;
+  --imggen-line-height: 1.5;
+  
+  /* Effects */
+  --imggen-blur-radius: 4px;
+  --imggen-transition-speed: 0.2s;
+  --imggen-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* ---- Core Components ---- */
+
+/* Root container */
+.imggen-root {
+  position: relative;
+  max-width: 100%;
+  border-radius: var(--imggen-border-radius);
+  overflow: hidden;
+}
+
+/* Image container */
+.imggen-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* The image itself - limited styling since we can't change ImgFile */
+.imggen-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--imggen-border-radius);
+}
+
+/* ---- Overlays ---- */
+
+/* Base overlay that appears at the bottom */
+.imggen-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: var(--imggen-padding);
+  background-color: var(--imggen-overlay-bg);
+  backdrop-filter: blur(var(--imggen-blur-radius));
+  transition: opacity var(--imggen-transition-speed) ease;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Prompt text container */
+.imggen-prompt {
+  width: 100%;
+  padding: 4px;
+  margin-bottom: 8px;
+}
+
+/* Prompt text styling */
+.imggen-prompt-text {
+  color: var(--imggen-text-color);
+  width: 100%;
+  text-align: center;
+  font-weight: var(--imggen-font-weight);
+  padding: 8px;
+  cursor: pointer;
+}
+
+/* Prompt input for editing */
+.imggen-prompt-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: var(--imggen-font-size);
+  font-weight: var(--imggen-font-weight);
+  color: var(--imggen-text-color);
+  background-color: white;
+}
+
+/* Controls row */
+.imggen-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* Control button group */
+.imggen-control-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* ---- Buttons ---- */
+
+/* Base button styling */
+.imggen-button {
+  background: var(--imggen-button-bg);
+  border-radius: 50%;
+  width: var(--imggen-button-size);
+  height: var(--imggen-button-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity var(--imggen-transition-speed) ease;
+  padding: 0;
+  font-size: var(--imggen-font-size);
+  color: var(--imggen-text-color);
+}
+
+.imggen-button:hover:not(:disabled) {
+  opacity: 1;
+}
+
+.imggen-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Info button (appears at bottom left) */
+.imggen-info-button {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #fff;
+  opacity: 0.5;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity var(--imggen-transition-speed) ease;
+}
+
+.imggen-info-button:hover {
+  opacity: 1;
+}
+
+/* Delete button (top right corner) */
+.imggen-delete-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 20;
+  background-color: var(--imggen-button-bg);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  font-size: 16px;
+  opacity: 0.5;
+  transition: opacity var(--imggen-transition-speed) ease;
+  padding: 0;
+}
+
+.imggen-delete-button:hover {
+  opacity: 1;
+}
+
+/* ---- Progress Indicators ---- */
+
+/* Progress bar container */
+.imggen-progress-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+}
+
+/* Actual progress bar */
+.imggen-progress {
+  height: var(--imggen-progress-height);
+  background-color: var(--imggen-accent);
+  transition: width 0.3s ease-in-out;
+}
+
+/* Version indicator text */
+.imggen-version-indicator {
+  font-size: var(--imggen-font-size);
+  color: var(--imggen-text-color);
+}
+
+/* ---- Placeholders & Errors ---- */
+
+/* Placeholder styling */
+.imggen-placeholder {
+  width: 100%;
+  height: 100%;
+  background-color: var(--imggen-background);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* Error container */
+.imggen-error {
+  background-color: var(--imggen-error-bg);
+  padding: 20px;
+  border-radius: var(--imggen-border-radius);
+  margin: 15px;
+  border: 1px solid var(--imggen-error-border);
+  box-shadow: var(--imggen-shadow);
+  max-width: 90%;
+  max-height: 80%;
+  overflow: auto;
+}
+
+/* Error title */
+.imggen-error-title {
+  color: var(--imggen-error-text);
+  margin-top: 0;
+  font-weight: bold;
+  font-size: 18px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+/* Error message */
+.imggen-error-message {
+  white-space: pre-wrap;
+  color: var(--imggen-error-text-body);
+  font-size: var(--imggen-font-size);
+  line-height: var(--imggen-line-height);
+  text-align: left;
+  font-family: monospace, sans-serif;
+  margin-bottom: 0;
+}
+
+/* Delete confirmation overlay */
+.imggen-delete-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+  padding: 20px;
+  text-align: center;
+}
+
+/* Delete confirmation message */
+.imggen-delete-message {
+  color: white;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+/* Delete confirmation button group */
+.imggen-delete-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+/* Delete confirmation button */
+.imggen-delete-confirm {
+  background-color: var(--imggen-error-border);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Delete cancel button */
+.imggen-delete-cancel {
+  background-color: #555;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Helper classes */
+.imggen-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
