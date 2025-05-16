@@ -18,28 +18,28 @@ export function ImgGenDisplay({
 }: ImgGenDisplayProps) {
   const [isOverlayOpen, setIsOverlayOpen] = React.useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = React.useState(false);
-  const [isEditingPrompt, setIsEditingPrompt] = React.useState(false);
-
-  const { versions, currentVersion } = getVersionInfo(document);
-  const [versionIndex, setVersionIndex] = React.useState(currentVersion);
   
-  // State for prompt editing - will be set directly from current render-time prompt when needed
-  const [editedPrompt, setEditedPrompt] = React.useState('');
+  // Use null to indicate not editing, or string for edit mode
+  const [editedPrompt, setEditedPrompt] = React.useState<string | null>(null);
 
-  // Update versionIndex when the document changes and has new versions
-  React.useEffect(() => {
-    // Get the latest version information
-    const { versions: newVersions, currentVersion: newCurrentVersion } = getVersionInfo(document);
-
-    // If the document has been updated with a new version, show the latest
-    if (newVersions?.length > 0) {
-      // Use the document's current version if available, otherwise show the last version
-      const latestVersionIndex =
-        typeof newCurrentVersion === 'number' ? newCurrentVersion : newVersions.length - 1;
-
-      setVersionIndex(latestVersionIndex);
-    }
-  }, [document, document?._id, document?.versions?.length]);
+  // Get version information directly at render time
+  const { versions, currentVersion } = getVersionInfo(document);
+  
+  // Calculate the initial version index based on document state
+  const initialVersionIndex = React.useMemo(() => {
+    return typeof currentVersion === 'number' ? currentVersion : (versions?.length ? versions.length - 1 : 0);
+  }, [currentVersion, versions]);
+  
+  // Only track user-selected version index as state
+  const [userSelectedIndex, setUserSelectedIndex] = React.useState<number | null>(null);
+  
+  // Derive the final version index - use user selection if available, otherwise use the document's current version
+  const versionIndex = userSelectedIndex !== null ? userSelectedIndex : initialVersionIndex;
+  
+  // Custom setter function that manages user selections
+  const setVersionIndex = React.useCallback((index: number) => {
+    setUserSelectedIndex(index);
+  }, []);
 
   const fileKey = getCurrentFileKey(document, versionIndex, versions);
   const totalVersions = versions ? versions.length : 0;
@@ -60,8 +60,8 @@ export function ImgGenDisplay({
       console.log(`Complete document:`, document);
       
       setVersionIndex(versionIndex - 1);
-      // Reset editing state when changing versions
-      setIsEditingPrompt(false);
+      // Exit edit mode when changing versions
+      setEditedPrompt(null);
     }
   };
 
@@ -78,8 +78,8 @@ export function ImgGenDisplay({
       console.log(`Complete document:`, document);
       
       setVersionIndex(versionIndex + 1);
-      // Reset editing state when changing versions
-      setIsEditingPrompt(false);
+      // Exit edit mode when changing versions
+      setEditedPrompt(null);
     }
   };
 
@@ -148,7 +148,7 @@ export function ImgGenDisplay({
     if (onPromptEdit && newPrompt.trim() && newPrompt !== currentPrompt) {
       onPromptEdit(document._id, newPrompt.trim());
     }
-    setIsEditingPrompt(false);
+    setEditedPrompt(null); // Exit edit mode
   };
 
   if (!document._files || (!fileKey && !document._files.image)) {
@@ -247,10 +247,8 @@ export function ImgGenDisplay({
       {isOverlayOpen && showOverlay && (
         <ImageOverlay
           promptText={promptText}
-          isEditingPrompt={isEditingPrompt}
           editedPrompt={editedPrompt}
           setEditedPrompt={setEditedPrompt}
-          setIsEditingPrompt={setIsEditingPrompt}
           handlePromptEdit={handlePromptEdit}
           toggleOverlay={toggleOverlay}
           handlePrevVersion={handlePrevVersion}

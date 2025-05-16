@@ -67,59 +67,42 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Get access to the Fireproof database directly
   const { database: db } = useFireproof(database || 'ImgGen');
 
-  // Create state to track regeneration requests with a toggle pattern
-  // We use a number as a counter - each regeneration increments it
+  // Use a ref to track regeneration state instead of a state variable
+  // This avoids unnecessary re-renders when toggling regeneration state
+  const regenerateRef = React.useRef(false);
+  
+  // Store the counter in state for triggering re-renders when needed
   const [regenerateCounter, setRegenerateCounter] = React.useState(0);
-
-  // Track the document ID once it's created for reuse during regeneration
-  const [trackedDocId, setTrackedDocId] = React.useState<string | undefined>(_id);
-
-  // Derive boolean flag from counter - odd values are true, even values are false
-  // This allows us to toggle between regeneration states
-  const shouldRegenerate = regenerateCounter % 2 === 1;
 
   // Calculate isPlaceholder as derived value, not state
   const isPlaceholder = React.useMemo(() => !prompt && !_id, [prompt, _id]);
 
   // Use the custom hook for all the image generation logic
   const { imageData, loading, error, progress, document } = useImageGen({
-    // Only pass prompt if no tracked ID is available
-    prompt: !trackedDocId ? prompt || '' : undefined,
-    // Use tracked ID if available, otherwise use the original _id
-    _id: trackedDocId || _id,
+    // Always use the original props, no need for state tracking
+    prompt: _id ? undefined : prompt || '',
+    _id: _id,
     options,
     database,
-    // Use regenerate flag to trigger regeneration
-    regenerate: shouldRegenerate,
+    // Use the ref value for regeneration flag
+    regenerate: regenerateRef.current,
     // Skip processing if neither prompt nor _id is provided
     skip: isPlaceholder,
   });
 
-  // Update the tracked document ID when a document is created from a prompt
-  React.useEffect(() => {
-    // Only update if we have a document with an ID and we're not already tracking it
-    if (document?._id && document._id !== trackedDocId) {
-      setTrackedDocId(document._id);
-    }
-  }, [document, trackedDocId]);
+  // When document is generated, use its ID for subsequent operations
+  // This is done through the parent component's remounting logic with uuid()
 
   // Handle regeneration when the button is clicked
   const handleGenerateNewVersion = React.useCallback(() => {
-    // Check for document or tracked ID first
-    if (document || trackedDocId) {
-      // If we have a document or tracked ID, use that for regeneration
-      // Increment counter to trigger a new image generation
-      setRegenerateCounter((prev) => {
-        return prev + 1;
-      });
-    } else if (prompt) {
-      // If no document yet but we have a prompt, force regeneration
-      // by changing the regenerateCounter to trigger a re-render
-      setRegenerateCounter((prev) => {
-        return prev + 1;
-      });
+    if (document?._id || _id || prompt) {
+      // Toggle regeneration flag
+      regenerateRef.current = !regenerateRef.current;
+      
+      // Increment counter to trigger a re-render
+      setRegenerateCounter(prev => prev + 1);
     }
-  }, [document, prompt, trackedDocId, regenerateCounter]);
+  }, [document, _id, prompt]);
 
   // Handle prompt editing
   const handlePromptEdit = React.useCallback(
@@ -223,9 +206,8 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
 
   // Detect completion of regeneration to prepare for next one
   React.useEffect(() => {
-    // When loading finishes and we were in a regeneration state (odd counter),
-    // increment the counter again to reach an even number (ready state)
-    if (!loading && shouldRegenerate) {
+    // When loading finishes and regeneration flag is on, reset it
+    if (!loading && regenerateRef.current) {
       // Using a small delay to ensure the UI fully updates first
       const timer = setTimeout(() => {
         setRegenerateCounter((prev) => prev + 1);
@@ -233,7 +215,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
 
       return () => clearTimeout(timer);
     }
-  }, [loading, shouldRegenerate]);
+  }, [loading, regenerateCounter]);
 
   // Render function that determines what to show
   const renderContent = () => {
@@ -275,7 +257,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
           />
 
           {/* Show progress overlay during regeneration */}
-          {loading && shouldRegenerate && (
+          {loading && regenerateRef.current && (
             <div
               style={{
                 position: 'absolute',

@@ -10,12 +10,9 @@ type EnhancedVersionInfo = {
 
 interface ImageOverlayProps {
   promptText: string;
-  isEditingPrompt: boolean;
-  editedPrompt: string;
+  editedPrompt: string | null; // null means not in edit mode
   // eslint-disable-next-line no-unused-vars
-  setEditedPrompt: (prompt: string) => void;
-  // eslint-disable-next-line no-unused-vars
-  setIsEditingPrompt: (editing: boolean) => void;
+  setEditedPrompt: (prompt: string | null) => void; // Set to null to exit edit mode
   // eslint-disable-next-line no-unused-vars
   handlePromptEdit: (prompt: string) => void;
   toggleOverlay: () => void;
@@ -29,10 +26,8 @@ interface ImageOverlayProps {
 
 export function ImageOverlay({
   promptText,
-  isEditingPrompt,
   editedPrompt,
   setEditedPrompt,
-  setIsEditingPrompt,
   handlePromptEdit,
   toggleOverlay,
   handlePrevVersion,
@@ -63,7 +58,7 @@ export function ImageOverlay({
       <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
         {/* Prompt text on top row - double-clickable for editing */}
         <div className="text-gray-700 mb-2" style={{ width: '100%', padding: '4px' }}>
-          {isEditingPrompt ? (
+          {editedPrompt !== null ? (
             <input
               type="text"
               value={editedPrompt}
@@ -73,10 +68,10 @@ export function ImageOverlay({
                   e.preventDefault();
                   handlePromptEdit(editedPrompt);
                 } else if (e.key === 'Escape') {
-                  setIsEditingPrompt(false);
+                  setEditedPrompt(null); // Exit edit mode
                 }
               }}
-              onBlur={() => setIsEditingPrompt(false)}
+              onBlur={() => setEditedPrompt(null)} // Exit edit mode
               autoFocus
               style={{
                 width: '100%',
@@ -97,9 +92,8 @@ export function ImageOverlay({
                 // Handle both single and double click
                 if (e.detail === 2) {
                   console.log('Double click detected on prompt: ', promptText);
-                  // Use the current prompt text that's being displayed
+                  // Enter edit mode with current text
                   setEditedPrompt(promptText);
-                  setIsEditingPrompt(true);
                 }
               }}
               style={{
