@@ -76,9 +76,9 @@ vi.mock('../src/hooks/image-gen/use-image-gen', () => {
             ]
           : [{ id: 'v1', created: Date.now(), promptKey: 'p1' }],
         prompts: { p1: { text: `Test prompt for ${_id}`, created: Date.now() } },
-        _files: _id === 'doc-with-multiple'
+        _files: (_id === 'doc-with-multiple'
           ? { v1: createTestFile(), v2: createTestFile(), v3: createTestFile() }
-          : { v1: createTestFile() }
+          : { v1: createTestFile() }) as Record<string, File>
       } : null;
       
       // Handle regeneration case

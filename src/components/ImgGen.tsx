@@ -90,45 +90,29 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   React.useEffect(() => {
     // Only update if we have a document with an ID and we're not already tracking it
     if (document?._id && document._id !== trackedDocId) {
-      console.log('[ImgGen] Updating tracked document ID:', document._id);
       setTrackedDocId(document._id);
     }
   }, [document, trackedDocId]);
   
   // Handle regeneration when the button is clicked
   const handleGenerateNewVersion = React.useCallback(() => {
-    // Enhanced regeneration that uses tracked document ID for consistency
-    console.log('[ImgGen] Regenerate clicked:', { 
-      hasDocument: !!document, 
-      documentId: document?._id,
-      trackedDocId,
-      prompt, 
-      currentRegenerateCounter: regenerateCounter,
-      shouldRegenerate: !shouldRegenerate // What it will be after increment
-    });
+
     
     // Check for document or tracked ID first
     if (document || trackedDocId) {
       // If we have a document or tracked ID, use that for regeneration
-      const idToUse = document?._id || trackedDocId;
-      console.log('[ImgGen] Regenerating with document ID:', idToUse);
       // Increment counter to trigger a new image generation
       setRegenerateCounter(prev => {
-        console.log('[ImgGen] Incrementing regenerateCounter:', prev, '->', prev + 1);
         return prev + 1;
       });
     } else if (prompt) {
       // If no document yet but we have a prompt, force regeneration
-      console.log('[ImgGen] Regenerating with prompt only');
       // by changing the regenerateCounter to trigger a re-render
       setRegenerateCounter(prev => {
-        console.log('[ImgGen] Incrementing regenerateCounter:', prev, '->', prev + 1);
         return prev + 1;
       });
-    } else {
-      console.log('[ImgGen] Cannot regenerate - no document, tracked ID, or prompt available');
     }
-  }, [document, prompt, trackedDocId, shouldRegenerate, regenerateCounter]);
+  }, [document, prompt, trackedDocId, regenerateCounter]);
   
   // Handle delete request
   const handleDelete = React.useCallback((id: string) => {

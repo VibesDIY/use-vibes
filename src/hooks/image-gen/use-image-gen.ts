@@ -66,21 +66,13 @@ export function useImageGen({
   
   // Reset state when prompt, _id, or regenerate flag changes
   useEffect(() => {
-    const promptChanged = prompt !== previousPromptRef.current;
+    // const promptChanged = prompt !== previousPromptRef.current; // Not currently used
     const idChanged = _id !== previousIdRef.current;
     // Fix: Previously this would only detect changes when regenerate=true
     // Change detection logic to detect ANY change in the regenerate flag
     const regenerateChanged = regenerate !== previousRegenerateRef.current;
     
-    console.log('[useImageGen] Dependencies changed:', {
-      promptChanged,
-      idChanged,
-      regenerateChanged,
-      prompt,
-      _id,
-      regenerate,
-      previousRegenerate: previousRegenerateRef.current
-    });
+  
     
     previousPromptRef.current = prompt;
     previousIdRef.current = _id;
@@ -336,12 +328,11 @@ export function useImageGen({
                 JSON.stringify(getRelevantOptions(options))
               ].join('|');
               
-              console.log('[useImageGen] Request key generated:', {
-                prompt,
-                _id,
-                regenerate,
-                regenPart,
-                stableKey
+              
+              // Schedule cleanup of this request from the cache maps 
+              // to ensure future requests don't reuse this one
+              setTimeout(() => {
+                cleanupRequestKey(stableKey);
               });
               
 
