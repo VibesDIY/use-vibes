@@ -61,7 +61,11 @@ export function getPromptInfo(document: ImageDocument & { _id: string }) {
 /**
  * Get the current version file key
  */
-export function getCurrentFileKey(document: ImageDocument & { _id: string }, versionIndex: number, versions: Array<{id: string; created: number; promptKey?: string}>) {
+export function getCurrentFileKey(
+  document: ImageDocument & { _id: string },
+  versionIndex: number,
+  versions: Array<{ id: string; created: number; promptKey?: string }>
+) {
   if (!versions || versions.length === 0) return null;
 
   // If we have versions, use the ID from the current version index

@@ -108,7 +108,7 @@ export function ImgGenDisplay({
       onRefresh(document._id);
     }
   };
-  
+
   // Handle prompt editing
   const handlePromptEdit = (newPrompt: string) => {
     if (onPromptEdit && newPrompt.trim() && newPrompt !== currentPrompt) {

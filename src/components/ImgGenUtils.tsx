@@ -7,7 +7,7 @@ export {
   ImgGenPromptWaiting,
   ImgGenError,
   ImgGenPlaceholder,
-  ImgGenDisplay
+  ImgGenDisplay,
 } from './ImgGenUtils/index';
 
 export * from './ImgGenUtils/types';

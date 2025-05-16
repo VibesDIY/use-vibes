@@ -48,12 +48,8 @@ export function DeleteConfirmationOverlay({
               cursor: 'pointer',
               transition: 'background 0.2s ease',
             }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)')
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)')
-            }
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)')}
           >
             Confirm
           </button>

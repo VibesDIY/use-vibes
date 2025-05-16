@@ -16,7 +16,7 @@ interface ImageOverlayProps {
   handleRefresh: () => void;
   versionIndex: number;
   totalVersions: number;
-  versions: Array<{id: string; created: number; promptKey?: string}>;
+  versions: Array<{ id: string; created: number; promptKey?: string }>;
 }
 
 export function ImageOverlay({
@@ -32,7 +32,7 @@ export function ImageOverlay({
   handleRefresh,
   versionIndex,
   totalVersions,
-  versions
+  versions,
 }: ImageOverlayProps) {
   return (
     <div
@@ -186,10 +186,9 @@ export function ImageOverlay({
               <span style={{ fontSize: '14px' }}>
                 {versionIndex + 1} / {totalVersions}
                 {/* Show prompt version if it exists */}
-                {versions[versionIndex]?.promptKey &&
-                  versions[versionIndex].promptKey !== 'p1' && (
-                    <span style={{ marginLeft: '5px', opacity: 0.7 }}>(Custom prompt)</span>
-                  )}
+                {versions[versionIndex]?.promptKey && versions[versionIndex].promptKey !== 'p1' && (
+                  <span style={{ marginLeft: '5px', opacity: 0.7 }}>(Custom prompt)</span>
+                )}
               </span>
             </span>
 
