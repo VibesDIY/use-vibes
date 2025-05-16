@@ -177,6 +177,7 @@ export function ImgGenDisplay({
           aria-label="Delete image"
           onClick={toggleDeleteConfirm}
           className={combineClasses('imggen-delete-button', classes.button)}
+          title="Delete this image?"
         >
           ✕
         </button>

@@ -15,6 +15,7 @@
   --imggen-error-text: #ff6666;
   --imggen-button-bg: rgba(255, 255, 255, 0.7);
   --imggen-error-text-body: #ffffff;
+  --imggen-delete-hover-color: #ff3333;
   
   /* Dimensions */
   --imggen-border-radius: 8px;
@@ -200,6 +201,7 @@
 
 .imggen-delete-button:hover {
   opacity: 1;
+  color: var(--imggen-delete-hover-color);
 }
 
 /* ---- Progress Indicators ---- */
