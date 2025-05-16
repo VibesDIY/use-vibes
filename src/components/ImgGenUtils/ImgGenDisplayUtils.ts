@@ -4,14 +4,26 @@ import { ImageDocument } from '../../hooks/image-gen/types';
  * Utility functions for the ImgGenDisplay component
  */
 
-// Enhanced version info type that includes optional prompt fields for legacy support
-type EnhancedVersionInfo = {
+// For legacy document structure
+interface DocumentWithPromptMap extends ImageDocument {
+  promptMap?: Record<string, string>;
+}
+
+// For legacy version structure with embedded prompt
+interface VersionWithLegacyPrompt {
   id: string;
   created?: number;
   promptKey?: string;
-  // For legacy versions that might store prompt directly in the version
   prompt?: string;
-};
+}
+
+// Enhanced version info type that includes optional prompt fields for legacy support
+export interface EnhancedVersionInfo {
+  id: string;
+  created?: number;
+  promptKey?: string;
+  prompt?: string;
+}
 
 type VersionInfoResult = {
   versions: EnhancedVersionInfo[];
@@ -25,10 +37,11 @@ export function getVersionInfo(document: ImageDocument & { _id: string }): Versi
   // Check if document has proper version structure
   if (document?.versions && document.versions.length > 0) {
     // Convert to enhanced version info with possible prompt fields
-    const enhancedVersions: EnhancedVersionInfo[] = document.versions.map((v) => {
+    // Define type for document version entries to avoid using 'any'
+    const enhancedVersions: EnhancedVersionInfo[] = document.versions.map((v: {id: string; created?: number; promptKey?: string}) => {
       // Check if this version has a direct prompt property (legacy format)
-      // TypeScript doesn't know about this property, but we check at runtime
-      const versionWithPrompt = v as any;
+      // Use our typed interface for legacy format
+      const versionWithPrompt = v as VersionWithLegacyPrompt;
       const prompt = versionWithPrompt.prompt || undefined;
 
       return {
@@ -101,8 +114,8 @@ export function getPromptInfo(document: ImageDocument & { _id: string }, version
         }
 
         // APPROACH 3: Check for promptMap in the document (legacy format)
-        // Handle access to dynamically added properties that TypeScript doesn't know about
-        const docWithPromptMap = document as any;
+        // Use our typed interface for legacy format
+        const docWithPromptMap = document as DocumentWithPromptMap;
         if (docWithPromptMap.promptMap && version.id && docWithPromptMap.promptMap[version.id]) {
           const legacyPrompt = docWithPromptMap.promptMap[version.id];
           return {

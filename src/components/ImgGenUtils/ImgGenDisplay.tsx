@@ -260,7 +260,6 @@ export function ImgGenDisplay({
           handleRefresh={handleRefresh}
           versionIndex={versionIndex}
           totalVersions={totalVersions}
-          versions={versions}
         />
       )}
 
