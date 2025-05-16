@@ -33,7 +33,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "rimraf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check": "pnpm lint && pnpm format && pnpm typecheck && pnpm test"
   },
   "keywords": [
     "ai",

@@ -111,10 +111,7 @@ export function ImageOverlay({
 
               {/* Version indicator - only display if we have versions */}
               {totalVersions > 1 && (
-                <span
-                  className="imggen-version-indicator version-indicator"
-                  aria-live="polite"
-                >
+                <span className="imggen-version-indicator version-indicator" aria-live="polite">
                   {versionIndex + 1} / {totalVersions}
                 </span>
               )}
@@ -143,9 +140,7 @@ export function ImageOverlay({
           </>
         ) : statusText ? (
           // Status text centered when controls are hidden
-          <div className="imggen-status-text">
-            {statusText}
-          </div>
+          <div className="imggen-status-text">{statusText}</div>
         ) : null}
       </div>
     </div>

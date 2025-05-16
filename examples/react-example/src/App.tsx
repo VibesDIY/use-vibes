@@ -32,7 +32,7 @@ function App() {
       0: 'low',
       1: 'medium',
       2: 'high',
-      3: 'auto'
+      3: 'auto',
     };
     setQuality(qualityMap[value]);
   };
@@ -40,7 +40,7 @@ function App() {
   const handleGenerate = (e?: React.FormEvent) => {
     // Prevent default form submission if event exists
     if (e) e.preventDefault();
-    
+
     if (!inputPrompt.trim()) return;
     // Set the active prompt that gets passed to ImgGen only when button is clicked
     setActivePrompt(inputPrompt.trim());
@@ -58,7 +58,10 @@ function App() {
   };
 
   // Get all documents with type: 'image'
-  const { docs: imageDocuments } = useLiveQuery<ImageDocument>('type', { key: 'image', descending: true });
+  const { docs: imageDocuments } = useLiveQuery<ImageDocument>('type', {
+    key: 'image',
+    descending: true,
+  });
 
   useEffect(() => {
     console.log('activePrompt', activePrompt);
@@ -78,28 +81,41 @@ function App() {
         />
         <div className="quality-slider-container">
           <div className="slider-header">
-            <label>Quality: <span className="quality-value">{quality}</span></label>
+            <label>
+              Quality: <span className="quality-value">{quality}</span>
+            </label>
           </div>
-          <input 
-            type="range" 
-            min="0" 
-            max="3" 
-            step="1" 
-            value={['low', 'medium', 'high', 'auto'].indexOf(quality)} 
+          <input
+            type="range"
+            min="0"
+            max="3"
+            step="1"
+            value={['low', 'medium', 'high', 'auto'].indexOf(quality)}
             onChange={handleQualityChange}
             className="quality-slider"
             style={{ width: '100%' }}
           />
-          <div className="quality-labels" style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between',
-            width: '100%',
-            marginTop: '8px'
-          }}>
-            <span className={quality === 'low' ? 'active' : ''} style={{ textAlign: 'center' }}>Low</span>
-            <span className={quality === 'medium' ? 'active' : ''} style={{ textAlign: 'center' }}>Medium</span>
-            <span className={quality === 'high' ? 'active' : ''} style={{ textAlign: 'center' }}>High</span>
-            <span className={quality === 'auto' ? 'active' : ''} style={{ textAlign: 'center' }}>Auto</span>
+          <div
+            className="quality-labels"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              width: '100%',
+              marginTop: '8px',
+            }}
+          >
+            <span className={quality === 'low' ? 'active' : ''} style={{ textAlign: 'center' }}>
+              Low
+            </span>
+            <span className={quality === 'medium' ? 'active' : ''} style={{ textAlign: 'center' }}>
+              Medium
+            </span>
+            <span className={quality === 'high' ? 'active' : ''} style={{ textAlign: 'center' }}>
+              High
+            </span>
+            <span className={quality === 'auto' ? 'active' : ''} style={{ textAlign: 'center' }}>
+              Auto
+            </span>
           </div>
         </div>
         <button

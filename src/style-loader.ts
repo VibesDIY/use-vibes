@@ -1,7 +1,7 @@
 /**
  * Optional utility to automatically load the use-vibes CSS styles
  * This is an alternative to manually adding a <link> tag
- * 
+ *
  * Usage:
  * ```js
  * import { bootstrapUseVibesStyles } from 'use-vibes/style-loader';
@@ -21,7 +21,7 @@ export function bootstrapUseVibesStyles(): boolean {
   }
 
   const cssPath = './components/ImgGen.css';
-  
+
   // Check if already loaded
   if (document.querySelector(`link[data-use-vibes-css]`)) {
     return false;
@@ -33,7 +33,7 @@ export function bootstrapUseVibesStyles(): boolean {
     link.rel = 'stylesheet';
     link.href = new URL(cssPath, import.meta.url).toString();
     link.setAttribute('data-use-vibes-css', 'true');
-    
+
     // Append to head
     document.head.appendChild(link);
     return true;

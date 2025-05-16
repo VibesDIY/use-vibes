@@ -43,7 +43,7 @@ export interface ImgGenProps {
   /** Callback when prompt is edited */
   // eslint-disable-next-line no-unused-vars
   onPromptEdit?: (id: string, newPrompt: string) => void;
-  
+
   /** Custom CSS classes for styling component parts */
   classes?: ImgGenClasses;
 }
@@ -267,7 +267,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
           {loading && regenerateRef.current && (
             <div className="imggen-progress-container">
               {/* Progress bar */}
-              <div 
+              <div
                 className={combineClasses('imggen-progress', classes.progress)}
                 style={{ width: `${progress}%` }}
                 aria-hidden="true"

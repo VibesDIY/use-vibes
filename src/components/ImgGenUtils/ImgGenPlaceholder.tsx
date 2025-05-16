@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { ImgGenPlaceholderProps } from './types';
 import { combineClasses, defaultClasses } from '../../utils/style-utils';
-import { ImgGenError } from './ImgGenError';
 import { ImageOverlay } from './overlays/ImageOverlay';
 
 // Component for loading/placeholder state
@@ -22,7 +21,7 @@ export function ImgGenPlaceholder({
     if (progress === 0) {
       setVisibleProgress(0);
     }
-    
+
     // Smoothly animate to the actual progress (or minimum 5%)
     const timer = setTimeout(() => {
       setVisibleProgress(Math.max(5, progress));
@@ -89,8 +88,8 @@ export function ImgGenPlaceholder({
     >
       {/* Progress bar at the very top */}
       {prompt && !error && (
-        <div 
-          className={combineClasses('imggen-progress', classes.progress)} 
+        <div
+          className={combineClasses('imggen-progress', classes.progress)}
           style={{ width: `${visibleProgress}%` }}
           aria-hidden="true"
         />

@@ -14,6 +14,7 @@ This document outlines the styling architecture and implementation plan for the 
 ### A. CSS Custom Properties + Classes
 
 Replace most inline objects with **CSS classes backed by CSS custom properties** (variables):
+
 - Variables inherit automatically, allowing host pages to change colors/fonts with minimal overrides
 - Reduces bundle size by eliminating redundant style objects
 - No additional dependencies (no CSS-in-JS library required)
@@ -21,6 +22,7 @@ Replace most inline objects with **CSS classes backed by CSS custom properties**
 ### B. Semantic HTML Structure
 
 Use more semantic HTML elements where appropriate:
+
 - `figure` + `figcaption` pattern for the image+prompt combination
 - `progress` element for the progress bar
 - `dialog` (or ARIA-equivalent div) for the delete-confirmation pop-up
@@ -33,7 +35,7 @@ Expose a **"classes" prop object** similar to Material-UI:
 ```ts
 type ImgGenClasses = {
   root?: string;
-  container?: string; 
+  container?: string;
   overlay?: string;
   progress?: string;
   placeholder?: string;
@@ -71,11 +73,13 @@ Allow **style overrides with CSS variables** (zero runtime cost):
 ## Implementation Plan
 
 1. **Create a central CSS file** (`src/components/ImgGen.css`):
+
    - Define the base classes: `.imggen-root`, `.imggen-container`, `.imggen-overlay`, etc.
-   - Set default CSS variables with sensible fallbacks 
+   - Set default CSS variables with sensible fallbacks
    - Ensure only **layout-critical** properties stay inline (e.g. `width: ${progress}%`)
 
 2. **Update JSX files**:
+
    - Strip large inline style objects, replace with class names
    - Accept a `classes` prop (default `{}`) and merge using a utility function:
      ```js
@@ -85,6 +89,7 @@ Allow **style overrides with CSS variables** (zero runtime cost):
    - Ensure semantic HTML structure where possible
 
 3. **Utility functions**:
+
    - Create a simple helper to merge class names (either use an existing library or implement a minimal version)
 
 4. **Documentation**:
@@ -103,16 +108,13 @@ Allow **style overrides with CSS variables** (zero runtime cost):
 ### Basic Usage (unchanged)
 
 ```jsx
-<ImgGen 
-  prompt="A beautiful mountain landscape"
-  className="my-image"
-/>
+<ImgGen prompt="A beautiful mountain landscape" className="my-image" />
 ```
 
 ### Light Theming with CSS Variables
 
 ```jsx
-<div style={{ "--imggen-accent": "rebeccapurple" }}>
+<div style={{ '--imggen-accent': 'rebeccapurple' }}>
   <ImgGen prompt="A beautiful mountain landscape" />
 </div>
 ```
@@ -120,12 +122,12 @@ Allow **style overrides with CSS variables** (zero runtime cost):
 ### Component-Level Customization
 
 ```jsx
-<ImgGen 
+<ImgGen
   prompt="A beautiful mountain landscape"
   classes={{
-    root: "my-custom-root",
-    overlay: "dark-overlay rounded-lg",
-    progress: "thin-progress"
+    root: 'my-custom-root',
+    overlay: 'dark-overlay rounded-lg',
+    progress: 'thin-progress',
   }}
 />
 ```

@@ -17,13 +17,13 @@ The ImgGen component requires CSS styles. You can include them in two ways:
 Add a CSS link tag to your HTML:
 
 ```html
-<link rel="stylesheet" href="/node_modules/use-vibes/dist/components/ImgGen.css">
+<link rel="stylesheet" href="/node_modules/use-vibes/dist/components/ImgGen.css" />
 ```
 
 Or for ESM/CDN environments like importmap scenarios:
 
 ```html
-<link rel="stylesheet" href="https://esm.sh/use-vibes@0.3.0/components/ImgGen.css"> 
+<link rel="stylesheet" href="https://esm.sh/use-vibes@0.3.0/components/ImgGen.css" />
 ```
 
 #### Option B: Automatic CSS loading (convenient for prototyping)
@@ -116,7 +116,7 @@ Override the default styles by setting CSS custom properties in your CSS:
 For more granular control, provide a `classes` object with custom CSS classes for specific component parts:
 
 ```jsx
-<ImgGen 
+<ImgGen
   prompt="A futuristic cityscape"
   classes={{
     root: 'my-custom-container',
@@ -132,32 +132,32 @@ The component uses these classes in addition to the default ones, allowing you t
 
 ##### Available CSS Variables
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `--imggen-text-color` | `#333` | Main text color |
-| `--imggen-background` | `#333333` | Background color for placeholder |
-| `--imggen-overlay-bg` | `rgba(255, 255, 255, 0.5)` | Overlay panel background |
-| `--imggen-accent` | `#0066cc` | Accent color (progress bar, etc.) |
-| `--imggen-error-text` | `#ff6666` | Error message text color |
-| `--imggen-border-radius` | `8px` | Border radius for containers |
-| `--imggen-button-bg` | `rgba(255, 255, 255, 0.7)` | Button background color |
-| `--imggen-font-size` | `14px` | Default font size |
+| Variable                 | Default                    | Description                       |
+| ------------------------ | -------------------------- | --------------------------------- |
+| `--imggen-text-color`    | `#333`                     | Main text color                   |
+| `--imggen-background`    | `#333333`                  | Background color for placeholder  |
+| `--imggen-overlay-bg`    | `rgba(255, 255, 255, 0.5)` | Overlay panel background          |
+| `--imggen-accent`        | `#0066cc`                  | Accent color (progress bar, etc.) |
+| `--imggen-error-text`    | `#ff6666`                  | Error message text color          |
+| `--imggen-border-radius` | `8px`                      | Border radius for containers      |
+| `--imggen-button-bg`     | `rgba(255, 255, 255, 0.7)` | Button background color           |
+| `--imggen-font-size`     | `14px`                     | Default font size                 |
 
 ##### Available Class Slots
 
-| Class Property | Description |
-| --- | --- |
-| `root` | Main container element |
-| `image` | The image element |
-| `container` | Container for image and controls |
-| `overlay` | Overlay panel with controls |
-| `progress` | Progress indicator |
-| `placeholder` | Placeholder shown during loading |
-| `error` | Error message container |
-| `controls` | Control buttons container |
-| `button` | Individual buttons |
-| `prompt` | Prompt text/input container |
-| `deleteOverlay` | Delete confirmation dialog |
+| Class Property  | Description                      |
+| --------------- | -------------------------------- |
+| `root`          | Main container element           |
+| `image`         | The image element                |
+| `container`     | Container for image and controls |
+| `overlay`       | Overlay panel with controls      |
+| `progress`      | Progress indicator               |
+| `placeholder`   | Placeholder shown during loading |
+| `error`         | Error message container          |
+| `controls`      | Control buttons container        |
+| `button`        | Individual buttons               |
+| `prompt`        | Prompt text/input container      |
+| `deleteOverlay` | Delete confirmation dialog       |
 
 ## Development
 

@@ -172,9 +172,7 @@ export function ImgGenDisplay({
       : (document._files?.image as File);
 
   return (
-    <div
-      className={combineClasses('imggen-root', className, classes.root)}
-    >
+    <div className={combineClasses('imggen-root', className, classes.root)}>
       <ImgFile
         file={currentFile}
         className={combineClasses('imggen-image', classes.image)}
