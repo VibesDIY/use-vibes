@@ -17,12 +17,24 @@ function App() {
   const [activePrompt, setActivePrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedImageId, setSelectedImageId] = useState<string | undefined>();
+  const [quality, setQuality] = useState<'low' | 'medium' | 'high' | 'auto'>('low');
 
   // Use Fireproof to query all images
   const { useLiveQuery } = useFireproof('ImgGen');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputPrompt(e.target.value);
+  };
+
+  const handleQualityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
+    const qualityMap: Record<number, 'low' | 'medium' | 'high' | 'auto'> = {
+      0: 'low',
+      1: 'medium',
+      2: 'high',
+      3: 'auto'
+    };
+    setQuality(qualityMap[value]);
   };
 
   const handleGenerate = () => {
@@ -44,7 +56,7 @@ function App() {
   };
 
   // Get all documents with type: 'image'
-  const { docs: imageDocuments } = useLiveQuery<ImageDocument>('type', { key: 'image' });
+  const { docs: imageDocuments } = useLiveQuery<ImageDocument>('type', { key: 'image', descending: true });
 
   useEffect(() => {
     console.log('activePrompt', activePrompt);
@@ -54,7 +66,6 @@ function App() {
   return (
     <div className="container">
       <h1>Simple Image Generator</h1>
-
       <div className="input-container">
         <input
           type="text"
@@ -63,6 +74,27 @@ function App() {
           placeholder="Enter your image prompt here..."
           className="prompt-input"
         />
+        <div className="quality-slider-container">
+          <div className="slider-header">
+            <label>Quality: <span className="quality-value">{quality}</span></label>
+          </div>
+          <input 
+            type="range" 
+            min="0" 
+            max="3" 
+            step="1" 
+            value={['low', 'medium', 'high', 'auto'].indexOf(quality)} 
+            onChange={handleQualityChange}
+            className="quality-slider"
+            style={{ width: '100%' }}
+          />
+          <div className="quality-labels">
+            <span className={quality === 'low' ? 'active' : ''}>Low</span>
+            <span className={quality === 'medium' ? 'active' : ''}>Medium</span>
+            <span className={quality === 'high' ? 'active' : ''}>High</span>
+            <span className={quality === 'auto' ? 'active' : ''}>Auto</span>
+          </div>
+        </div>
         <button
           onClick={handleGenerate}
           className="generate-button"
@@ -77,7 +109,7 @@ function App() {
           prompt={activePrompt}
           _id={selectedImageId}
           options={{
-            quality: 'low',
+            quality: quality,
             imgUrl: 'https://vibecode.garden',
             size: '1024x1024',
           }}
@@ -98,7 +130,7 @@ function App() {
                     _id={doc._id}
                     className="thumbnail-img"
                     options={{
-                      quality: 'low',
+                      quality: quality,
                       imgUrl: 'https://vibecode.garden',
                       size: '1024x1024',
                     }}
