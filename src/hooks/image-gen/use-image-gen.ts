@@ -224,10 +224,9 @@ export function useImageGen({
               }
 
               try {
-                // Select the current version's file
+                // Select the current version's file - extract directly instead of storing in state
+                // This ensures we always have the latest version info straight from the document
                 const { versions, currentVersion } = getVersionsFromDocument(existingDoc);
-                // Get prompt information but we don't need it here
-                // const promptInfo = getPromptsFromDocument(existingDoc);
 
                 if (versions.length > 0) {
                   // Use the current version ID to get the file

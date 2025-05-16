@@ -74,8 +74,9 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Store the counter in state for triggering re-renders when needed
   const [regenerateCounter, setRegenerateCounter] = React.useState(0);
 
-  // Calculate isPlaceholder as derived value, not state
-  const isPlaceholder = React.useMemo(() => !prompt && !_id, [prompt, _id]);
+  // Calculate isPlaceholder as a pure expression instead of using useMemo
+  // This is simple enough that React doesn't need to track dependencies or cache the result
+  const isPlaceholder = !prompt && !_id;
 
   // Use the custom hook for all the image generation logic
   const { imageData, loading, error, progress, document } = useImageGen({
