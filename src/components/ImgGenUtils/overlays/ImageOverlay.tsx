@@ -97,6 +97,7 @@ export function ImageOverlay({
                 // Handle both single and double click
                 if (e.detail === 2) {
                   console.log('Double click detected on prompt: ', promptText);
+                  // Use the current prompt text that's being displayed
                   setEditedPrompt(promptText);
                   setIsEditingPrompt(true);
                 }

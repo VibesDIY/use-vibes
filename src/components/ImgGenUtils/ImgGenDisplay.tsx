@@ -23,9 +23,8 @@ export function ImgGenDisplay({
   const { versions, currentVersion } = getVersionInfo(document);
   const [versionIndex, setVersionIndex] = React.useState(currentVersion);
   
-  // Get the prompt specific to the current version
-  const { currentPrompt } = getPromptInfo(document, versionIndex);
-  const [editedPrompt, setEditedPrompt] = React.useState(currentPrompt || '');
+  // State for prompt editing - will be set directly from current render-time prompt when needed
+  const [editedPrompt, setEditedPrompt] = React.useState('');
 
   // Update versionIndex when the document changes and has new versions
   React.useEffect(() => {
@@ -44,14 +43,19 @@ export function ImgGenDisplay({
 
   const fileKey = getCurrentFileKey(document, versionIndex, versions);
   const totalVersions = versions ? versions.length : 0;
+  
+  // We now use getPromptInfo directly at render time as a pure function
 
   // Navigation handlers
   const handlePrevVersion = () => {
     if (versionIndex > 0) {
-      const prevPrompt = versions[versionIndex - 1]?.prompt || versions[versionIndex - 1]?.promptKey || 'unknown';
+      // Get current prompt at time of navigation - not from state
+      const { currentPrompt: currentPromptValue } = getPromptInfo(document, versionIndex);
+      const { currentPrompt: prevPromptValue } = getPromptInfo(document, versionIndex - 1);
+      
       console.log(`Switching to previous version: ${versionIndex} → ${versionIndex - 1}`);
       console.log(`Document ID: ${document._id}`);
-      console.log(`Current prompt: "${currentPrompt}", Target prompt: "${prevPrompt}"`);
+      console.log(`Current prompt: "${currentPromptValue}", Target prompt: "${prevPromptValue}"`);
       console.log(`Version info:`, versions[versionIndex - 1]);
       console.log(`Complete document:`, document);
       
@@ -63,10 +67,13 @@ export function ImgGenDisplay({
 
   const handleNextVersion = () => {
     if (versionIndex < totalVersions - 1) {
-      const nextPrompt = versions[versionIndex + 1]?.prompt || versions[versionIndex + 1]?.promptKey || 'unknown';
+      // Get current prompt at time of navigation - not from state
+      const { currentPrompt: currentPromptValue } = getPromptInfo(document, versionIndex);
+      const { currentPrompt: nextPromptValue } = getPromptInfo(document, versionIndex + 1);
+      
       console.log(`Switching to next version: ${versionIndex} → ${versionIndex + 1}`);
       console.log(`Document ID: ${document._id}`);
-      console.log(`Current prompt: "${currentPrompt}", Target prompt: "${nextPrompt}"`);
+      console.log(`Current prompt: "${currentPromptValue}", Target prompt: "${nextPromptValue}"`);
       console.log(`Version info:`, versions[versionIndex + 1]);
       console.log(`Complete document:`, document);
       
@@ -75,15 +82,6 @@ export function ImgGenDisplay({
       setIsEditingPrompt(false);
     }
   };
-  
-  // Update editedPrompt when versionIndex changes
-  React.useEffect(() => {
-    // Get the prompt for the current version
-    const { currentPrompt } = getPromptInfo(document, versionIndex);
-    if (currentPrompt) {
-      setEditedPrompt(currentPrompt);
-    }
-  }, [document, versionIndex]);
 
   // Keyboard handler for escape key only
   React.useEffect(() => {
@@ -144,6 +142,9 @@ export function ImgGenDisplay({
 
   // Handle prompt editing
   const handlePromptEdit = (newPrompt: string) => {
+    // Get the current prompt for comparison at the exact time of editing
+    const { currentPrompt } = getPromptInfo(document, versionIndex);
+    
     if (onPromptEdit && newPrompt.trim() && newPrompt !== currentPrompt) {
       onPromptEdit(document._id, newPrompt.trim());
     }
@@ -154,8 +155,9 @@ export function ImgGenDisplay({
     return <ImgGenError message="Missing image file" />;
   }
 
-  // The prompt might be stored in the document itself
-  const promptText = currentPrompt || alt || 'Generated image';
+  // Get the prompt for the current version at render time - pure function
+  const promptInfo = getPromptInfo(document, versionIndex);
+  const promptText = promptInfo.currentPrompt || alt || 'Generated image';
 
   // Determine which file to use - either the versioned file or the legacy 'image' file
   const currentFile =
