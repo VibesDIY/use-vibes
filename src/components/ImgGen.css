@@ -75,6 +75,14 @@
   flex-direction: column;
 }
 
+/* Top line row with prompt and version indicator */
+.imggen-top-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
 /* Prompt text container */
 .imggen-prompt {
   width: 100%;
