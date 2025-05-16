@@ -193,10 +193,6 @@ export function ImageOverlay({
             >
               <span style={{ fontSize: '14px' }}>
                 {versionIndex + 1} / {totalVersions}
-                {/* Show prompt version if it exists */}
-                {versions[versionIndex]?.promptKey && versions[versionIndex].promptKey !== 'p1' && (
-                  <span style={{ marginLeft: '5px', opacity: 0.7 }}>(Custom prompt)</span>
-                )}
               </span>
             </span>
 

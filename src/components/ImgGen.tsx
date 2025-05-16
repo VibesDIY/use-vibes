@@ -158,18 +158,10 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
             // Update currentPromptKey to point to the new prompt
             Object.assign(baseUpdate, { currentPromptKey: newPromptKey });
             
-            // If we have versions, also update the current version to use the new prompt key
-            if (docToUpdate.versions && docToUpdate.versions.length > 0) {
-              const versions = [...docToUpdate.versions];
-              if (docToUpdate.currentVersion !== undefined) {
-                // Update the current version to use the new prompt key
-                versions[docToUpdate.currentVersion] = {
-                  ...versions[docToUpdate.currentVersion],
-                  promptKey: newPromptKey,
-                };
-                Object.assign(baseUpdate, { versions });
-              }
-            }
+            // Don't modify the existing version's promptKey
+            // This ensures that each version keeps its original prompt association
+            // The new prompt will be used for the next version that gets generated
+            // No need to update versions array here
 
             // Add the updated prompts to our update object
             Object.assign(baseUpdate, { prompts: updatedPrompts });

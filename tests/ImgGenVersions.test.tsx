@@ -168,8 +168,8 @@ describe('ImgGenDisplay with New Document Structure', () => {
     fireEvent.click(nextButton!);
 
     // Check that we're now on version 3 of 3 and it shows custom prompt indicator
+    // Only check for the version count, we removed the Custom prompt indicator
     expect(versionIndicator?.textContent).toContain('3 / 3');
-    expect(versionIndicator?.textContent).toContain('Custom prompt');
 
     // Move back to previous version
     const prevButton = container.querySelector('[aria-label="Previous version"]');
