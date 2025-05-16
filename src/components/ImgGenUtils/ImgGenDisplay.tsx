@@ -19,11 +19,13 @@ export function ImgGenDisplay({
   const [isOverlayOpen, setIsOverlayOpen] = React.useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = React.useState(false);
   const [isEditingPrompt, setIsEditingPrompt] = React.useState(false);
-  const [editedPrompt, setEditedPrompt] = React.useState('');
 
   const { versions, currentVersion } = getVersionInfo(document);
-  const { currentPrompt } = getPromptInfo(document);
   const [versionIndex, setVersionIndex] = React.useState(currentVersion);
+  
+  // Get the prompt specific to the current version
+  const { currentPrompt } = getPromptInfo(document, versionIndex);
+  const [editedPrompt, setEditedPrompt] = React.useState(currentPrompt || '');
 
   // Update versionIndex when the document changes and has new versions
   React.useEffect(() => {
@@ -46,26 +48,37 @@ export function ImgGenDisplay({
   // Navigation handlers
   const handlePrevVersion = () => {
     if (versionIndex > 0) {
+      console.log(`Switching to previous version: ${versionIndex} → ${versionIndex - 1}`);
       setVersionIndex(versionIndex - 1);
+      // Reset editing state when changing versions
+      setIsEditingPrompt(false);
     }
   };
 
   const handleNextVersion = () => {
     if (versionIndex < totalVersions - 1) {
+      console.log(`Switching to next version: ${versionIndex} → ${versionIndex + 1}`);
       setVersionIndex(versionIndex + 1);
+      // Reset editing state when changing versions
+      setIsEditingPrompt(false);
     }
   };
+  
+  // Update editedPrompt when versionIndex changes
+  React.useEffect(() => {
+    // Get the prompt for the current version
+    const { currentPrompt } = getPromptInfo(document, versionIndex);
+    if (currentPrompt) {
+      setEditedPrompt(currentPrompt);
+    }
+  }, [document, versionIndex]);
 
-  // Keyboard navigation for versions
+  // Keyboard handler for escape key only
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOverlayOpen) return;
 
-      if (e.key === 'ArrowLeft') {
-        handlePrevVersion();
-      } else if (e.key === 'ArrowRight') {
-        handleNextVersion();
-      } else if (e.key === 'Escape') {
+      if (e.key === 'Escape') {
         if (isDeleteConfirmOpen) {
           handleCancelDelete();
         } else {
@@ -76,7 +89,7 @@ export function ImgGenDisplay({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOverlayOpen, isDeleteConfirmOpen, versionIndex, totalVersions]);
+  }, [isOverlayOpen, isDeleteConfirmOpen]);
 
   // Toggle overlay visibility
   const toggleOverlay = () => {
@@ -103,8 +116,16 @@ export function ImgGenDisplay({
 
   // Handle generating a new version
   const handleRefresh = () => {
-    // Call the onRefresh callback if provided
-    if (onRefresh) {
+    // Get the prompt for the current version and use it for regeneration
+    const { currentPrompt } = getPromptInfo(document, versionIndex);
+    
+    // If we have an onPromptEdit callback, use it to update the prompt
+    // This ensures that regeneration uses the prompt from the currently displayed version
+    if (onPromptEdit && currentPrompt) {
+      onPromptEdit(document._id, currentPrompt);
+    }
+    // Fall back to standard refresh if needed
+    else if (onRefresh) {
       onRefresh(document._id);
     }
   };

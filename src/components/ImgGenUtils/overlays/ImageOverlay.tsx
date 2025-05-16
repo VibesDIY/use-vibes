@@ -1,5 +1,13 @@
 import * as React from 'react';
 
+// Import the EnhancedVersionInfo type or define it inline
+type EnhancedVersionInfo = {
+  id: string;
+  created?: number;
+  promptKey?: string;
+  prompt?: string;
+};
+
 interface ImageOverlayProps {
   promptText: string;
   isEditingPrompt: boolean;
@@ -16,7 +24,7 @@ interface ImageOverlayProps {
   handleRefresh: () => void;
   versionIndex: number;
   totalVersions: number;
-  versions: Array<{ id: string; created: number; promptKey?: string }>;
+  versions: EnhancedVersionInfo[];
 }
 
 export function ImageOverlay({
