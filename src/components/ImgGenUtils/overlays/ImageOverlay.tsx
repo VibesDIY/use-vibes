@@ -102,7 +102,7 @@ export function ImageOverlay({
 
             {/* Version indicator - only display if we have versions */}
             <span
-              className="imggen-version-indicator"
+              className="imggen-version-indicator version-indicator"
               aria-live="polite"
             >
               {versionIndex + 1} / {totalVersions}

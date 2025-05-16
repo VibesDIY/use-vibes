@@ -15,7 +15,7 @@ export function DeleteConfirmationOverlay({
 }: DeleteConfirmationOverlayProps) {
   return (
     <div
-      className={combineClasses('imggen-delete-overlay', classes.deleteOverlay)}
+      className={combineClasses('imggen-delete-overlay delete-confirmation-overlay', classes.deleteOverlay)}
     >
       <div className="imggen-delete-message">
         <h3 className="imggen-error-title">
