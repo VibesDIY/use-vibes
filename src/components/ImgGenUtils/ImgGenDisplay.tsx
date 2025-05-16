@@ -48,7 +48,13 @@ export function ImgGenDisplay({
   // Navigation handlers
   const handlePrevVersion = () => {
     if (versionIndex > 0) {
+      const prevPrompt = versions[versionIndex - 1]?.prompt || versions[versionIndex - 1]?.promptKey || 'unknown';
       console.log(`Switching to previous version: ${versionIndex} → ${versionIndex - 1}`);
+      console.log(`Document ID: ${document._id}`);
+      console.log(`Current prompt: "${currentPrompt}", Target prompt: "${prevPrompt}"`);
+      console.log(`Version info:`, versions[versionIndex - 1]);
+      console.log(`Complete document:`, document);
+      
       setVersionIndex(versionIndex - 1);
       // Reset editing state when changing versions
       setIsEditingPrompt(false);
@@ -57,7 +63,13 @@ export function ImgGenDisplay({
 
   const handleNextVersion = () => {
     if (versionIndex < totalVersions - 1) {
+      const nextPrompt = versions[versionIndex + 1]?.prompt || versions[versionIndex + 1]?.promptKey || 'unknown';
       console.log(`Switching to next version: ${versionIndex} → ${versionIndex + 1}`);
+      console.log(`Document ID: ${document._id}`);
+      console.log(`Current prompt: "${currentPrompt}", Target prompt: "${nextPrompt}"`);
+      console.log(`Version info:`, versions[versionIndex + 1]);
+      console.log(`Complete document:`, document);
+      
       setVersionIndex(versionIndex + 1);
       // Reset editing state when changing versions
       setIsEditingPrompt(false);

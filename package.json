@@ -18,6 +18,8 @@
   ],
   "scripts": {
     "build": "tsc",
+    "build:watch": "tsc --watch",
+    "dev:build": "tsc --watch",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix --rule 'no-unused-vars: 1' --rule 'no-empty: 1' --rule '@typescript-eslint/no-unused-vars: 1'",
     "format": "prettier --write \"./**/*.{js,jsx,ts,tsx,json,md}\"",

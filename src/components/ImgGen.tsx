@@ -142,14 +142,33 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
             docToUpdate.prompts &&
             docToUpdate.currentPromptKey
           ) {
-            const promptKey = docToUpdate.currentPromptKey;
-            // Create a new version of prompts with the updated text
+            // Instead of updating the existing prompt, create a new prompt entry
             const updatedPrompts = { ...docToUpdate.prompts };
-            if (updatedPrompts[promptKey]) {
-              updatedPrompts[promptKey] = {
-                ...updatedPrompts[promptKey],
-                text: newPrompt,
-              };
+            
+            // Create a new prompt key
+            const promptCount = Object.keys(updatedPrompts).length + 1;
+            const newPromptKey = `p${promptCount}`;
+            
+            // Add new prompt entry
+            updatedPrompts[newPromptKey] = {
+              text: newPrompt,
+              created: Date.now(),
+            };
+            
+            // Update currentPromptKey to point to the new prompt
+            Object.assign(baseUpdate, { currentPromptKey: newPromptKey });
+            
+            // If we have versions, also update the current version to use the new prompt key
+            if (docToUpdate.versions && docToUpdate.versions.length > 0) {
+              const versions = [...docToUpdate.versions];
+              if (docToUpdate.currentVersion !== undefined) {
+                // Update the current version to use the new prompt key
+                versions[docToUpdate.currentVersion] = {
+                  ...versions[docToUpdate.currentVersion],
+                  promptKey: newPromptKey,
+                };
+                Object.assign(baseUpdate, { versions });
+              }
             }
 
             // Add the updated prompts to our update object
