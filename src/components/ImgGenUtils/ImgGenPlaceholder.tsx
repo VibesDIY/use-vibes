@@ -9,6 +9,21 @@ export function ImgGenPlaceholder({
   progress,
   error,
 }: ImgGenPlaceholderProps) {
+  // State to track the visible progress width for animation
+  const [visibleProgress, setVisibleProgress] = React.useState(0);
+  
+  // Animate progress bar when component mounts or progress changes
+  React.useEffect(() => {
+    // Start at zero
+    setVisibleProgress(0);
+    
+    // After a tiny delay, animate to the actual progress (or minimum 5%)
+    const timer = setTimeout(() => {
+      setVisibleProgress(Math.max(5, progress));
+    }, 50); // Small delay to ensure animation runs
+    
+    return () => clearTimeout(timer);
+  }, [progress]);
   // Extract error information from the error object
   const parseErrorInfo = (error: Error) => {
     const errorMsg = error.message;
@@ -143,7 +158,7 @@ export function ImgGenPlaceholder({
               top: 0,
               left: 0,
               height: '8px',
-              width: `${progress}%`,
+              width: `${visibleProgress}%`,
               backgroundColor: '#0066cc',
               transition: 'width 0.3s ease-in-out',
               zIndex: 11, // Ensure it appears above the overlay
