@@ -55,16 +55,6 @@ export function ImgGenDisplay({
   // Navigation handlers
   const handlePrevVersion = () => {
     if (versionIndex > 0) {
-      // Get current prompt at time of navigation - not from state
-      const { currentPrompt: currentPromptValue } = getPromptInfo(document, versionIndex);
-      const { currentPrompt: prevPromptValue } = getPromptInfo(document, versionIndex - 1);
-
-      console.log(`Switching to previous version: ${versionIndex} → ${versionIndex - 1}`);
-      console.log(`Document ID: ${document._id}`);
-      console.log(`Current prompt: "${currentPromptValue}", Target prompt: "${prevPromptValue}"`);
-      console.log(`Version info:`, versions[versionIndex - 1]);
-      console.log(`Complete document:`, document);
-
       setVersionIndex(versionIndex - 1);
       // Exit edit mode when changing versions
       setEditedPrompt(null);
@@ -73,16 +63,6 @@ export function ImgGenDisplay({
 
   const handleNextVersion = () => {
     if (versionIndex < totalVersions - 1) {
-      // Get current prompt at time of navigation - not from state
-      const { currentPrompt: currentPromptValue } = getPromptInfo(document, versionIndex);
-      const { currentPrompt: nextPromptValue } = getPromptInfo(document, versionIndex + 1);
-
-      console.log(`Switching to next version: ${versionIndex} → ${versionIndex + 1}`);
-      console.log(`Document ID: ${document._id}`);
-      console.log(`Current prompt: "${currentPromptValue}", Target prompt: "${nextPromptValue}"`);
-      console.log(`Version info:`, versions[versionIndex + 1]);
-      console.log(`Complete document:`, document);
-
       setVersionIndex(versionIndex + 1);
       // Exit edit mode when changing versions
       setEditedPrompt(null);

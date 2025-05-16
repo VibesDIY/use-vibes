@@ -71,10 +71,7 @@ export function ImgGenPlaceholder({
         } else if (jsonObj.error?.details?.error?.message) {
           body = jsonObj.error.details.error.message;
         }
-      } catch (e) {
-        // If parsing fails, just return the original message
-        console.warn('Error parsing error message JSON:', e);
-      }
+      } catch {}
     }
 
     return { title, body, code };

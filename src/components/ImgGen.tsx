@@ -158,8 +158,6 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
 
           // Save the updated document back to the database
           await db.put(baseUpdate);
-
-          console.log('Updated document prompt:', newPrompt);
         }
 
         // Call the user-provided onPromptEdit callback if it exists

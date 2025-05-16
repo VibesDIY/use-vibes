@@ -63,10 +63,7 @@ export function ImageOverlay({
           ) : (
             <div
               onClick={(e) => {
-                // Handle both single and double click
                 if (e.detail === 2) {
-                  console.log('Double click detected on prompt: ', promptText);
-                  // Enter edit mode with current text
                   setEditedPrompt(promptText);
                 }
               }}
