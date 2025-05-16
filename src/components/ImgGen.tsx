@@ -70,7 +70,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Use a ref to track regeneration state instead of a state variable
   // This avoids unnecessary re-renders when toggling regeneration state
   const regenerateRef = React.useRef(false);
-  
+
   // Store the counter in state for triggering re-renders when needed
   const [regenerateCounter, setRegenerateCounter] = React.useState(0);
 
@@ -99,9 +99,9 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     if (document?._id || _id || prompt) {
       // Toggle regeneration flag
       regenerateRef.current = !regenerateRef.current;
-      
+
       // Increment counter to trigger a re-render
-      setRegenerateCounter(prev => prev + 1);
+      setRegenerateCounter((prev) => prev + 1);
     }
   }, [document, _id, prompt]);
 
@@ -128,20 +128,20 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
           ) {
             // Instead of updating the existing prompt, create a new prompt entry
             const updatedPrompts = { ...docToUpdate.prompts };
-            
+
             // Create a new prompt key
             const promptCount = Object.keys(updatedPrompts).length + 1;
             const newPromptKey = `p${promptCount}`;
-            
+
             // Add new prompt entry
             updatedPrompts[newPromptKey] = {
               text: newPrompt,
               created: Date.now(),
             };
-            
+
             // Update currentPromptKey to point to the new prompt
             Object.assign(baseUpdate, { currentPromptKey: newPromptKey });
-            
+
             // Don't modify the existing version's promptKey
             // This ensures that each version keeps its original prompt association
             // The new prompt will be used for the next version that gets generated

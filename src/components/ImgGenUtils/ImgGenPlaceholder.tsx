@@ -11,17 +11,17 @@ export function ImgGenPlaceholder({
 }: ImgGenPlaceholderProps) {
   // State to track the visible progress width for animation
   const [visibleProgress, setVisibleProgress] = React.useState(0);
-  
+
   // Animate progress bar when component mounts or progress changes
   React.useEffect(() => {
     // Start at zero
     setVisibleProgress(0);
-    
+
     // After a tiny delay, animate to the actual progress (or minimum 5%)
     const timer = setTimeout(() => {
       setVisibleProgress(Math.max(5, progress));
     }, 50); // Small delay to ensure animation runs
-    
+
     return () => clearTimeout(timer);
   }, [progress]);
   // Extract error information from the error object

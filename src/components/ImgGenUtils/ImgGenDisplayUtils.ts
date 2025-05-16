@@ -25,18 +25,18 @@ export function getVersionInfo(document: ImageDocument & { _id: string }): Versi
   // Check if document has proper version structure
   if (document?.versions && document.versions.length > 0) {
     // Convert to enhanced version info with possible prompt fields
-    const enhancedVersions: EnhancedVersionInfo[] = document.versions.map(v => {
+    const enhancedVersions: EnhancedVersionInfo[] = document.versions.map((v) => {
       // Check if this version has a direct prompt property (legacy format)
       // TypeScript doesn't know about this property, but we check at runtime
       const versionWithPrompt = v as any;
       const prompt = versionWithPrompt.prompt || undefined;
-      
+
       return {
         ...v,
-        prompt
+        prompt,
       };
     });
-    
+
     return {
       versions: enhancedVersions,
       // Use currentVersion directly (now 0-based) or default to last version
@@ -64,22 +64,24 @@ export function getVersionInfo(document: ImageDocument & { _id: string }): Versi
  * @param document The image document
  * @param versionIndex Optional index of the version to get prompt for
  */
-export function getPromptInfo(
-  document: ImageDocument & { _id: string },
-  versionIndex?: number
-) {
+export function getPromptInfo(document: ImageDocument & { _id: string }, versionIndex?: number) {
   try {
     // If versionIndex is provided, try to get the version-specific prompt
     if (typeof versionIndex === 'number') {
       const { versions } = getVersionInfo(document);
-      
+
       // Make sure we have valid data
-      if (versions && Array.isArray(versions) && versionIndex >= 0 && versionIndex < versions.length) {
+      if (
+        versions &&
+        Array.isArray(versions) &&
+        versionIndex >= 0 &&
+        versionIndex < versions.length
+      ) {
         const version = versions[versionIndex];
-        
+
         // APPROACH 1: Check if this version has a promptKey defined
         const promptKey = version.promptKey || 'p1';
-        
+
         // First check if we have prompts and this version's promptKey
         if (document?.prompts && promptKey && document.prompts[promptKey]) {
           return {
@@ -87,17 +89,17 @@ export function getPromptInfo(
             prompts: document.prompts,
             currentPromptKey: promptKey,
           };
-        } 
-        
+        }
+
         // APPROACH 2: Check for version.prompt in EnhancedVersionInfo
         if (version.prompt) {
           return {
             currentPrompt: version.prompt,
-            prompts: { ...document.prompts || {}, legacy: { text: version.prompt } },
+            prompts: { ...(document.prompts || {}), legacy: { text: version.prompt } },
             currentPromptKey: 'legacy',
           };
         }
-        
+
         // APPROACH 3: Check for promptMap in the document (legacy format)
         // Handle access to dynamically added properties that TypeScript doesn't know about
         const docWithPromptMap = document as any;
@@ -114,9 +116,9 @@ export function getPromptInfo(
   } catch (e) {
     console.error('Error getting version-specific prompt:', e);
   }
-  
+
   // If we don't have a specific version prompt or there was an error, fall back to default behavior
-  
+
   // If we have the new prompts structure
   if (document?.prompts && document.currentPromptKey) {
     return {

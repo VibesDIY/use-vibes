@@ -18,24 +18,28 @@ export function ImgGenDisplay({
 }: ImgGenDisplayProps) {
   const [isOverlayOpen, setIsOverlayOpen] = React.useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = React.useState(false);
-  
+
   // Use null to indicate not editing, or string for edit mode
   const [editedPrompt, setEditedPrompt] = React.useState<string | null>(null);
 
   // Get version information directly at render time
   const { versions, currentVersion } = getVersionInfo(document);
-  
+
   // Calculate the initial version index based on document state
   const initialVersionIndex = React.useMemo(() => {
-    return typeof currentVersion === 'number' ? currentVersion : (versions?.length ? versions.length - 1 : 0);
+    return typeof currentVersion === 'number'
+      ? currentVersion
+      : versions?.length
+        ? versions.length - 1
+        : 0;
   }, [currentVersion, versions]);
-  
+
   // Only track user-selected version index as state
   const [userSelectedIndex, setUserSelectedIndex] = React.useState<number | null>(null);
-  
+
   // Derive the final version index - use user selection if available, otherwise use the document's current version
   const versionIndex = userSelectedIndex !== null ? userSelectedIndex : initialVersionIndex;
-  
+
   // Custom setter function that manages user selections
   const setVersionIndex = React.useCallback((index: number) => {
     setUserSelectedIndex(index);
@@ -43,7 +47,7 @@ export function ImgGenDisplay({
 
   const fileKey = getCurrentFileKey(document, versionIndex, versions);
   const totalVersions = versions ? versions.length : 0;
-  
+
   // We now use getPromptInfo directly at render time as a pure function
 
   // Navigation handlers
@@ -52,13 +56,13 @@ export function ImgGenDisplay({
       // Get current prompt at time of navigation - not from state
       const { currentPrompt: currentPromptValue } = getPromptInfo(document, versionIndex);
       const { currentPrompt: prevPromptValue } = getPromptInfo(document, versionIndex - 1);
-      
+
       console.log(`Switching to previous version: ${versionIndex} → ${versionIndex - 1}`);
       console.log(`Document ID: ${document._id}`);
       console.log(`Current prompt: "${currentPromptValue}", Target prompt: "${prevPromptValue}"`);
       console.log(`Version info:`, versions[versionIndex - 1]);
       console.log(`Complete document:`, document);
-      
+
       setVersionIndex(versionIndex - 1);
       // Exit edit mode when changing versions
       setEditedPrompt(null);
@@ -70,13 +74,13 @@ export function ImgGenDisplay({
       // Get current prompt at time of navigation - not from state
       const { currentPrompt: currentPromptValue } = getPromptInfo(document, versionIndex);
       const { currentPrompt: nextPromptValue } = getPromptInfo(document, versionIndex + 1);
-      
+
       console.log(`Switching to next version: ${versionIndex} → ${versionIndex + 1}`);
       console.log(`Document ID: ${document._id}`);
       console.log(`Current prompt: "${currentPromptValue}", Target prompt: "${nextPromptValue}"`);
       console.log(`Version info:`, versions[versionIndex + 1]);
       console.log(`Complete document:`, document);
-      
+
       setVersionIndex(versionIndex + 1);
       // Exit edit mode when changing versions
       setEditedPrompt(null);
@@ -128,7 +132,7 @@ export function ImgGenDisplay({
   const handleRefresh = () => {
     // Get the prompt for the current version and use it for regeneration
     const { currentPrompt } = getPromptInfo(document, versionIndex);
-    
+
     // If we have an onPromptEdit callback, use it to update the prompt
     // This ensures that regeneration uses the prompt from the currently displayed version
     if (onPromptEdit && currentPrompt) {
@@ -144,7 +148,7 @@ export function ImgGenDisplay({
   const handlePromptEdit = (newPrompt: string) => {
     // Get the current prompt for comparison at the exact time of editing
     const { currentPrompt } = getPromptInfo(document, versionIndex);
-    
+
     if (onPromptEdit && newPrompt.trim() && newPrompt !== currentPrompt) {
       onPromptEdit(document._id, newPrompt.trim());
     }
