@@ -242,6 +242,8 @@ export interface ImgGenDisplayProps {
   document: ImageDocument & { _id: string }; // Ensure _id is required for display
   className?: string;
   alt?: string;
+  /** Whether to show the overlay info button and controls (default: true) */
+  showOverlay?: boolean;
   /** Callback when delete is confirmed - receives document ID */
   // eslint-disable-next-line no-unused-vars
   onDelete?: (id: string) => void;
@@ -258,6 +260,7 @@ export function ImgGenDisplay({
   document,
   className,
   alt,
+  showOverlay = true,
   onDelete,
   onRefresh,
   onPromptEdit,
@@ -460,8 +463,8 @@ export function ImgGenDisplay({
         }}
       />
 
-      {/* Info button - visible when overlay is closed */}
-      {!isOverlayOpen && (
+      {/* Info button - visible when overlay is closed and showOverlay is true */}
+      {!isOverlayOpen && showOverlay && (
         <button
           aria-label="Image information"
           onClick={toggleOverlay}
@@ -516,8 +519,8 @@ export function ImgGenDisplay({
         </button>
       )}
 
-      {/* Overlay with image information and controls */}
-      {isOverlayOpen && (
+      {/* Overlay with image information and controls - only when showOverlay is true */}
+      {isOverlayOpen && showOverlay && (
         <div
           className="img-gen-overlay"
           style={{

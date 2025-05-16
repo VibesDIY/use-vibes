@@ -25,6 +25,9 @@ export interface ImgGenProps {
   /** Database name or instance to use for storing images */
   database?: string | Database;
 
+  /** Whether to show overlay controls and info button (default: true) */
+  overlay?: boolean;
+
   /** Callback when image load completes successfully */
   onLoad?: () => void;
 
@@ -54,6 +57,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     alt,
     options,
     database,
+    overlay = true, // Default to true if not provided
     onLoad,
     onError,
     onDelete,
@@ -256,6 +260,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
             onDelete={handleDelete}
             onRefresh={handleGenerateNewVersion}
             onPromptEdit={handlePromptEdit}
+            showOverlay={overlay}
           />
 
           {/* Show progress overlay during regeneration */}
