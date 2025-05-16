@@ -62,16 +62,27 @@ export function useImageGen({
   // Track ID and regeneration state changes
   const previousIdRef = useRef<string | undefined>(_id);
   const previousRegenerateRef = useRef<boolean>(regenerate);
+  const previousPromptRef = useRef<string | undefined>(prompt);
   
   // Reset state when prompt, _id, or regenerate flag changes
   useEffect(() => {
+    const promptChanged = prompt !== previousPromptRef.current;
     const idChanged = _id !== previousIdRef.current;
+    // Fix: Previously this would only detect changes when regenerate=true
+    // Change detection logic to detect ANY change in the regenerate flag
+    const regenerateChanged = regenerate !== previousRegenerateRef.current;
     
-    // Detect regeneration request when the flag changes to true
-    // This works with boolean flags and also with toggle patterns
-    const regenerateChanged = regenerate && regenerate !== previousRegenerateRef.current;
+    console.log('[useImageGen] Dependencies changed:', {
+      promptChanged,
+      idChanged,
+      regenerateChanged,
+      prompt,
+      _id,
+      regenerate,
+      previousRegenerate: previousRegenerateRef.current
+    });
     
-    // Update tracking refs
+    previousPromptRef.current = prompt;
     previousIdRef.current = _id;
     previousRegenerateRef.current = regenerate;
     
@@ -159,6 +170,7 @@ export function useImageGen({
                 (existingDoc as unknown as ImageDocument).prompt || '';
               
               // If regenerate flag is true, we're creating a new version
+              // Only attempt if we have a document with a prompt
               if (regenerate && currentPromptText) {
 
                 
@@ -312,14 +324,25 @@ export function useImageGen({
               // Define a stable key for deduplication based on all relevant parameters.
               // Include _id (if present) and current time for regeneration requests
               // to ensure each regeneration gets a unique key
+              // Create a unique stable key for this request that changes with regenerate flag
+              const regenPart = regenerate ? `regen-${Date.now()}` : '0';
               const stableKey = [
                 prompt || '',
                 _id || '',
                 // For regenerate requests, add a timestamp to ensure uniqueness
-                regenerate ? `regen-${Date.now()}` : '0',
+                // When there's no _id but there is a prompt, we still want regeneration to work
+                regenPart,
                 // Stringify only relevant options to avoid spurious cache misses
                 JSON.stringify(getRelevantOptions(options))
               ].join('|');
+              
+              console.log('[useImageGen] Request key generated:', {
+                prompt,
+                _id,
+                regenerate,
+                regenPart,
+                stableKey
+              });
               
 
               

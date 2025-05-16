@@ -62,6 +62,9 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // We use a number as a counter - each regeneration increments it
   const [regenerateCounter, setRegenerateCounter] = React.useState(0);
   
+  // Track the document ID once it's created for reuse during regeneration
+  const [trackedDocId, setTrackedDocId] = React.useState<string | undefined>(_id);
+  
   // Derive boolean flag from counter - odd values are true, even values are false
   // This allows us to toggle between regeneration states
   const shouldRegenerate = regenerateCounter % 2 === 1;
@@ -71,9 +74,10 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
 
   // Use the custom hook for all the image generation logic
   const { imageData, loading, error, progress, document } = useImageGen({
-    // Only pass prompt if _id is not provided
-    prompt: !_id ? (prompt || '') : undefined,
-    _id,
+    // Only pass prompt if no tracked ID is available
+    prompt: !trackedDocId ? (prompt || '') : undefined,
+    // Use tracked ID if available, otherwise use the original _id
+    _id: trackedDocId || _id,
     options,
     database,
     // Use regenerate flag to trigger regeneration
@@ -82,23 +86,49 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     skip: isPlaceholder
   });
   
-  // Handle refresh/regenerate request
+  // Update the tracked document ID when a document is created from a prompt
+  React.useEffect(() => {
+    // Only update if we have a document with an ID and we're not already tracking it
+    if (document?._id && document._id !== trackedDocId) {
+      console.log('[ImgGen] Updating tracked document ID:', document._id);
+      setTrackedDocId(document._id);
+    }
+  }, [document, trackedDocId]);
+  
+  // Handle regeneration when the button is clicked
   const handleGenerateNewVersion = React.useCallback(() => {
-    // If we don't have a doc ID, there's nothing to refresh
-    if (!_id) {
-
-      return;
-    }
+    // Enhanced regeneration that uses tracked document ID for consistency
+    console.log('[ImgGen] Regenerate clicked:', { 
+      hasDocument: !!document, 
+      documentId: document?._id,
+      trackedDocId,
+      prompt, 
+      currentRegenerateCounter: regenerateCounter,
+      shouldRegenerate: !shouldRegenerate // What it will be after increment
+    });
     
-
-    
-    // Use the current document to generate a new version
-    if (document) {
+    // Check for document or tracked ID first
+    if (document || trackedDocId) {
+      // If we have a document or tracked ID, use that for regeneration
+      const idToUse = document?._id || trackedDocId;
+      console.log('[ImgGen] Regenerating with document ID:', idToUse);
       // Increment counter to trigger a new image generation
-      // This ensures we get a new state value every time
-      setRegenerateCounter(prev => prev + 1);
+      setRegenerateCounter(prev => {
+        console.log('[ImgGen] Incrementing regenerateCounter:', prev, '->', prev + 1);
+        return prev + 1;
+      });
+    } else if (prompt) {
+      // If no document yet but we have a prompt, force regeneration
+      console.log('[ImgGen] Regenerating with prompt only');
+      // by changing the regenerateCounter to trigger a re-render
+      setRegenerateCounter(prev => {
+        console.log('[ImgGen] Incrementing regenerateCounter:', prev, '->', prev + 1);
+        return prev + 1;
+      });
+    } else {
+      console.log('[ImgGen] Cannot regenerate - no document, tracked ID, or prompt available');
     }
-  }, [document, _id]);
+  }, [document, prompt, trackedDocId, shouldRegenerate, regenerateCounter]);
   
   // Handle delete request
   const handleDelete = React.useCallback((id: string) => {
