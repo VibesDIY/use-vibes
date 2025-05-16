@@ -38,17 +38,19 @@ export function getVersionInfo(document: ImageDocument & { _id: string }): Versi
   if (document?.versions && document.versions.length > 0) {
     // Convert to enhanced version info with possible prompt fields
     // Define type for document version entries to avoid using 'any'
-    const enhancedVersions: EnhancedVersionInfo[] = document.versions.map((v: {id: string; created?: number; promptKey?: string}) => {
-      // Check if this version has a direct prompt property (legacy format)
-      // Use our typed interface for legacy format
-      const versionWithPrompt = v as VersionWithLegacyPrompt;
-      const prompt = versionWithPrompt.prompt || undefined;
+    const enhancedVersions: EnhancedVersionInfo[] = document.versions.map(
+      (v: { id: string; created?: number; promptKey?: string }) => {
+        // Check if this version has a direct prompt property (legacy format)
+        // Use our typed interface for legacy format
+        const versionWithPrompt = v as VersionWithLegacyPrompt;
+        const prompt = versionWithPrompt.prompt || undefined;
 
-      return {
-        ...v,
-        prompt,
-      };
-    });
+        return {
+          ...v,
+          prompt,
+        };
+      }
+    );
 
     return {
       versions: enhancedVersions,
