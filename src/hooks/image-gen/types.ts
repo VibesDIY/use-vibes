@@ -4,14 +4,14 @@ import { ImageGenOptions, ImageResponse } from 'call-ai';
 // Interface for our image documents in Fireproof
 // Interface for prompt entry
 export interface PromptEntry {
-  text: string;      // The prompt text content
-  created: number;   // Timestamp when this prompt was created
+  text: string; // The prompt text content
+  created: number; // Timestamp when this prompt was created
 }
 
 export interface ImageDocument {
-  _id?: string;   // Must be defined when saving to database, but may be absent when creating
-  type?: 'image';  // Document type identifier
-  prompt?: string;   // Legacy field, superseded by prompts/currentPromptKey
+  _id?: string; // Must be defined when saving to database, but may be absent when creating
+  type?: 'image'; // Document type identifier
+  prompt?: string; // Legacy field, superseded by prompts/currentPromptKey
   _files?: Record<string, File | DocFileMeta>; // Files keyed by version ID (v1, v2, etc.)
   created?: number;
   currentVersion?: number; // The currently active version index (0-based)
@@ -39,10 +39,10 @@ export interface UseImageGenOptions {
 
   /** Fireproof database name or instance */
   database?: string | Database;
-  
+
   /** Flag to force regeneration of the image */
   regenerate?: boolean;
-  
+
   /** Flag to skip processing when neither prompt nor _id is valid */
   skip?: boolean;
 }
@@ -81,5 +81,5 @@ export interface ModuleState {
   // Map from prompt+options hash to document ID
   createdDocuments: Map<string, string>;
   // Track pending document creation promises to deduplicate db.put operations
-  pendingDocumentCreations: Map<string, Promise<{id: string, doc: ImageDocument}>>;
+  pendingDocumentCreations: Map<string, Promise<{ id: string; doc: ImageDocument }>>;
 }

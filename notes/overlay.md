@@ -4,16 +4,17 @@
 
 The current `ImgGen` component and related utilities (`ImgGenUtils`) support these states:
 
-| State Identifier | Description |
-|-----------------|-------------|
-| `PROMPT_WAITING` | When no prompt or ID is provided |
-| `LOADING` | Displays a placeholder with progress indicator during image generation |
-| `READY` | Displays the generated image once available with a small "ⓘ Info" button visible at the bottom |
-| `ERROR` | Displays an error message if image generation fails |
+| State Identifier | Description                                                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| `PROMPT_WAITING` | When no prompt or ID is provided                                                               |
+| `LOADING`        | Displays a placeholder with progress indicator during image generation                         |
+| `READY`          | Displays the generated image once available with a small "ⓘ Info" button visible at the bottom |
+| `ERROR`          | Displays an error message if image generation fails                                            |
 
 ## Missing Interactive States to Implement
 
 ### `OVERLAY_OPEN` (formerly State 4)
+
 - When user clicks the "ⓘ Info" button (already visible in the `READY` state):
 - Create an overlay div (positioned absolutely at the bottom of the image)
 - Include prompt text at the top of the overlay
@@ -22,6 +23,7 @@ The current `ImgGen` component and related utilities (`ImgGenUtils`) support the
 - The delete button should also appear briefly on hover even when overlay is closed for discoverability
 
 **When multiple versions exist:**
+
 - Show version history navigation controls in the overlay
 - Enable left/right arrow navigation buttons (◀︎ ▶︎) with keyboard support (← → arrow keys)
 - Display current version indicator (e.g., "2 of 3") with appropriate ARIA attributes
@@ -29,6 +31,7 @@ The current `ImgGen` component and related utilities (`ImgGenUtils`) support the
 - Properly disable navigation buttons when at first/last version with visual indication
 
 ### `DELETE_CONFIRM` (formerly State 6)
+
 - Implement delete (✕) button functionality
 - Create a confirmation overlay with:
   - Semi-transparent dark background
@@ -40,18 +43,21 @@ The current `ImgGen` component and related utilities (`ImgGenUtils`) support the
 ## Implementation Steps
 
 1. **Refactor Component Structure**:
+
    - Extract a new parent component `ImgGenViewer` to manage shared state
    - Move current `ImgGenDisplay` code inside it
    - Add state management with `useReducer` for state transitions
    - Implement proper keyboard accessibility (arrow keys, ESC)
 
 2. **Add Overlay Components**:
+
    - Add "ⓘ Info" button to the basic image display (`READY` state)
    - Create `ImageFrame` component with hover-triggered delete button
    - Implement `CaptionOverlay` with fade animations using CSS transitions
    - Use `react-focus-lock` or equivalent for focus trapping in modals
 
 3. **Create Version Management**:
+
    - Track image versions as `_files` in the document (as requested)
    - Implement navigation between versions with proper ARIA attributes
    - Add keyboard shortcut support (← → arrows for navigation)
@@ -90,10 +96,12 @@ The current `ImgGen` component and related utilities (`ImgGenUtils`) support the
 ## Testing Approach
 
 - **Unit Tests**:
+
   - Test state management logic in isolation (useReducer actions)
   - Test version navigation utilities without DOM dependencies
 
 - **Component Tests**:
+
   - Verify all states function correctly (`READY`, `OVERLAY_OPEN`, `DELETE_CONFIRM`)
   - Test conditional rendering of version controls when multiple versions exist
   - Test keyboard interactions (arrows, ESC, Tab trapping)
@@ -108,7 +116,7 @@ The current `ImgGen` component and related utilities (`ImgGenUtils`) support the
 
 1. Refactor: Extract `ImgGenViewer` with state machine, keeping current functionality
 2. Add overlay with info button and rudimentary controls
-3. Implement version navigation between _files in document
+3. Implement version navigation between \_files in document
 4. Add delete confirmation flow
 5. Enhance with keyboard support and accessibility features
 6. Replace inline styles with Tailwind classes

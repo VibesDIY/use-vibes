@@ -152,11 +152,9 @@ export function ImgGenPlaceholder({
           </div>
         ) : !prompt ? (
           <div>Waiting for prompt</div>
-        ) : (
-          // When generating with a prompt, don't show anything here
-          // as we'll display the info in the overlay
-          null
-        )}
+        ) : // When generating with a prompt, don't show anything here
+        // as we'll display the info in the overlay
+        null}
       </div>
 
       {/* When prompt exists and we have no error, show the overlay with the prompt */}
@@ -176,7 +174,7 @@ export function ImgGenPlaceholder({
             }}
             aria-hidden="true"
           />
-          
+
           {/* Use the same overlay style as in ImgGenDisplay */}
           <div
             className="img-gen-overlay"
@@ -197,14 +195,14 @@ export function ImgGenPlaceholder({
             {/* Two row layout with prompt on top and controls below */}
             <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
               {/* Prompt text on top row */}
-              <div 
+              <div
                 className="text-gray-700 truncate mb-2"
                 style={{
                   color: '#333',
-                  width: '100%', 
+                  width: '100%',
                   textAlign: 'center',
                   fontWeight: 'bold',
-                  padding: '8px'
+                  padding: '8px',
                 }}
               >
                 {/* Display the prompt */}
@@ -253,7 +251,13 @@ export interface ImgGenDisplayProps {
 }
 
 // Component for displaying the generated image
-export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }: ImgGenDisplayProps) {
+export function ImgGenDisplay({
+  document,
+  className,
+  alt,
+  onDelete,
+  onRefresh,
+}: ImgGenDisplayProps) {
   const [isOverlayOpen, setIsOverlayOpen] = React.useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = React.useState(false);
 
@@ -264,9 +268,10 @@ export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }:
       return {
         versions: document.versions,
         // Use currentVersion directly (now 0-based) or default to last version
-        currentVersion: typeof document.currentVersion === 'number'
-          ? document.currentVersion
-          : document.versions.length - 1
+        currentVersion:
+          typeof document.currentVersion === 'number'
+            ? document.currentVersion
+            : document.versions.length - 1,
       };
     }
 
@@ -274,7 +279,7 @@ export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }:
     if (document?._files && document._files.image) {
       return {
         versions: [{ id: 'image', created: document.created || Date.now() }],
-        currentVersion: 0 // Now 0-based
+        currentVersion: 0, // Now 0-based
       };
     }
 
@@ -289,7 +294,7 @@ export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }:
       return {
         currentPrompt: document.prompts[document.currentPromptKey]?.text || '',
         prompts: document.prompts,
-        currentPromptKey: document.currentPromptKey
+        currentPromptKey: document.currentPromptKey,
       };
     }
 
@@ -298,7 +303,7 @@ export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }:
       return {
         currentPrompt: document.prompt,
         prompts: { p1: { text: document.prompt, created: document.created || Date.now() } },
-        currentPromptKey: 'p1'
+        currentPromptKey: 'p1',
       };
     }
 
@@ -309,19 +314,18 @@ export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }:
   const { versions, currentVersion } = getVersionInfo();
   const { currentPrompt } = getPromptInfo();
   const [versionIndex, setVersionIndex] = React.useState(currentVersion);
-  
+
   // Update versionIndex when the document changes and has new versions
   React.useEffect(() => {
     // Get the latest version information
     const { versions: newVersions, currentVersion: newCurrentVersion } = getVersionInfo();
-    
+
     // If the document has been updated with a new version, show the latest
     if (newVersions?.length > 0) {
       // Use the document's current version if available, otherwise show the last version
-      const latestVersionIndex = typeof newCurrentVersion === 'number' 
-        ? newCurrentVersion
-        : newVersions.length - 1;
-        
+      const latestVersionIndex =
+        typeof newCurrentVersion === 'number' ? newCurrentVersion : newVersions.length - 1;
+
       setVersionIndex(latestVersionIndex);
     }
   }, [document, document?._id, document?.versions?.length]);
@@ -423,17 +427,21 @@ export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }:
   const promptText = currentPrompt || alt || 'Generated image';
 
   // Determine which file to use - either the versioned file or the legacy 'image' file
-  const currentFile = fileKey && document._files
-    ? document._files[fileKey] as File
-    : (document._files?.image as File);
+  const currentFile =
+    fileKey && document._files
+      ? (document._files[fileKey] as File)
+      : (document._files?.image as File);
 
   return (
-    <div className="img-gen-container" style={{
-      position: 'relative',
-      maxWidth: '100%',
-      borderRadius: '8px',
-      overflow: 'hidden',
-    }}>
+    <div
+      className="img-gen-container"
+      style={{
+        position: 'relative',
+        maxWidth: '100%',
+        borderRadius: '8px',
+        overflow: 'hidden',
+      }}
+    >
       <ImgFile
         file={currentFile}
         className={`img-gen-image ${className || ''}`.trim()}
@@ -523,14 +531,14 @@ export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }:
           {/* Two row layout with prompt on top and controls below */}
           <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
             {/* Prompt text on top row */}
-            <div 
+            <div
               className="text-gray-700 truncate mb-2"
               style={{
                 color: '#333',
-                width: '100%', 
+                width: '100%',
                 textAlign: 'center',
                 fontWeight: 'bold',
-                padding: '8px'
+                padding: '8px',
               }}
             >
               {/* Display prompt from either new structure or legacy field */}
@@ -589,8 +597,13 @@ export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }:
                       padding: 0,
                       fontSize: '14px',
                     }}
-                    onMouseEnter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.opacity = '1')}
-                    onMouseLeave={(e) => !e.currentTarget.disabled && (e.currentTarget.style.opacity = versionIndex === 0 ? '0.3' : '0.5')}
+                    onMouseEnter={(e) =>
+                      !e.currentTarget.disabled && (e.currentTarget.style.opacity = '1')
+                    }
+                    onMouseLeave={(e) =>
+                      !e.currentTarget.disabled &&
+                      (e.currentTarget.style.opacity = versionIndex === 0 ? '0.3' : '0.5')
+                    }
                   >
                     ◀︎
                   </button>
@@ -608,11 +621,10 @@ export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }:
                   <span style={{ fontSize: '14px' }}>
                     {versionIndex + 1} / {totalVersions}
                     {/* Show prompt version if it exists */}
-                    {versions[versionIndex]?.promptKey && versions[versionIndex].promptKey !== 'p1' && (
-                      <span style={{ marginLeft: '5px', opacity: 0.7 }}>
-                        (Custom prompt)
-                      </span>
-                    )}
+                    {versions[versionIndex]?.promptKey &&
+                      versions[versionIndex].promptKey !== 'p1' && (
+                        <span style={{ marginLeft: '5px', opacity: 0.7 }}>(Custom prompt)</span>
+                      )}
                   </span>
                 </span>
 
@@ -637,15 +649,21 @@ export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }:
                       padding: 0,
                       fontSize: '14px',
                     }}
-                    onMouseEnter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.opacity = '1')}
-                    onMouseLeave={(e) => !e.currentTarget.disabled && (e.currentTarget.style.opacity = versionIndex >= totalVersions - 1 ? '0.3' : '0.5')}
+                    onMouseEnter={(e) =>
+                      !e.currentTarget.disabled && (e.currentTarget.style.opacity = '1')
+                    }
+                    onMouseLeave={(e) =>
+                      !e.currentTarget.disabled &&
+                      (e.currentTarget.style.opacity =
+                        versionIndex >= totalVersions - 1 ? '0.3' : '0.5')
+                    }
                   >
                     ▶︎
                   </button>
                 )}
-                
+
                 {/* Refresh button - always visible */}
-                <button 
+                <button
                   aria-label="Generate new version"
                   onClick={handleRefresh}
                   style={{
@@ -673,10 +691,10 @@ export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }:
           </div>
         </div>
       )}
-      
+
       {/* Delete confirmation overlay */}
       {isDeleteConfirmOpen && (
-        <div 
+        <div
           className="delete-confirmation-overlay"
           style={{
             position: 'absolute',
@@ -699,7 +717,7 @@ export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }:
             <h3 style={{ marginBottom: '15px', fontSize: '18px' }}>
               Are you sure you want to delete this image?
             </h3>
-            
+
             <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
               <button
                 onClick={handleDeleteConfirm}
@@ -714,12 +732,16 @@ export function ImgGenDisplay({ document, className, alt, onDelete, onRefresh }:
                   cursor: 'pointer',
                   transition: 'background 0.2s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)')}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)')
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)')
+                }
               >
                 Confirm
               </button>
-              
+
               <button
                 onClick={handleCancelDelete}
                 aria-label="Cancel delete"

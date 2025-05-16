@@ -1,4 +1,8 @@
-import { ImageGenOptions as BaseImageGenOptions, ImageResponse, imageGen as originalImageGen } from 'call-ai';
+import {
+  ImageGenOptions as BaseImageGenOptions,
+  ImageResponse,
+  imageGen as originalImageGen,
+} from 'call-ai';
 import { MODULE_STATE, getRelevantOptions } from './utils';
 
 // Extend the ImageGenOptions type to include our regeneration ID
@@ -19,19 +23,15 @@ export function imageGen(prompt: string, options?: ImageGenOptions): Promise<Ima
 
   // Create a stable key for the request cache
   // Include regeneration ID if present to ensure unique keys for regeneration requests
-  const stableKey = options?._regenerationId 
-    ? `${prompt}-${JSON.stringify(relevantOptions)}-regen-${options._regenerationId}` 
+  const stableKey = options?._regenerationId
+    ? `${prompt}-${JSON.stringify(relevantOptions)}-regen-${options._regenerationId}`
     : `${prompt}-${JSON.stringify(relevantOptions)}`;
-  
-
 
   // Create a unique ID for this specific request instance (for logging)
   const requestId = ++MODULE_STATE.requestCounter;
 
   // Check if this prompt+options combination is already being processed
   if (MODULE_STATE.pendingPrompts.has(stableKey)) {
-
-
     // Return the existing promise for this prompt+options combination
     if (MODULE_STATE.pendingImageGenCalls.has(stableKey)) {
       return MODULE_STATE.pendingImageGenCalls.get(stableKey)!;
@@ -42,7 +42,6 @@ export function imageGen(prompt: string, options?: ImageGenOptions): Promise<Ima
   MODULE_STATE.pendingPrompts.add(stableKey);
   MODULE_STATE.processingRequests.add(stableKey);
   MODULE_STATE.requestTimestamps.set(stableKey, Date.now());
-
 
   let promise: Promise<ImageResponse>;
 
@@ -60,7 +59,6 @@ export function imageGen(prompt: string, options?: ImageGenOptions): Promise<Ima
   // Clean up after the promise resolves or rejects
   promise
     .then((response) => {
-
       // Remove from processing set but KEEP in pendingPrompts to ensure deduplication persists
       // until page reload
       MODULE_STATE.processingRequests.delete(stableKey);
@@ -88,8 +86,6 @@ export function createImageGenerator(requestHash: string) {
     JSON.stringify(getRelevantOptions(genOptions)); // Still generate to maintain behavior
 
     // Log detailed information about this request - including request hash and options
-
-
 
     try {
       const response = await imageGen(promptText, genOptions);

@@ -93,14 +93,16 @@ function App() {
           <div className="image-grid">
             {imageDocuments.map((doc) => (
               <div key={doc._id} className="image-item">
-                <div
-                  className="thumbnail-container"
-                >
-                  <ImgGen _id={doc._id} className="thumbnail-img" options={{
-                    quality: 'low',
-                    imgUrl: 'https://vibecode.garden',
-                    size: '1024x1024',
-                  }} />
+                <div className="thumbnail-container">
+                  <ImgGen
+                    _id={doc._id}
+                    className="thumbnail-img"
+                    options={{
+                      quality: 'low',
+                      imgUrl: 'https://vibecode.garden',
+                      size: '1024x1024',
+                    }}
+                  />
                 </div>
               </div>
             ))}

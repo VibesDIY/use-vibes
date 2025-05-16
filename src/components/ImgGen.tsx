@@ -31,7 +31,7 @@ export interface ImgGenProps {
   /** Callback when image load fails */
   // eslint-disable-next-line no-unused-vars
   onError?: (error: Error) => void;
-  
+
   /** Callback when document is deleted */
   // eslint-disable-next-line no-unused-vars
   onDelete?: (id: string) => void;
@@ -43,39 +43,29 @@ export interface ImgGenProps {
  */
 function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Destructure the props for cleaner code
-  const { 
-    prompt, 
-    _id, 
-    className, 
-    alt, 
-    options, 
-    database, 
-    onLoad, 
-    onError,
-    onDelete 
-  } = props;
-  
+  const { prompt, _id, className, alt, options, database, onLoad, onError, onDelete } = props;
+
   // Get access to the Fireproof database directly
   const { database: db } = useFireproof(database || 'ImgGen');
-  
+
   // Create state to track regeneration requests with a toggle pattern
   // We use a number as a counter - each regeneration increments it
   const [regenerateCounter, setRegenerateCounter] = React.useState(0);
-  
+
   // Track the document ID once it's created for reuse during regeneration
   const [trackedDocId, setTrackedDocId] = React.useState<string | undefined>(_id);
-  
+
   // Derive boolean flag from counter - odd values are true, even values are false
   // This allows us to toggle between regeneration states
   const shouldRegenerate = regenerateCounter % 2 === 1;
-  
+
   // Calculate isPlaceholder as derived value, not state
   const isPlaceholder = React.useMemo(() => !prompt && !_id, [prompt, _id]);
 
   // Use the custom hook for all the image generation logic
   const { imageData, loading, error, progress, document } = useImageGen({
     // Only pass prompt if no tracked ID is available
-    prompt: !trackedDocId ? (prompt || '') : undefined,
+    prompt: !trackedDocId ? prompt || '' : undefined,
     // Use tracked ID if available, otherwise use the original _id
     _id: trackedDocId || _id,
     options,
@@ -83,9 +73,9 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     // Use regenerate flag to trigger regeneration
     regenerate: shouldRegenerate,
     // Skip processing if neither prompt nor _id is provided
-    skip: isPlaceholder
+    skip: isPlaceholder,
   });
-  
+
   // Update the tracked document ID when a document is created from a prompt
   React.useEffect(() => {
     // Only update if we have a document with an ID and we're not already tracking it
@@ -93,46 +83,45 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
       setTrackedDocId(document._id);
     }
   }, [document, trackedDocId]);
-  
+
   // Handle regeneration when the button is clicked
   const handleGenerateNewVersion = React.useCallback(() => {
-
-    
     // Check for document or tracked ID first
     if (document || trackedDocId) {
       // If we have a document or tracked ID, use that for regeneration
       // Increment counter to trigger a new image generation
-      setRegenerateCounter(prev => {
+      setRegenerateCounter((prev) => {
         return prev + 1;
       });
     } else if (prompt) {
       // If no document yet but we have a prompt, force regeneration
       // by changing the regenerateCounter to trigger a re-render
-      setRegenerateCounter(prev => {
+      setRegenerateCounter((prev) => {
         return prev + 1;
       });
     }
   }, [document, prompt, trackedDocId, regenerateCounter]);
-  
+
   // Handle delete request
-  const handleDelete = React.useCallback((id: string) => {
-    if (onDelete) {
-      // If custom delete handler provided, use it
-      onDelete(id);
-    } else if (db) {
-      // Otherwise use the database directly
+  const handleDelete = React.useCallback(
+    (id: string) => {
+      if (onDelete) {
+        // If custom delete handler provided, use it
+        onDelete(id);
+      } else if (db) {
+        // Otherwise use the database directly
 
-      db.del(id)
-        .then(() => {
-
-        })
-        .catch((err: Error) => {
-          console.error(`Failed to delete document: ${id}`, err);
-        });
-    } else {
-      // No database available for deletion
-    }
-  }, [onDelete, db]);
+        db.del(id)
+          .then(() => {})
+          .catch((err: Error) => {
+            console.error(`Failed to delete document: ${id}`, err);
+          });
+      } else {
+        // No database available for deletion
+      }
+    },
+    [onDelete, db]
+  );
 
   // Load/error effect - always declare in the same order
   React.useEffect(() => {
@@ -154,9 +143,9 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     if (!loading && shouldRegenerate) {
       // Using a small delay to ensure the UI fully updates first
       const timer = setTimeout(() => {
-        setRegenerateCounter(prev => prev + 1);
+        setRegenerateCounter((prev) => prev + 1);
       }, 100);
-      
+
       return () => clearTimeout(timer);
     }
   }, [loading, shouldRegenerate]);
@@ -167,7 +156,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     if (isPlaceholder) {
       return <ImgGenPromptWaiting className={className} />;
     }
-    
+
     // Check if we have a document, even if we're still loading (for regeneration case)
     if (document && document._files) {
       // Get the alt text from either:
@@ -175,37 +164,38 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
       // 2. Current prompt from the document's prompt structure
       // 3. Legacy prompt field
       // 4. Empty string as fallback
-      const altText = alt || 
+      const altText =
+        alt ||
         (document.prompts && document.currentPromptKey
           ? document.prompts[document.currentPromptKey]?.text
           : document.prompt || '');
-      
+
       // Show the document display with regeneration state if applicable
       // Ensure document has a defined _id for display
       if (!document._id) {
         console.error('Document is missing _id', document);
         return <div>Error: Invalid document</div>;
       }
-      
+
       return (
         <div style={{ position: 'relative' }}>
-          <ImgGenDisplay 
-            document={document as (ImageDocument & { _id: string })} 
-            className={className} 
+          <ImgGenDisplay
+            document={document as ImageDocument & { _id: string }}
+            className={className}
             alt={altText}
             onDelete={handleDelete}
             onRefresh={handleGenerateNewVersion}
           />
-          
+
           {/* Show progress overlay during regeneration */}
           {loading && shouldRegenerate && (
-            <div 
+            <div
               style={{
                 position: 'absolute',
                 top: 0,
                 left: 0,
                 right: 0,
-                zIndex: 50
+                zIndex: 50,
               }}
             >
               {/* Progress bar */}
@@ -223,7 +213,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
         </div>
       );
     }
-    
+
     // Otherwise, for initial load or error states, show the placeholder
     if (loading || !imageData || error) {
       return (
@@ -252,30 +242,30 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
  */
 export function ImgGen(props: ImgGenProps): React.ReactElement {
   const { _id, prompt } = props;
-  
+
   // Generate a unique mountKey for this instance
   const [mountKey, setMountKey] = React.useState(() => uuid());
-  
+
   // Track previous props to detect identity changes
   const prevIdRef = React.useRef<string | undefined>(_id);
   const prevPromptRef = React.useRef<string | undefined>(prompt);
-  
+
   // Update mountKey when document identity changes
   React.useEffect(() => {
     const idChanged = _id !== prevIdRef.current;
     const promptChanged = prompt && prompt !== prevPromptRef.current;
-    
+
     // Reset mountKey if we switched documents, or if we're showing a new prompt
     // with no document ID (which means a brand new generation)
     if (idChanged || (!_id && promptChanged)) {
       setMountKey(uuid()); // Force a remount of ImgGenCore
     }
-    
+
     // Update refs for next comparison
     prevIdRef.current = _id;
     prevPromptRef.current = prompt;
   }, [_id, prompt]);
-  
+
   // Render the core component with a key to force remount when identity changes
   return <ImgGenCore {...props} key={mountKey} />;
 }

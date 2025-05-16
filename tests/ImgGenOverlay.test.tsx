@@ -23,7 +23,7 @@ const mockImgFile = vi.hoisted(() =>
 vi.mock('use-fireproof', () => ({
   ImgFile: mockImgFile,
   // Mock File constructor for tests
-  File: vi.fn().mockImplementation((data, name, options) => ({ name, type: options?.type }))
+  File: vi.fn().mockImplementation((data, name, options) => ({ name, type: options?.type })),
 }));
 
 // Import the components directly to test them individually
@@ -45,17 +45,13 @@ describe('ImgGenDisplay Component', () => {
     const mockDocument = {
       _id: 'test-image-id',
       _files: {
-        image: new File(['test'], 'test-image.png', { type: 'image/png' })
-      }
+        image: new File(['test'], 'test-image.png', { type: 'image/png' }),
+      },
     };
 
     // Render the ImgGenDisplay component
     const { container } = render(
-      <ImgGenDisplay 
-        document={mockDocument} 
-        className="test-class" 
-        alt="Test image alt text" 
-      />
+      <ImgGenDisplay document={mockDocument} className="test-class" alt="Test image alt text" />
     );
 
     // The info button should be available with aria-label
@@ -69,17 +65,13 @@ describe('ImgGenDisplay Component', () => {
     const mockDocument = {
       _id: 'test-image-id',
       _files: {
-        image: new File(['test'], 'test-image.png', { type: 'image/png' })
-      }
+        image: new File(['test'], 'test-image.png', { type: 'image/png' }),
+      },
     };
 
     // Render the ImgGenDisplay component
     const { container } = render(
-      <ImgGenDisplay 
-        document={mockDocument} 
-        className="test-class" 
-        alt="Test image alt text" 
-      />
+      <ImgGenDisplay document={mockDocument} className="test-class" alt="Test image alt text" />
     );
 
     // Find the info button
@@ -105,21 +97,21 @@ describe('ImgGenDisplay Component', () => {
     const mockDocument = {
       _id: 'test-image-id',
       _files: {
-        image: new File(['test'], 'test-image.png', { type: 'image/png' })
+        image: new File(['test'], 'test-image.png', { type: 'image/png' }),
       },
-      prompt: 'Test prompt for image'
+      prompt: 'Test prompt for image',
     };
 
     // Render the ImgGenDisplay component with the delete callback
     const { container } = render(
-      <ImgGenDisplay 
-        document={mockDocument} 
-        className="test-class" 
+      <ImgGenDisplay
+        document={mockDocument}
+        className="test-class"
         alt="Test image alt text"
         onDelete={mockDeleteFn}
       />
     );
-    
+
     // First click the info button to open the overlay
     const infoButton = container.querySelector('[aria-label="Image information"]');
     expect(infoButton).toBeInTheDocument();
@@ -139,14 +131,14 @@ describe('ImgGenDisplay Component', () => {
     // The delete confirmation overlay should now be visible
     const confirmationOverlay = container.querySelector('.delete-confirmation-overlay');
     expect(confirmationOverlay).toBeInTheDocument();
-    
+
     // It should contain confirmation text
     expect(screen.getByText(/Are you sure/i)).toBeInTheDocument();
-    
+
     // It should have confirm and cancel buttons
     const confirmButton = screen.getByRole('button', { name: /confirm/i });
     const cancelButton = screen.getByRole('button', { name: /cancel/i });
-    
+
     expect(confirmButton).toBeInTheDocument();
     expect(cancelButton).toBeInTheDocument();
   });
@@ -160,20 +152,20 @@ describe('ImgGenDisplay Component', () => {
     const mockDocument = {
       _id: 'test-image-id',
       _files: {
-        image: new File(['test'], 'test-image.png', { type: 'image/png' })
-      }
+        image: new File(['test'], 'test-image.png', { type: 'image/png' }),
+      },
     };
 
     // Render the ImgGenDisplay component with the delete callback
     const { container } = render(
-      <ImgGenDisplay 
-        document={mockDocument} 
-        className="test-class" 
+      <ImgGenDisplay
+        document={mockDocument}
+        className="test-class"
         alt="Test image alt text"
         onDelete={mockDeleteFn}
       />
     );
-    
+
     // First click the info button to open the overlay
     const infoButton = container.querySelector('[aria-label="Image information"]');
     expect(infoButton).toBeInTheDocument();
@@ -193,7 +185,7 @@ describe('ImgGenDisplay Component', () => {
 
     // Verify that the delete callback was called with the document ID
     expect(mockDeleteFn).toHaveBeenCalledWith('test-image-id');
-    
+
     // The confirmation overlay should be closed
     const confirmationOverlay = container.querySelector('.delete-confirmation-overlay');
     expect(confirmationOverlay).not.toBeInTheDocument();
@@ -208,15 +200,15 @@ describe('ImgGenDisplay Component', () => {
     const mockDocument = {
       _id: 'test-image-id',
       _files: {
-        image: new File(['test'], 'test-image.png', { type: 'image/png' })
-      }
+        image: new File(['test'], 'test-image.png', { type: 'image/png' }),
+      },
     };
 
     // Render the ImgGenDisplay component with the delete callback
     const { container } = render(
-      <ImgGenDisplay 
-        document={mockDocument} 
-        className="test-class" 
+      <ImgGenDisplay
+        document={mockDocument}
+        className="test-class"
         alt="Test image alt text"
         onDelete={mockDeleteFn}
       />
@@ -228,7 +220,7 @@ describe('ImgGenDisplay Component', () => {
     if (infoButton) {
       fireEvent.click(infoButton);
     }
-    
+
     // Find and click the delete button
     const deleteButton = container.querySelector('[aria-label="Delete image"]');
     if (deleteButton) {
@@ -241,7 +233,7 @@ describe('ImgGenDisplay Component', () => {
 
     // Verify that the delete callback was NOT called
     expect(mockDeleteFn).not.toHaveBeenCalled();
-    
+
     // The confirmation overlay should be closed
     const confirmationOverlay = container.querySelector('.delete-confirmation-overlay');
     expect(confirmationOverlay).not.toBeInTheDocument();

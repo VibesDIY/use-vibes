@@ -32,7 +32,7 @@ setInterval(() => {
       // For stale requests that are over 5 minutes old,
       // also remove them from createdDocuments tracking
       MODULE_STATE.createdDocuments.delete(key);
-      
+
       // Clean up all other state
       cleanupRequestKey(key);
     }
@@ -104,23 +104,26 @@ export function generateVersionId(versionNumber: number): string {
  * @param document - The image document
  * @returns Array of version info objects
  */
-export function getVersionsFromDocument(document: Partial<ImageDocument>): { versions: Array<VersionInfo>, currentVersion: number } {
+export function getVersionsFromDocument(document: Partial<ImageDocument>): {
+  versions: Array<VersionInfo>;
+  currentVersion: number;
+} {
   // Check if document has proper version structure
   if (document?.versions && document.versions.length > 0) {
     return {
       versions: document.versions,
-      currentVersion: document.currentVersion ?? document.versions.length
+      currentVersion: document.currentVersion ?? document.versions.length,
     };
   }
-  
+
   // Legacy document with just an 'image' file - convert to version format
   if (document?._files?.image) {
     return {
       versions: [{ id: 'v1', created: document.created || Date.now() }],
-      currentVersion: 1
+      currentVersion: 1,
     };
   }
-  
+
   // No versions found
   return { versions: [], currentVersion: 0 };
 }
@@ -136,28 +139,31 @@ export function generatePromptKey(promptNumber: number): string {
 
 /**
  * Get all prompt information from a document, or create a default if none exists
- * @param document - The image document 
+ * @param document - The image document
  * @returns Object with prompts record and currentPromptKey
  */
-export function getPromptsFromDocument(document: Partial<ImageDocument>): { prompts: Record<string, PromptEntry>, currentPromptKey: string } {
+export function getPromptsFromDocument(document: Partial<ImageDocument>): {
+  prompts: Record<string, PromptEntry>;
+  currentPromptKey: string;
+} {
   // Check if document has proper prompts structure
   if (document?.prompts && document?.currentPromptKey) {
     return {
       prompts: document.prompts,
-      currentPromptKey: document.currentPromptKey
+      currentPromptKey: document.currentPromptKey,
     };
   }
-  
+
   // Legacy document with just a 'prompt' string - convert to prompts format
   if (document?.prompt) {
     return {
-      prompts: { 
-        p1: { text: document.prompt, created: document.created || Date.now() }
+      prompts: {
+        p1: { text: document.prompt, created: document.created || Date.now() },
       },
-      currentPromptKey: 'p1'
+      currentPromptKey: 'p1',
     };
   }
-  
+
   // No prompts found
   return { prompts: {}, currentPromptKey: '' };
 }
@@ -169,60 +175,64 @@ export function getPromptsFromDocument(document: Partial<ImageDocument>): { prom
  * @param newPrompt - Optional new prompt to use for this version
  * @returns Updated document with the new version added
  */
-export function addNewVersion(document: Partial<ImageDocument>, newImageFile: File, newPrompt?: string): ImageDocument {
+export function addNewVersion(
+  document: Partial<ImageDocument>,
+  newImageFile: File,
+  newPrompt?: string
+): ImageDocument {
   // Get existing versions or initialize
   const { versions } = getVersionsFromDocument(document);
   const versionCount = versions.length + 1;
   const newVersionId = generateVersionId(versionCount);
-  
+
   // Get existing prompts or initialize
   const { prompts, currentPromptKey } = getPromptsFromDocument(document);
-  
+
   // Handle prompt versioning
   const updatedPrompts = { ...prompts };
   let updatedCurrentPromptKey = currentPromptKey;
-  
+
   // If a new prompt is provided and it's different from the current one, create a new prompt version
   if (newPrompt && (!currentPromptKey || newPrompt !== prompts[currentPromptKey]?.text)) {
     const promptCount = Object.keys(updatedPrompts).length + 1;
     updatedCurrentPromptKey = generatePromptKey(promptCount);
-    updatedPrompts[updatedCurrentPromptKey] = { 
-      text: newPrompt, 
-      created: Date.now() 
+    updatedPrompts[updatedCurrentPromptKey] = {
+      text: newPrompt,
+      created: Date.now(),
     };
   } else if (!updatedCurrentPromptKey && document.prompt) {
     // Legacy migration - create p1 from document.prompt
     updatedCurrentPromptKey = 'p1';
-    updatedPrompts['p1'] = { 
-      text: document.prompt, 
-      created: document.created || Date.now() 
+    updatedPrompts['p1'] = {
+      text: document.prompt,
+      created: document.created || Date.now(),
     };
   }
-  
+
   // Copy existing files and add the new version
   const updatedFiles = { ...(document._files || {}) };
   updatedFiles[newVersionId] = newImageFile;
-  
+
   // Handle legacy documents by migrating 'image' to 'v1' if needed
   if (versionCount === 1 && document._files?.image) {
     updatedFiles['v1'] = document._files.image;
     delete updatedFiles.image;
   }
-  
+
   return {
     ...document,
     currentVersion: versionCount - 1, // Make it 0-based
     versions: [
       ...versions,
-      { 
-        id: newVersionId, 
+      {
+        id: newVersionId,
         created: Date.now(),
-        promptKey: updatedCurrentPromptKey
-      }
+        promptKey: updatedCurrentPromptKey,
+      },
     ],
     prompts: updatedPrompts,
     currentPromptKey: updatedCurrentPromptKey,
-    _files: updatedFiles
+    _files: updatedFiles,
   };
 }
 
@@ -232,13 +242,13 @@ export function addNewVersion(document: Partial<ImageDocument>, newImageFile: Fi
  */
 export function getRelevantOptions(options?: ImageGenOptions): Record<string, unknown> {
   if (!options) return {};
-  
+
   const relevantOptions: Record<string, unknown> = {};
-  
+
   if (options.size) relevantOptions.size = options.size;
   if (options.quality) relevantOptions.quality = options.quality;
   if (options.model) relevantOptions.model = options.model;
   if (options.style) relevantOptions.style = options.style;
-  
+
   return relevantOptions;
 }

@@ -20,7 +20,7 @@ vi.mock('use-fireproof', () => {
         currentVersion: 0,
         versions: [{ id: 'v1', created: Date.now(), promptKey: 'p1' }],
         prompts: { p1: { text: `Test prompt for ${id}`, created: Date.now() } },
-        _files: { v1: createTestFile() }
+        _files: { v1: createTestFile() },
       });
     }),
     put: vi.fn().mockImplementation((doc: any) => {
@@ -30,7 +30,7 @@ vi.mock('use-fireproof', () => {
     remove: vi.fn(),
     query: vi.fn(),
     getAttachment: vi.fn(),
-    putAttachment: vi.fn()
+    putAttachment: vi.fn(),
   };
 
   return {
@@ -42,9 +42,9 @@ vi.mock('use-fireproof', () => {
         className: 'test-class',
         'data-testid': 'mock-img-file',
         alt: 'test image',
-        ...props
+        ...props,
       });
-    })
+    }),
   };
 });
 
@@ -54,33 +54,36 @@ import type { UseImageGenOptions, UseImageGenResult } from '../src/hooks/image-g
 // Mock the image generation hook
 vi.mock('../src/hooks/image-gen/use-image-gen', () => {
   let regenerationCompleted = false;
-  
+
   return {
     useImageGen: vi.fn().mockImplementation((props: UseImageGenOptions): UseImageGenResult => {
       imageGenCallCount.count++;
       const { _id, regenerate = false } = props || {};
-      
+
       // Create a document based on the ID
-      const doc = _id ? {
-        _id,
-        _rev: 'test-rev',
-        type: 'image' as const,
-        created: Date.now(),
-        prompt: `Test prompt for ${_id}`,
-        currentVersion: _id === 'doc-with-multiple' ? 2 : 0,
-        versions: _id === 'doc-with-multiple' 
-          ? [
-              { id: 'v1', created: Date.now() - 2000, promptKey: 'p1' },
-              { id: 'v2', created: Date.now() - 1000, promptKey: 'p1' },
-              { id: 'v3', created: Date.now(), promptKey: 'p1' }
-            ]
-          : [{ id: 'v1', created: Date.now(), promptKey: 'p1' }],
-        prompts: { p1: { text: `Test prompt for ${_id}`, created: Date.now() } },
-        _files: (_id === 'doc-with-multiple'
-          ? { v1: createTestFile(), v2: createTestFile(), v3: createTestFile() }
-          : { v1: createTestFile() }) as Record<string, File>
-      } : null;
-      
+      const doc = _id
+        ? {
+            _id,
+            _rev: 'test-rev',
+            type: 'image' as const,
+            created: Date.now(),
+            prompt: `Test prompt for ${_id}`,
+            currentVersion: _id === 'doc-with-multiple' ? 2 : 0,
+            versions:
+              _id === 'doc-with-multiple'
+                ? [
+                    { id: 'v1', created: Date.now() - 2000, promptKey: 'p1' },
+                    { id: 'v2', created: Date.now() - 1000, promptKey: 'p1' },
+                    { id: 'v3', created: Date.now(), promptKey: 'p1' },
+                  ]
+                : [{ id: 'v1', created: Date.now(), promptKey: 'p1' }],
+            prompts: { p1: { text: `Test prompt for ${_id}`, created: Date.now() } },
+            _files: (_id === 'doc-with-multiple'
+              ? { v1: createTestFile(), v2: createTestFile(), v3: createTestFile() }
+              : { v1: createTestFile() }) as Record<string, File>,
+          }
+        : null;
+
       // Handle regeneration case
       if (_id === 'doc-1' && regenerate && !regenerationCompleted) {
         regenerationCompleted = true;
@@ -92,23 +95,23 @@ vi.mock('../src/hooks/image-gen/use-image-gen', () => {
             currentVersion: 1,
             versions: [
               { id: 'v1', created: Date.now() - 1000, promptKey: 'p1' },
-              { id: 'v2', created: Date.now(), promptKey: 'p1' }
+              { id: 'v2', created: Date.now(), promptKey: 'p1' },
             ],
             prompts: { p1: { text: `Test prompt for doc-1`, created: Date.now() } },
-            _files: { v1: createTestFile(), v2: createTestFile() }
+            _files: { v1: createTestFile(), v2: createTestFile() },
           });
         }, 10);
       }
-      
+
       return {
         document: doc,
         loading: Boolean(regenerate),
         error: null,
         progress: regenerate ? 50 : 100,
         imageData: 'test-image-data',
-        size: { width: 512, height: 512 }
+        size: { width: 512, height: 512 },
       };
-    })
+    }),
   };
 });
 
@@ -118,9 +121,9 @@ vi.mock('call-ai', () => {
     // Ensure imageGen returns a properly resolved Promise
     imageGen: vi.fn().mockImplementation(() => {
       return Promise.resolve({
-        data: [{ b64_json: 'test-image-data' }]
+        data: [{ b64_json: 'test-image-data' }],
       });
-    })
+    }),
   };
 });
 
@@ -145,7 +148,7 @@ describe('ImgGen ID Switching Behavior', () => {
   it('resets state when switching between image IDs', async () => {
     const onLoad = vi.fn();
     const { rerender } = render(<ImgGen _id="doc-1" onLoad={onLoad} />);
-    
+
     await waitFor(() => {
       expect(onLoad).toHaveBeenCalled();
     });
@@ -153,7 +156,7 @@ describe('ImgGen ID Switching Behavior', () => {
     // Reset mock and switch to a different ID
     onLoad.mockReset();
     rerender(<ImgGen _id="doc-2" onLoad={onLoad} />);
-    
+
     // With the mountKey approach, the component should be remounted and onLoad called again
     await waitFor(() => {
       expect(onLoad).toHaveBeenCalled();
@@ -163,42 +166,42 @@ describe('ImgGen ID Switching Behavior', () => {
   it('creates new instances when switching IDs', async () => {
     const useImageGenMock = vi.mocked(useImageGen);
     useImageGenMock.mockClear();
-    
+
     const { rerender } = render(<ImgGen _id="doc-1" />);
-    
+
     // The first call should contain _id but no regenerate flag
     expect(useImageGenMock).toHaveBeenCalledWith(
-      expect.objectContaining({ 
+      expect.objectContaining({
         _id: 'doc-1',
-        regenerate: false 
+        regenerate: false,
       })
     );
-    
+
     useImageGenMock.mockClear();
-    
+
     // Switch to a different ID
     rerender(<ImgGen _id="doc-2" />);
-    
+
     // With mountKey, a new instance should be created with the new ID
     expect(useImageGenMock).toHaveBeenCalledWith(
       expect.objectContaining({
         _id: 'doc-2',
-        regenerate: false
+        regenerate: false,
       })
     );
   });
 
   it('handles switching between documents with different numbers of versions', async () => {
     const { rerender, getByTestId } = render(<ImgGen _id="doc-single-version" />);
-    
+
     // Wait for the component to render
     await waitFor(() => {
       expect(getByTestId('mock-img-file')).toBeInTheDocument();
     });
-    
+
     // Switch to a document with multiple versions
     rerender(<ImgGen _id="doc-with-multiple" />);
-    
+
     // This should still render properly without errors
     await waitFor(() => {
       expect(getByTestId('mock-img-file')).toBeInTheDocument();
@@ -207,17 +210,13 @@ describe('ImgGen ID Switching Behavior', () => {
 
   it('preserves image display during regeneration', async () => {
     // Use a component with handlers
-    const { getByTestId } = render(
-      <ImgGen 
-        _id="doc-for-regeneration" 
-      />
-    );
-    
+    const { getByTestId } = render(<ImgGen _id="doc-for-regeneration" />);
+
     // Wait for the component to render
     await waitFor(() => {
       expect(getByTestId('mock-img-file')).toBeInTheDocument();
     });
-    
+
     // Create a mock implementation for regeneration case
     const useImageGenMock = vi.mocked(useImageGen);
     useImageGenMock.mockImplementationOnce((props) => ({
@@ -230,36 +229,36 @@ describe('ImgGen ID Switching Behavior', () => {
         currentPromptKey: 'p1',
         versions: [{ id: 'v1', created: Date.now(), promptKey: 'p1' }],
         prompts: { p1: { text: 'Test prompt', created: Date.now() } },
-        _files: { v1: createTestFile() }
+        _files: { v1: createTestFile() },
       },
       loading: true, // In loading/regeneration state
       error: null,
       progress: 50,
       imageData: 'test-image-data',
-      size: { width: 512, height: 512 }
+      size: { width: 512, height: 512 },
     }));
-    
+
     // We need to add the ImgFile component to the document body first so it's detectable in the test
     // Use screen.getByTestId to find the element in the document
     expect(screen.getByTestId('mock-img-file')).toBeInTheDocument();
-    
+
     // Now render the second component
     render(<ImgGen _id="doc-for-regeneration" />);
-    
+
     // Image should still be visible after rerender
     expect(screen.queryAllByTestId('mock-img-file').length).toBeGreaterThan(0);
   });
-  
+
   it('allows regeneration to complete even after switching to a different image', async () => {
     // Set up direct database modifications to simulate completion of background process
     const dbPut = vi.fn().mockImplementation((doc) => {
       dbPuts.push(doc);
       return Promise.resolve({ id: doc._id, rev: 'new-rev' });
     });
-    
+
     // Setup the useImageGen mock with synchronous behavior
     const useImageGenMock = vi.mocked(useImageGen);
-    
+
     // First call - doc-1 initial render
     useImageGenMock.mockImplementationOnce((props) => ({
       document: {
@@ -271,15 +270,15 @@ describe('ImgGen ID Switching Behavior', () => {
         currentVersion: 0,
         versions: [{ id: 'v1', created: Date.now(), promptKey: 'p1' }],
         prompts: { p1: { text: 'First document', created: Date.now() } },
-        _files: { v1: createTestFile() }
+        _files: { v1: createTestFile() },
       },
       loading: false,
       error: null,
       progress: 100,
       imageData: 'test-image-data',
-      size: { width: 512, height: 512 }
+      size: { width: 512, height: 512 },
     }));
-    
+
     // Second call - doc-2 render (after rerender)
     useImageGenMock.mockImplementationOnce((props) => {
       // Simulate background process completing immediately after switching docs
@@ -291,12 +290,12 @@ describe('ImgGen ID Switching Behavior', () => {
         currentVersion: 1,
         versions: [
           { id: 'v1', created: Date.now() - 1000, promptKey: 'p1' },
-          { id: 'v2', created: Date.now(), promptKey: 'p1' } // New version added
+          { id: 'v2', created: Date.now(), promptKey: 'p1' }, // New version added
         ],
         prompts: { p1: { text: 'First document', created: Date.now() } },
-        _files: { v1: createTestFile(), v2: createTestFile() }
+        _files: { v1: createTestFile(), v2: createTestFile() },
       });
-      
+
       // Return data for the new document
       return {
         document: {
@@ -308,25 +307,25 @@ describe('ImgGen ID Switching Behavior', () => {
           currentVersion: 0,
           versions: [{ id: 'v1', created: Date.now(), promptKey: 'p1' }],
           prompts: { p1: { text: 'Second document', created: Date.now() } },
-          _files: { v1: createTestFile() }
+          _files: { v1: createTestFile() },
         },
         loading: false,
         error: null,
         progress: 100,
         imageData: 'test-image-data',
-        size: { width: 512, height: 512 }
+        size: { width: 512, height: 512 },
       };
     });
-    
+
     // Render the initial component with doc-1
     const { rerender, getByTestId } = render(<ImgGen _id="doc-1" />);
-    
+
     // Wait for the first render to complete
     await waitFor(() => expect(getByTestId('mock-img-file')).toBeInTheDocument());
-    
+
     // Switch to doc-2, which will trigger the background update for doc-1
     rerender(<ImgGen _id="doc-2" />);
-    
+
     // Verify the original document was updated with a new version
     expect(dbPuts.length).toBe(1);
     expect(dbPuts[0]._id).toBe('doc-1');
