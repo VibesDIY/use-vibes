@@ -18,13 +18,15 @@ export function ImgGenPlaceholder({
 
   // Animate progress bar when component mounts or progress changes
   React.useEffect(() => {
-    // Start at zero
-    setVisibleProgress(0);
-
-    // After a tiny delay, animate to the actual progress (or minimum 5%)
+    // Only start at zero on initial mount, not on every progress update
+    if (progress === 0) {
+      setVisibleProgress(0);
+    }
+    
+    // Smoothly animate to the actual progress (or minimum 5%)
     const timer = setTimeout(() => {
       setVisibleProgress(Math.max(5, progress));
-    }, 50); // Small delay to ensure animation runs
+    }, 20); // Smaller delay for smoother transitions
 
     return () => clearTimeout(timer);
   }, [progress]);
