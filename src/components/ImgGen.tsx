@@ -35,6 +35,10 @@ export interface ImgGenProps {
   /** Callback when document is deleted */
   // eslint-disable-next-line no-unused-vars
   onDelete?: (id: string) => void;
+
+  /** Callback when prompt is edited */
+  // eslint-disable-next-line no-unused-vars
+  onPromptEdit?: (id: string, newPrompt: string) => void;
 }
 
 /**
@@ -43,7 +47,18 @@ export interface ImgGenProps {
  */
 function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Destructure the props for cleaner code
-  const { prompt, _id, className, alt, options, database, onLoad, onError, onDelete } = props;
+  const {
+    prompt,
+    _id,
+    className,
+    alt,
+    options,
+    database,
+    onLoad,
+    onError,
+    onDelete,
+    onPromptEdit,
+  } = props;
 
   // Get access to the Fireproof database directly
   const { database: db } = useFireproof(database || 'ImgGen');
@@ -101,6 +116,61 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
       });
     }
   }, [document, prompt, trackedDocId, regenerateCounter]);
+
+  // Handle prompt editing
+  const handlePromptEdit = React.useCallback(
+    async (id: string, newPrompt: string) => {
+      try {
+        // First, update the document in the database with the new prompt
+        const docToUpdate = (await db.get(id)) as unknown as ImageDocument;
+
+        if (docToUpdate) {
+          // Create a type-safe update object
+          const baseUpdate = {
+            ...docToUpdate,
+            prompt: newPrompt, // Update the legacy prompt field
+          };
+
+          // Check if the document has the prompts structure and update it if it exists
+          if (
+            'prompts' in docToUpdate &&
+            'currentPromptKey' in docToUpdate &&
+            docToUpdate.prompts &&
+            docToUpdate.currentPromptKey
+          ) {
+            const promptKey = docToUpdate.currentPromptKey;
+            // Create a new version of prompts with the updated text
+            const updatedPrompts = { ...docToUpdate.prompts };
+            if (updatedPrompts[promptKey]) {
+              updatedPrompts[promptKey] = {
+                ...updatedPrompts[promptKey],
+                text: newPrompt,
+              };
+            }
+
+            // Add the updated prompts to our update object
+            Object.assign(baseUpdate, { prompts: updatedPrompts });
+          }
+
+          // Save the updated document back to the database
+          await db.put(baseUpdate);
+
+          console.log('Updated document prompt:', newPrompt);
+        }
+
+        // Call the user-provided onPromptEdit callback if it exists
+        if (onPromptEdit) {
+          onPromptEdit(id, newPrompt);
+        }
+
+        // Now trigger regeneration with the updated prompt
+        handleGenerateNewVersion();
+      } catch (error) {
+        console.error('Error updating prompt:', error);
+      }
+    },
+    [db, onPromptEdit, handleGenerateNewVersion]
+  );
 
   // Handle delete request
   const handleDelete = React.useCallback(
@@ -185,6 +255,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
             alt={altText}
             onDelete={handleDelete}
             onRefresh={handleGenerateNewVersion}
+            onPromptEdit={handlePromptEdit}
           />
 
           {/* Show progress overlay during regeneration */}

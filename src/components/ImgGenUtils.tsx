@@ -248,6 +248,9 @@ export interface ImgGenDisplayProps {
   /** Callback when refresh is requested - receives document ID */
   // eslint-disable-next-line no-unused-vars
   onRefresh?: (id: string) => void;
+  /** Callback when prompt is edited - receives document ID and new prompt */
+  // eslint-disable-next-line no-unused-vars
+  onPromptEdit?: (id: string, newPrompt: string) => void;
 }
 
 // Component for displaying the generated image
@@ -257,9 +260,12 @@ export function ImgGenDisplay({
   alt,
   onDelete,
   onRefresh,
+  onPromptEdit,
 }: ImgGenDisplayProps) {
   const [isOverlayOpen, setIsOverlayOpen] = React.useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = React.useState(false);
+  const [isEditingPrompt, setIsEditingPrompt] = React.useState(false);
+  const [editedPrompt, setEditedPrompt] = React.useState('');
 
   // Get version information from document or create defaults
   const getVersionInfo = () => {
@@ -530,19 +536,64 @@ export function ImgGenDisplay({
         >
           {/* Two row layout with prompt on top and controls below */}
           <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-            {/* Prompt text on top row */}
-            <div
-              className="text-gray-700 truncate mb-2"
-              style={{
-                color: '#333',
-                width: '100%',
-                textAlign: 'center',
-                fontWeight: 'bold',
-                padding: '8px',
-              }}
-            >
-              {/* Display prompt from either new structure or legacy field */}
-              {promptText}
+            {/* Prompt text on top row - double-clickable for editing */}
+            <div className="text-gray-700 mb-2" style={{ width: '100%', padding: '4px' }}>
+              {isEditingPrompt ? (
+                <input
+                  type="text"
+                  value={editedPrompt}
+                  onChange={(e) => setEditedPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (onPromptEdit && editedPrompt.trim() && editedPrompt !== promptText) {
+                        onPromptEdit(document._id, editedPrompt.trim());
+                      }
+                      setIsEditingPrompt(false);
+                    } else if (e.key === 'Escape') {
+                      setIsEditingPrompt(false);
+                    }
+                  }}
+                  onBlur={() => setIsEditingPrompt(false)}
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '6px 8px',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    color: '#333',
+                    backgroundColor: 'white',
+                  }}
+                  aria-label="Edit prompt"
+                />
+              ) : (
+                <div
+                  onClick={(e) => {
+                    // Handle both single and double click
+                    if (e.detail === 2) {
+                      console.log('Double click detected on prompt: ', promptText);
+                      setEditedPrompt(promptText);
+                      setIsEditingPrompt(true);
+                    }
+                  }}
+                  style={{
+                    color: '#333',
+                    width: '100%',
+                    textAlign: 'center',
+                    fontWeight: 'bold',
+                    padding: '8px',
+                    cursor: 'pointer',
+                  }}
+                  title="Double-click to edit prompt"
+                  className="truncate"
+                >
+                  {/* Display prompt from either new structure or legacy field */}
+                  {promptText}
+                </div>
+              )}
             </div>
 
             {/* Controls on bottom row */}
