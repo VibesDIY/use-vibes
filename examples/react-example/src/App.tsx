@@ -37,13 +37,15 @@ function App() {
     setQuality(qualityMap[value]);
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = (e?: React.FormEvent) => {
+    // Prevent default form submission if event exists
+    if (e) e.preventDefault();
+    
     if (!inputPrompt.trim()) return;
     // Set the active prompt that gets passed to ImgGen only when button is clicked
-    setActivePrompt(inputPrompt);
+    setActivePrompt(inputPrompt.trim());
     setSelectedImageId(undefined);
     setIsGenerating(true);
-    // ImgGen will call onLoad or onError when generation completes
   };
 
   const handleImageLoad = () => {
@@ -66,7 +68,7 @@ function App() {
   return (
     <div className="container">
       <h1>Simple Image Generator</h1>
-      <div className="input-container">
+      <form onSubmit={handleGenerate} className="input-container">
         <input
           type="text"
           value={inputPrompt}
@@ -88,21 +90,26 @@ function App() {
             className="quality-slider"
             style={{ width: '100%' }}
           />
-          <div className="quality-labels">
-            <span className={quality === 'low' ? 'active' : ''}>Low</span>
-            <span className={quality === 'medium' ? 'active' : ''}>Medium</span>
-            <span className={quality === 'high' ? 'active' : ''}>High</span>
-            <span className={quality === 'auto' ? 'active' : ''}>Auto</span>
+          <div className="quality-labels" style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            width: '100%',
+            marginTop: '8px'
+          }}>
+            <span className={quality === 'low' ? 'active' : ''} style={{ textAlign: 'center' }}>Low</span>
+            <span className={quality === 'medium' ? 'active' : ''} style={{ textAlign: 'center' }}>Medium</span>
+            <span className={quality === 'high' ? 'active' : ''} style={{ textAlign: 'center' }}>High</span>
+            <span className={quality === 'auto' ? 'active' : ''} style={{ textAlign: 'center' }}>Auto</span>
           </div>
         </div>
         <button
-          onClick={handleGenerate}
+          type="submit"
           className="generate-button"
           disabled={isGenerating || !inputPrompt.trim()}
         >
-          {isGenerating ? 'Generating...' : 'Generate'}
+          {isGenerating ? 'Generating...' : 'Generate Image'}
         </button>
-      </div>
+      </form>
 
       <div className="img-wrapper">
         <ImgGen
