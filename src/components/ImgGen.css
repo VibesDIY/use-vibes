@@ -96,7 +96,7 @@
   width: 100%;
   text-align: center;
   font-weight: var(--imggen-font-weight);
-  padding: 8px;
+  padding: 2px;
   cursor: pointer;
 }
 
@@ -119,6 +119,7 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  padding-top: 2px;
 }
 
 /* Control button group */
@@ -214,9 +215,13 @@
 
 /* Actual progress bar */
 .imggen-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
   height: var(--imggen-progress-height);
   background-color: var(--imggen-accent);
   transition: width 0.3s ease-in-out;
+  z-index: 11; /* Ensure it appears above the overlay */
 }
 
 /* Version indicator text */

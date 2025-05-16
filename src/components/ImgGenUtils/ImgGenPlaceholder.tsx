@@ -83,6 +83,14 @@ export function ImgGenPlaceholder({
       aria-label={alt || prompt || 'Image placeholder'}
       role="img"
     >
+      {/* Progress bar at the very top */}
+      {prompt && !error && (
+        <div 
+          className={combineClasses('imggen-progress', classes.progress)} 
+          style={{ width: `${visibleProgress}%` }}
+          aria-hidden="true"
+        />
+      )}
       <div style={{ textAlign: 'center', padding: '10px', width: '100%', wordWrap: 'break-word' }}>
         {error ? (
           <div className={combineClasses('imggen-error', classes.error)}>
@@ -106,13 +114,6 @@ export function ImgGenPlaceholder({
       {/* When prompt exists and we have no error, show the overlay with the prompt */}
       {prompt && !error && (
         <>
-          {/* Thicker progress bar at the top of the overlay */}
-          <div 
-            className={combineClasses('imggen-progress', classes.progress)} 
-            style={{ width: `${visibleProgress}%` }}
-            aria-hidden="true"
-          />
-
           {/* Use the same overlay style as in ImgGenDisplay */}
           <div className={combineClasses('imggen-overlay', classes.overlay)}>
             {/* Two row layout with prompt on top and controls below */}
