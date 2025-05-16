@@ -104,65 +104,111 @@ export function ImgGenPlaceholder({
                       fontWeight: 'bold',
                       fontSize: '18px',
                       marginBottom: '12px',
+                      textAlign: 'center',
                     }}
                   >
                     {title}
                   </h3>
-                  <p style={{ margin: 0, color: '#ffffff', fontSize: '14px' }}>{body}</p>
+                  <p
+                    style={{
+                      whiteSpace: 'pre-wrap',
+                      color: '#ffffff',
+                      fontSize: '14px',
+                      lineHeight: '1.5',
+                      textAlign: 'left',
+                      fontFamily: 'monospace, sans-serif',
+                      marginBottom: 0,
+                    }}
+                  >
+                    {body}
+                  </p>
                 </>
               );
             })()}
           </div>
-        ) : (
-          <>
-            {/* Loading spinner and progress indicator */}
-            <div
-              style={{
-                width: '60px',
-                height: '60px',
-                margin: '0 auto 15px',
-                border: '4px solid rgba(255, 255, 255, 0.3)',
-                borderTop: '4px solid #ffffff',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite',
-              }}
-            />
-            <style>
-              {`
-                @keyframes spin {
-                  0% { transform: rotate(0deg); }
-                  100% { transform: rotate(360deg); }
-                }
-              `}
-            </style>
-            <div
-              style={{
-                fontSize: '14px',
-                color: 'white',
-                fontWeight: 'bold',
-                marginBottom: '10px',
-              }}
-            >
-              Generating image...
-              {progress > 0 && ` ${Math.round(progress * 100)}%`}
-            </div>
-            {prompt && (
+        ) : !prompt ? (
+          <div>Waiting for prompt</div>
+        ) : // When generating with a prompt, don't show anything here
+        // as we'll display the info in the overlay
+        null}
+      </div>
+
+      {/* When prompt exists and we have no error, show the overlay with the prompt */}
+      {prompt && !error && (
+        <>
+          {/* Thicker progress bar at the top of the overlay */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              height: '8px',
+              width: `${progress}%`,
+              backgroundColor: '#0066cc',
+              transition: 'width 0.3s ease-in-out',
+              zIndex: 11, // Ensure it appears above the overlay
+            }}
+            aria-hidden="true"
+          />
+
+          {/* Use the same overlay style as in ImgGenDisplay */}
+          <div
+            className="img-gen-overlay"
+            style={{
+              position: 'absolute',
+              bottom: '0',
+              left: '0',
+              right: '0',
+              padding: '8px 12px',
+              backgroundColor: 'rgba(255, 255, 255, 0.5)',
+              backdropFilter: 'blur(4px)',
+              transition: 'opacity 0.2s ease',
+              zIndex: 10,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {/* Two row layout with prompt on top and controls below */}
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+              {/* Prompt text on top row */}
               <div
+                className="text-gray-700 truncate mb-2"
                 style={{
-                  fontSize: '14px',
-                  color: 'rgba(255, 255, 255, 0.7)',
-                  maxWidth: '80%',
-                  margin: '0 auto',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
+                  color: '#333',
+                  width: '100%',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  padding: '8px',
                 }}
               >
+                {/* Display the prompt */}
                 {prompt}
               </div>
-            )}
-          </>
-        )}
-      </div>
+
+              {/* Info section - centered 'Generating...' text */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '100%',
+                  padding: '4px 0',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '14px',
+                    color: '#333',
+                    opacity: 0.7,
+                  }}
+                >
+                  Generating...
+                </span>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
