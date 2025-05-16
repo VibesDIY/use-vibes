@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { ImgGenPlaceholderProps } from './types';
 import { combineClasses, defaultClasses } from '../../utils/style-utils';
+import { ImgGenError } from './ImgGenError';
+import { ImageOverlay } from './overlays/ImageOverlay';
 
 // Component for loading/placeholder state
 export function ImgGenPlaceholder({
@@ -113,40 +115,21 @@ export function ImgGenPlaceholder({
 
       {/* When prompt exists and we have no error, show the overlay with the prompt */}
       {prompt && !error && (
-        <>
-          {/* Use the same overlay style as in ImgGenDisplay */}
-          <div className={combineClasses('imggen-overlay', classes.overlay)}>
-            {/* Two row layout with prompt on top and controls below */}
-            <div className="imggen-controls">
-              {/* Prompt text on top row */}
-              <div className={combineClasses('imggen-prompt', 'imggen-truncate', classes.prompt)}>
-                {/* Display the prompt */}
-                {prompt}
-              </div>
-
-              {/* Info section - centered 'Generating...' text */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '100%',
-                  padding: '4px 0',
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '14px',
-                    color: '#333',
-                    opacity: 0.7,
-                  }}
-                >
-                  Generating...
-                </span>
-              </div>
-            </div>
-          </div>
-        </>
+        <ImageOverlay
+          promptText={prompt}
+          editedPrompt={null}
+          setEditedPrompt={() => {}}
+          handlePromptEdit={() => {}}
+          toggleOverlay={() => {}}
+          handlePrevVersion={() => {}}
+          handleNextVersion={() => {}}
+          handleRefresh={() => {}}
+          versionIndex={0}
+          totalVersions={1}
+          classes={classes}
+          showControls={false}
+          statusText="Generating..."
+        />
       )}
     </div>
   );

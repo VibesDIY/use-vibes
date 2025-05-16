@@ -16,6 +16,10 @@ interface ImageOverlayProps {
   totalVersions: number;
   /** Custom CSS classes for styling component parts */
   classes?: ImgGenClasses;
+  /** Show control buttons (defaults to true) */
+  showControls?: boolean;
+  /** Optional status text to display (e.g. "Generating...") */
+  statusText?: string;
 }
 
 export function ImageOverlay({
@@ -30,6 +34,8 @@ export function ImageOverlay({
   versionIndex,
   totalVersions,
   classes = defaultClasses,
+  showControls = true,
+  statusText,
 }: ImageOverlayProps) {
   return (
     <div className={combineClasses('imggen-overlay', classes.overlay)}>
@@ -73,63 +79,74 @@ export function ImageOverlay({
         </div>
       </div>
 
-      {/* Bottom row with controls */}
+      {/* Bottom row with controls or status */}
       <div className={combineClasses('imggen-controls', classes.controls)}>
-        {/* Left side: Info button */}
-        <div>
-          <button
-            aria-label="Close info panel"
-            onClick={toggleOverlay}
-            className={combineClasses('imggen-info-button', classes.button)}
-            style={{ color: 'var(--imggen-text-color)' }}
-          >
-            ⓘ
-          </button>
-        </div>
+        {showControls ? (
+          <>
+            {/* Left side: Info button */}
+            <div>
+              <button
+                aria-label="Close info panel"
+                onClick={toggleOverlay}
+                className={combineClasses('imggen-info-button', classes.button)}
+                style={{ color: 'var(--imggen-text-color)' }}
+              >
+                ⓘ
+              </button>
+            </div>
 
-        {/* Right side: Version controls */}
-        <div className="imggen-control-group">
-          {/* Previous version button - only when multiple versions */}
-          {totalVersions > 1 && (
-            <button
-              aria-label="Previous version"
-              disabled={versionIndex === 0}
-              onClick={handlePrevVersion}
-              className={combineClasses('imggen-button', classes.button)}
-            >
-              ◀︎
-            </button>
-          )}
+            {/* Right side: Version controls */}
+            <div className="imggen-control-group">
+              {/* Previous version button - only when multiple versions */}
+              {totalVersions > 1 && (
+                <button
+                  aria-label="Previous version"
+                  disabled={versionIndex === 0}
+                  onClick={handlePrevVersion}
+                  className={combineClasses('imggen-button', classes.button)}
+                >
+                  ◀︎
+                </button>
+              )}
 
-          {/* Version indicator */}
-          <span
-            className="imggen-version-indicator version-indicator"
-            aria-live="polite"
-          >
-            {versionIndex + 1} / {totalVersions}
-          </span>
+              {/* Version indicator - only display if we have versions */}
+              {totalVersions > 1 && (
+                <span
+                  className="imggen-version-indicator version-indicator"
+                  aria-live="polite"
+                >
+                  {versionIndex + 1} / {totalVersions}
+                </span>
+              )}
 
-          {/* Next version button - only when multiple versions */}
-          {totalVersions > 1 && (
-            <button
-              aria-label="Next version"
-              disabled={versionIndex >= totalVersions - 1}
-              onClick={handleNextVersion}
-              className={combineClasses('imggen-button', classes.button)}
-            >
-              ▶︎
-            </button>
-          )}
+              {/* Next version button - only when multiple versions */}
+              {totalVersions > 1 && (
+                <button
+                  aria-label="Next version"
+                  disabled={versionIndex >= totalVersions - 1}
+                  onClick={handleNextVersion}
+                  className={combineClasses('imggen-button', classes.button)}
+                >
+                  ▶︎
+                </button>
+              )}
 
-          {/* Refresh button - always visible */}
-          <button
-            aria-label="Generate new version"
-            onClick={handleRefresh}
-            className={combineClasses('imggen-button', classes.button)}
-          >
-            ⟳
-          </button>
-        </div>
+              {/* Refresh button - always visible */}
+              <button
+                aria-label="Generate new version"
+                onClick={handleRefresh}
+                className={combineClasses('imggen-button', classes.button)}
+              >
+                ⟳
+              </button>
+            </div>
+          </>
+        ) : statusText ? (
+          // Status text centered when controls are hidden
+          <div className="imggen-status-text">
+            {statusText}
+          </div>
+        ) : null}
       </div>
     </div>
   );
