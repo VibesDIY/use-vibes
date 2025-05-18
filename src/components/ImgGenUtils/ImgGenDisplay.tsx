@@ -3,9 +3,8 @@ import { ImgFile } from 'use-fireproof';
 import { ImgGenError } from './ImgGenError';
 import { ImgGenDisplayProps } from './types';
 import { combineClasses, defaultClasses } from '../../utils/style-utils';
-import { createPortal } from 'react-dom';
 import { getCurrentFileKey, getPromptInfo, getVersionInfo } from './ImgGenDisplayUtils';
-import { ImageOverlay } from './overlays/ImageOverlay';
+import { ImgGenModal } from './ImgGenModal';
 
 // Component for displaying the generated image
 export function ImgGenDisplay({
@@ -72,22 +71,7 @@ export function ImgGenDisplay({
     }
   }
 
-  // ESC handling while fullscreen
-  React.useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (isDeleteConfirmOpen) {
-          handleCancelDelete();
-        } else {
-          closeFullscreen();
-        }
-      }
-    };
-    if (isFullscreen) {
-      window.addEventListener('keydown', handleEsc);
-      return () => window.removeEventListener('keydown', handleEsc);
-    }
-  }, [isFullscreen, isDeleteConfirmOpen]);
+  // ESC handling moved to ImgGenModal component
 
   // Determine which file to use - either the versioned file or the legacy 'image' file
   const currentFile: File | undefined =
@@ -149,41 +133,8 @@ export function ImgGenDisplay({
     setEditedPrompt(null); // Exit edit mode
   }
 
-  // Build portal element for fullscreen backdrop
+  // Get progress from document
   const progress: number = (document as { progress?: number }).progress ?? 100;
-  const fullscreenBackdrop = isFullscreen
-    ? createPortal(
-        <div className="imggen-backdrop" onClick={closeFullscreen} role="presentation">
-          <figure className="imggen-full-wrapper" onClick={(e) => e.stopPropagation()}>
-            <ImgFile
-              file={currentFile}
-              className="imggen-backdrop-image"
-              alt={alt || 'Generated image'}
-            />
-            {/* Overlay as caption */}
-            <ImageOverlay
-              promptText={promptText}
-              editedPrompt={editedPrompt}
-              setEditedPrompt={setEditedPrompt}
-              handlePromptEdit={handlePromptEdit}
-              toggleDeleteConfirm={toggleDeleteConfirm}
-              isDeleteConfirmOpen={isDeleteConfirmOpen}
-              handleDeleteConfirm={handleDeleteConfirm}
-              handleCancelDelete={handleCancelDelete}
-              handlePrevVersion={handlePrevVersion}
-              handleNextVersion={handleNextVersion}
-              handleRefresh={handleRefresh}
-              versionIndex={versionIndex}
-              totalVersions={totalVersions}
-              progress={progress}
-              classes={classes}
-              insideModal={true}
-            />
-          </figure>
-        </div>,
-        globalThis.document.body
-      )
-    : null;
 
   if (!document._files || (!fileKey && !document._files.image)) {
     return <ImgGenError message="Missing image file" />;
@@ -199,7 +150,28 @@ export function ImgGenDisplay({
         onClick={openFullscreen}
       />
 
-      {fullscreenBackdrop}
+      {/* Use the new ImgGenModal component */}
+      <ImgGenModal
+        isOpen={isFullscreen}
+        onClose={closeFullscreen}
+        currentFile={currentFile}
+        alt={alt}
+        promptText={promptText}
+        editedPrompt={editedPrompt}
+        setEditedPrompt={setEditedPrompt}
+        handlePromptEdit={handlePromptEdit}
+        toggleDeleteConfirm={toggleDeleteConfirm}
+        isDeleteConfirmOpen={isDeleteConfirmOpen}
+        handleDeleteConfirm={handleDeleteConfirm}
+        handleCancelDelete={handleCancelDelete}
+        handlePrevVersion={handlePrevVersion}
+        handleNextVersion={handleNextVersion}
+        handleRefresh={handleRefresh}
+        versionIndex={versionIndex}
+        totalVersions={totalVersions}
+        progress={progress}
+        classes={classes}
+      />
     </div>
   );
 }
