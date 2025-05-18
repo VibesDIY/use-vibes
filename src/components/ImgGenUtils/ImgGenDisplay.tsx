@@ -149,15 +149,35 @@ export function ImgGenDisplay({
   const openFullscreen = () => setIsFullscreen(true);
   const closeFullscreen = () => setIsFullscreen(false);
 
+  // Get prompt text early (moved before portal)
+  const promptInfo = getPromptInfo(document, versionIndex);
+  const promptText = promptInfo.currentPrompt || alt || 'Generated image';
+
   // Build portal element for fullscreen backdrop
   const fullscreenBackdrop = isFullscreen
     ? createPortal(
         <div className="imggen-backdrop" onClick={closeFullscreen} role="presentation">
-          <ImgFile
-            file={currentFile}
-            className="imggen-backdrop-image"
-            alt={alt || 'Generated image'}
-          />
+          <figure className="imggen-full-wrapper" onClick={(e) => e.stopPropagation()}>
+            <ImgFile
+              file={currentFile}
+              className="imggen-backdrop-image"
+              alt={alt || 'Generated image'}
+            />
+            {/* Overlay as caption */}
+            <ImageOverlay
+              promptText={promptText}
+              editedPrompt={editedPrompt}
+              setEditedPrompt={setEditedPrompt}
+              handlePromptEdit={handlePromptEdit}
+              toggleOverlay={closeFullscreen}
+              handlePrevVersion={handlePrevVersion}
+              handleNextVersion={handleNextVersion}
+              handleRefresh={handleRefresh}
+              versionIndex={versionIndex}
+              totalVersions={totalVersions}
+              classes={classes}
+            />
+          </figure>
         </div>,
         globalThis.document.body
       )
@@ -179,10 +199,6 @@ export function ImgGenDisplay({
   if (!document._files || (!fileKey && !document._files.image)) {
     return <ImgGenError message="Missing image file" />;
   }
-
-  // Get the prompt for the current version at render time - pure function
-  const promptInfo = getPromptInfo(document, versionIndex);
-  const promptText = promptInfo.currentPrompt || alt || 'Generated image';
 
   return (
     <div className={combineClasses('imggen-root', className, classes.root)} title={promptText}>

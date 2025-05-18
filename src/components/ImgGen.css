@@ -354,14 +354,35 @@
   inset: 0;
   background-color: rgba(0, 0, 0, 0.9);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start; /* anchor to top to avoid vertical jump */
+  padding-top: 5vh; /* give top breathing room */
   z-index: 9999;
+  gap: 8px;
 }
 
 .imggen-backdrop-image {
   max-width: 90vw;
-  max-height: 90vh;
+  max-height: 70vh;
   object-fit: contain;
   border-radius: var(--imggen-border-radius);
+}
+
+.imggen-backdrop .imggen-overlay {
+  position: static;
+  width: 100%;
+  box-sizing: border-box; /* include padding in width */
+  margin: 0;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  background-color: var(--imggen-overlay-bg);
+  backdrop-filter: blur(var(--imggen-blur-radius));
+  border-radius: var(--imggen-border-radius);
+}
+
+/* Wrapper ensures overlay width matches image intrinsic width */
+.imggen-full-wrapper {
+  display: inline-block; /* shrink-wrap to content width */
 }
