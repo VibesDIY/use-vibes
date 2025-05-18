@@ -26,8 +26,8 @@ interface ImageOverlayProps {
   showControls?: boolean;
   /** Optional status text to display (e.g. "Generating...") */
   statusText?: string;
-  /** Enable the delete controls (only true in fullscreen modal) */
-  enableDelete?: boolean;
+  /** Whether this overlay is inside the fullscreen modal (enables delete) */
+  insideModal?: boolean;
   /** Progress value for generation (0-100), shows progress bar when < 100 */
   progress?: number;
 }
@@ -49,10 +49,10 @@ export function ImageOverlay({
   classes = defaultClasses,
   showControls = true,
   statusText,
-  enableDelete = true,
+  insideModal = true,
   progress = 100,
 }: ImageOverlayProps) {
-  if (isDeleteConfirmOpen && enableDelete) {
+  if (isDeleteConfirmOpen && insideModal) {
     return (
       <div className={combineClasses('imggen-overlay', classes.overlay)}>
         <DeleteConfirmationOverlay
@@ -66,11 +66,18 @@ export function ImageOverlay({
   // Normal overlay content
   return (
     <div className={combineClasses('imggen-overlay', classes.overlay)} style={{ position: 'relative' }}>
-      {/* Progress bar for generation progress */}
+      {/* Progress bar for generation progress - explicitly positioned at the top */}
       {progress < 100 && (
         <div 
           className="imggen-progress"
-          style={{ width: `${progress}%` }}
+          style={{
+            width: `${progress}%`,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            height: 'var(--imggen-progress-height)',
+            zIndex: 20
+          }}
         />
       )}
       {/* Top row with prompt only */}
@@ -115,7 +122,7 @@ export function ImageOverlay({
         {showControls ? (
           <>
             {/* Left side: Delete button */}
-            {enableDelete && (
+            {insideModal && (
               <div>
                 <button
                   aria-label="Delete image"

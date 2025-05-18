@@ -177,7 +177,7 @@ export function ImgGenDisplay({
               totalVersions={totalVersions}
               progress={progress}
               classes={classes}
-              enableDelete={true}
+              insideModal={true}
             />
           </figure>
         </div>,
