@@ -113,18 +113,23 @@ export function ImgGenDisplay({
 
   // Handle generating a new version
   const handleRefresh = () => {
-    // Get the prompt for the current version and use it for regeneration
     const { currentPrompt } = getPromptInfo(document, versionIndex);
 
-    // If we have an onPromptEdit callback, use it to update the prompt
-    // This ensures that regeneration uses the prompt from the currently displayed version
-    if (onPromptEdit && currentPrompt) {
-      onPromptEdit(document._id, currentPrompt);
+    if (editedPrompt !== null) {
+      const newPrompt = editedPrompt.trim();
+      if (newPrompt && newPrompt !== currentPrompt) {
+        // Persist new prompt; assume backend regenerates
+        onPromptEdit?.(document._id, newPrompt);
+      } else {
+        // No change, just regenerate explicitly
+        onRefresh?.(document._id);
+      }
+    } else {
+      // Not in edit mode → regenerate current prompt
+      onRefresh?.(document._id);
     }
-    // Fall back to standard refresh if needed
-    else if (onRefresh) {
-      onRefresh(document._id);
-    }
+
+    setEditedPrompt(null);
   };
 
   // Handle prompt editing

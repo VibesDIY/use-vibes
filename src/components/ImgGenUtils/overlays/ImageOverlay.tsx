@@ -57,7 +57,7 @@ export function ImageOverlay({
               }}
               onBlur={() => setEditedPrompt(null)} // Exit edit mode
               autoFocus
-              className="imggen-prompt-input"
+              className="imggen-prompt-input imggen-edit-mode"
               aria-label="Edit prompt"
             />
           ) : (
@@ -129,7 +129,11 @@ export function ImageOverlay({
               <button
                 aria-label="Generate new version"
                 onClick={handleRefresh}
-                className={combineClasses('imggen-button', classes.button)}
+                className={combineClasses(
+                  'imggen-button',
+                  classes.button,
+                  editedPrompt !== null && editedPrompt.trim() !== promptText ? 'imggen-button-highlight' : ''
+                )}
               >
                 ⟳
               </button>

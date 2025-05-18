@@ -114,6 +114,12 @@
   background-color: white;
 }
 
+.imggen-edit-mode {
+  border: 2px solid var(--imggen-accent);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
 /* Controls row */
 .imggen-controls {
   display: flex;
@@ -148,6 +154,11 @@
   padding: 0;
   font-size: var(--imggen-font-size);
   color: var(--imggen-text-color);
+}
+
+.imggen-button-highlight {
+  background-color: var(--imggen-accent);
+  color: white;
 }
 
 .imggen-button:hover:not(:disabled) {
