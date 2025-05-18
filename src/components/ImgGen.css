@@ -10,6 +10,7 @@
   --imggen-background: #333333;
   --imggen-overlay-bg: rgba(255, 255, 255, 0.5);
   --imggen-accent: #0066cc;
+  --imggen-flash: #fe0;
   --imggen-error-bg: rgba(0, 0, 0, 0.7);
   --imggen-error-border: #ff6666;
   --imggen-error-text: #ff6666;
@@ -251,13 +252,13 @@
     transform: scale(1); 
   }
   30% { 
-    color: var(--imggen-accent);
+    color: var(--imggen-flash);
     transform: scale(1.3); 
-    font-weight: bold;
+    /* font-weight: bold; */
   }
   70% { 
-    color: var(--imggen-accent);
-    transform: scale(1.3);
+    color: var(--imggen-flash);
+    transform: scale(1.1);
     font-weight: bold;
   }
   100% { 

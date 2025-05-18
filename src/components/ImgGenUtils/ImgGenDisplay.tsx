@@ -71,6 +71,10 @@ export function ImgGenDisplay({
   
   // Keep track of pending regeneration requests
   const pendingRegenerationRef = React.useRef<boolean>(false);
+  
+  // Track simulated progress for regeneration
+  const [simulatedProgress, setSimulatedProgress] = React.useState<number | null>(null);
+  const progressTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Derive the final version index - use user selection if available, otherwise use the document's current version
   const versionIndex = userSelectedIndex !== null ? userSelectedIndex : initialVersionIndex;
@@ -137,6 +141,27 @@ export function ImgGenDisplay({
     setPendingRegeneration(true);
     pendingRegenerationRef.current = true;
     
+    // Reset and start simulated progress
+    setSimulatedProgress(0);
+    
+    // Clear any existing timer
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+    
+    // Create a new progress timer that simulates progress from 0 to 99
+    const timer = setInterval(() => {
+      setSimulatedProgress((prev) => {
+        const current = prev ?? 0;
+        // Asymptotically approach 99%
+        const next = current + (99 - current) * 0.05;
+        return next > 99 ? 99 : next;
+      });
+    }, 500); // Update twice per second for smoother animation
+    
+    progressTimerRef.current = timer;
+    
     const { currentPrompt } = getPromptInfo(document, versionIndex);
 
     if (editedPrompt !== null) {
@@ -174,25 +199,70 @@ export function ImgGenDisplay({
   const progress: number = (document as { progress?: number }).progress ?? 100;
   const loading: boolean = (document as { loading?: boolean }).loading ?? false;
   
-  // Track when progress changes
+  // Track when progress changes or loading state changes
   React.useEffect(() => {
-    // If progress is 100% and we had a pending regeneration, regeneration is complete
-    if (progress === 100 && pendingRegenerationRef.current) {
-      console.log('[ImgGenDisplay] Regeneration completed based on progress update');
+    // If progress is 100% and loading is false, regeneration is complete
+    if (progress === 100 && !loading) {
+      console.log('[ImgGenDisplay] Regeneration completed - resetting state');
       pendingRegenerationRef.current = false;
       setPendingRegeneration(false);
+      
+      // Clear the simulated progress timer
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      
+      // Reset simulated progress
+      setSimulatedProgress(null);
     }
     // If progress is less than 100%, we're in the middle of regeneration
     else if (progress < 100) {
       console.log(`[ImgGenDisplay] Regeneration in progress: ${progress}%`);
     }
-  }, [progress]);
+    
+    // Log loading state changes
+    if (loading) {
+      console.log('[ImgGenDisplay] Loading state active');
+    }
+  }, [progress, loading]);
+  
+  // Additional check for document updates to detect version changes
+  const documentIdRef = React.useRef(document?._id);
+  const versionsLengthRef = React.useRef(versions?.length || 0);
+  
+  React.useEffect(() => {
+    // Check if a new version was added (version count increased)
+    if (versions?.length > versionsLengthRef.current) {
+      console.log('[ImgGenDisplay] New version detected - regeneration complete');
+      pendingRegenerationRef.current = false;
+      setPendingRegeneration(false);
+    }
+    
+    // Update refs
+    versionsLengthRef.current = versions?.length || 0;
+    documentIdRef.current = document?._id;
+  }, [document?._id, versions?.length]);
+  
+  // Clean up timer on unmount
+  React.useEffect(() => {
+    return () => {
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+    };
+  }, []);
+  
+  // Calculate the effective progress - use simulated progress during regeneration if available
+  const effectiveProgress = pendingRegeneration && simulatedProgress !== null ? 
+    simulatedProgress : progress;
   
   // Is regeneration in progress - either from progress < 100, loading state, or pending state
-  const isRegenerating = progress < 100 || loading || pendingRegeneration;
+  const isRegenerating = effectiveProgress < 100 || loading || pendingRegeneration;
   
   // Debug logs for regeneration state
-  console.log(`[ImgGenDisplay] progress: ${progress}, loading: ${loading}, pendingRegen: ${pendingRegeneration}, isRegenerating: ${isRegenerating}`);
+  console.log(`[ImgGenDisplay] actual progress: ${progress}, simulated: ${simulatedProgress}, effective: ${effectiveProgress}, loading: ${loading}, pendingRegen: ${pendingRegeneration}, isRegenerating: ${isRegenerating}`);
 
   if (!document._files || (!fileKey && !document._files.image)) {
     return <ImgGenError message="Missing image file" />;
@@ -226,7 +296,7 @@ export function ImgGenDisplay({
         handleRegen={handleRegen}
         versionIndex={versionIndex}
         totalVersions={totalVersions}
-        progress={progress}
+        progress={effectiveProgress}
         classes={classes}
         versionFlash={versionFlash}
         isRegenerating={isRegenerating}
