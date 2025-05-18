@@ -25,6 +25,8 @@ interface ControlsBarProps {
   showDelete?: boolean;
   /** Whether delete confirmation is being shown */
   isDeleteConfirmOpen?: boolean;
+  /** Whether to flash the version indicator when a new version is added */
+  versionFlash?: boolean;
 }
 
 /**
@@ -45,6 +47,7 @@ export function ControlsBar({
   progress = 100,
   showDelete = true,
   isDeleteConfirmOpen = false,
+  versionFlash = false,
 }: ControlsBarProps) {
   // State for managing delete confirmation
   const [showConfirmation, setShowConfirmation] = React.useState(false);
@@ -154,7 +157,10 @@ export function ControlsBar({
 
               {/* Version indicator - only display if we have versions */}
               {totalVersions > 1 && (
-                <span className="imggen-version-indicator version-indicator" aria-live="polite">
+                <span 
+                  className={`imggen-version-indicator version-indicator ${versionFlash ? 'imggen-version-flash' : ''}`} 
+                  aria-live="polite"
+                >
                   {versionIndex + 1} / {totalVersions}
                 </span>
               )}

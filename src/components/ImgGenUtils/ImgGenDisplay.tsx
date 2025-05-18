@@ -37,9 +37,34 @@ export function ImgGenDisplay({
         ? versions.length - 1
         : 0;
   }, [currentVersion, versions]);
+  
+  // Track previous version count to detect when new versions are added
+  const prevVersionsCountRef = React.useRef(versions.length);
+  
+  // Set flash effect when new version is added
+  React.useEffect(() => {
+    // If we have more versions than before, it means a new version was added
+    if (versions.length > prevVersionsCountRef.current) {
+      // Trigger the flash effect
+      setVersionFlash(true);
+      
+      // Auto-reset flash after animation completes
+      const timer = setTimeout(() => {
+        setVersionFlash(false);
+      }, 2000); // Match the animation duration in CSS
+      
+      return () => clearTimeout(timer);
+    }
+    
+    // Update ref for next comparison
+    prevVersionsCountRef.current = versions.length;
+  }, [versions.length]);
 
   // Only track user-selected version index as state
   const [userSelectedIndex, setUserSelectedIndex] = React.useState<number | null>(null);
+  
+  // Track when a new version has been added to enable flash effect
+  const [versionFlash, setVersionFlash] = React.useState(false);
 
   // Derive the final version index - use user selection if available, otherwise use the document's current version
   const versionIndex = userSelectedIndex !== null ? userSelectedIndex : initialVersionIndex;
@@ -83,10 +108,7 @@ export function ImgGenDisplay({
   const promptInfo = getPromptInfo(document, versionIndex);
   const promptText = promptInfo.currentPrompt || alt || 'Generated image';
 
-  // Toggle delete confirmation
-  function toggleDeleteConfirm() {
-    setIsDeleteConfirmOpen((prev) => !prev);
-  }
+  // State for delete confirmation is managed directly
 
   // Handle delete confirmation
   function handleDeleteConfirm() {
@@ -119,6 +141,10 @@ export function ImgGenDisplay({
       onRefresh?.(document._id);
     }
 
+    // Reset user selection when generating a new version
+    // This will make the display automatically switch to the latest version when it returns
+    setUserSelectedIndex(null);
+    
     setEditedPrompt(null);
   }
 
@@ -170,6 +196,7 @@ export function ImgGenDisplay({
         totalVersions={totalVersions}
         progress={progress}
         classes={classes}
+        versionFlash={versionFlash}
       />
     </div>
   );

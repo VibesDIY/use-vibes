@@ -32,6 +32,8 @@ interface ImageOverlayProps {
   progress?: number;
   /** Show delete button (defaults to true) */
   showDelete?: boolean;
+  /** Whether to show a flash effect on the version indicator - used when a new version is added */
+  versionFlash?: boolean;
 }
 
 export function ImageOverlay({
@@ -52,6 +54,7 @@ export function ImageOverlay({
   statusText,
   progress = 100,
   showDelete = true,
+  versionFlash = false,
 }: ImageOverlayProps) {
   // Normal overlay content regardless of delete confirmation state
   return (
@@ -89,6 +92,7 @@ export function ImageOverlay({
             promptText={promptText}
             progress={progress}
             isDeleteConfirmOpen={isDeleteConfirmOpen}
+            versionFlash={versionFlash}
           />
         </>
       )}

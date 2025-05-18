@@ -11,7 +11,9 @@ export interface ImgGenModalProps {
   alt?: string;
   promptText: string;
   editedPrompt: string | null;
+  // eslint-disable-next-line no-unused-vars
   setEditedPrompt: (_editedPrompt: string | null) => void;
+  // eslint-disable-next-line no-unused-vars
   handlePromptEdit: (_newPrompt: string) => void;
   isDeleteConfirmOpen: boolean;
   handleDeleteConfirm: () => void;
@@ -22,6 +24,8 @@ export interface ImgGenModalProps {
   versionIndex: number;
   totalVersions: number;
   progress: number;
+  /** Whether to show a flash effect on the version indicator - used when a new version is added */
+  versionFlash?: boolean;
   classes?: {
     root?: string;
     image?: string;
@@ -49,6 +53,7 @@ export function ImgGenModal({
   versionIndex,
   totalVersions,
   progress,
+  versionFlash = false,
   classes = defaultClasses,
 }: ImgGenModalProps) {
   // ESC handling while modal is open
@@ -98,6 +103,7 @@ export function ImgGenModal({
           progress={progress}
           classes={classes}
           showDelete={true}
+          versionFlash={versionFlash}
         />
       </figure>
     </div>,
