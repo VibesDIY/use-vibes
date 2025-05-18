@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react';
+import { render, fireEvent, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 // Use vi.hoisted to define mocks that need to be referenced in vi.mock
@@ -112,8 +112,14 @@ describe('ImageOverlay Component', () => {
     const { container } = render(<ImageOverlay {...mockProps} />);
 
     // The delete confirmation overlay should be visible
-    const confirmationOverlay = container.querySelector('.delete-confirmation-overlay');
+    const confirmationOverlay = container.querySelector('.imggen-delete-message');
     expect(confirmationOverlay).toBeInTheDocument();
+    
+    // Check that it has the confirmation buttons
+    const confirmButton = screen.getByRole('button', { name: 'Confirm delete' });
+    const cancelButton = screen.getByRole('button', { name: 'Cancel delete' });
+    expect(confirmButton).toBeInTheDocument();
+    expect(cancelButton).toBeInTheDocument();
   });
 
   // Test the delete confirmation component directly

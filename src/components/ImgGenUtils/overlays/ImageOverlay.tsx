@@ -54,45 +54,44 @@ export function ImageOverlay({
   progress = 100,
   showDelete = true,
 }: ImageOverlayProps) {
-  if (isDeleteConfirmOpen && showDelete) {
-    return (
-      <div className={combineClasses('imggen-overlay', classes.overlay)}>
+  // Normal overlay content regardless of delete confirmation state
+  return (
+    <div className={combineClasses('imggen-overlay', classes.overlay)} style={{ position: 'relative' }}>
+      {isDeleteConfirmOpen && showDelete ? (
         <DeleteConfirmationOverlay
           handleDeleteConfirm={handleDeleteConfirm}
           handleCancelDelete={handleCancelDelete}
+          classes={classes}
         />
-      </div>
-    );
-  }
+      ) : (
+        <>
+          {/* Prompt bar component */}
+          <PromptBar
+            promptText={promptText}
+            editedPrompt={editedPrompt}
+            setEditedPrompt={setEditedPrompt}
+            handlePromptEdit={handlePromptEdit}
+            classes={classes}
+          />
 
-  // Normal overlay content
-  return (
-    <div className={combineClasses('imggen-overlay', classes.overlay)} style={{ position: 'relative' }}>
-      {/* Prompt bar component */}
-      <PromptBar
-        promptText={promptText}
-        editedPrompt={editedPrompt}
-        setEditedPrompt={setEditedPrompt}
-        handlePromptEdit={handlePromptEdit}
-        classes={classes}
-      />
-
-      {/* Controls bar component */}
-      <ControlsBar
-        toggleDeleteConfirm={toggleDeleteConfirm}
-        handlePrevVersion={handlePrevVersion}
-        handleNextVersion={handleNextVersion}
-        handleRefresh={handleRefresh}
-        versionIndex={versionIndex}
-        totalVersions={totalVersions}
-        classes={classes}
-        showControls={showControls}
-        statusText={statusText}
-        showDelete={showDelete}
-        editedPrompt={editedPrompt}
-        promptText={promptText}
-        progress={progress}
-      />
+          {/* Controls bar component */}
+          <ControlsBar
+            toggleDeleteConfirm={toggleDeleteConfirm}
+            handlePrevVersion={handlePrevVersion}
+            handleNextVersion={handleNextVersion}
+            handleRefresh={handleRefresh}
+            versionIndex={versionIndex}
+            totalVersions={totalVersions}
+            classes={classes}
+            showControls={showControls}
+            statusText={statusText}
+            showDelete={showDelete}
+            editedPrompt={editedPrompt}
+            promptText={promptText}
+            progress={progress}
+          />
+        </>
+      )}
     </div>
   );
 }

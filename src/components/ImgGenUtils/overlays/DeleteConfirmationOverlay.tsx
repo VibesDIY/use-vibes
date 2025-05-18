@@ -14,32 +14,62 @@ export function DeleteConfirmationOverlay({
   classes = defaultClasses,
 }: DeleteConfirmationOverlayProps) {
   return (
-    <div
-      className={combineClasses(
-        'imggen-delete-overlay delete-confirmation-overlay',
-        classes.deleteOverlay
-      )}
+    <div 
+      className={combineClasses('imggen-delete-message', classes.overlay)}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        borderRadius: 'var(--imggen-border-radius)',
+        padding: '20px',
+        textAlign: 'center',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}
     >
-      <div className="imggen-delete-message">
-        <h3 className="imggen-error-title">Are you sure you want to delete this image?</h3>
+      <p style={{ 
+        color: 'white', 
+        fontSize: '16px', 
+        marginBottom: '20px',
+        fontWeight: 'bold'
+      }}>
+        Are you sure you want to delete this image?
+      </p>
 
-        <div className="imggen-delete-buttons">
-          <button
-            onClick={handleDeleteConfirm}
-            aria-label="Confirm delete"
-            className="imggen-delete-confirm"
-          >
-            Confirm
-          </button>
+      <div className="imggen-delete-buttons" style={{ display: 'flex', gap: '10px' }}>
+        <button
+          onClick={handleDeleteConfirm}
+          aria-label="Confirm delete"
+          className="imggen-delete-confirm"
+          style={{
+            backgroundColor: 'var(--imggen-error-border)',
+            color: 'white',
+            border: 'none',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Confirm
+        </button>
 
-          <button
-            onClick={handleCancelDelete}
-            aria-label="Cancel delete"
-            className="imggen-delete-cancel"
-          >
-            Cancel
-          </button>
-        </div>
+        <button
+          onClick={handleCancelDelete}
+          aria-label="Cancel delete"
+          className="imggen-delete-cancel"
+          style={{
+            backgroundColor: '#555',
+            color: 'white',
+            border: 'none',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );
