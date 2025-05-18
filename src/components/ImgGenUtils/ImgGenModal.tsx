@@ -7,7 +7,7 @@ import { defaultClasses } from '../../utils/style-utils';
 export interface ImgGenModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentFile?: File;
+  currentFile: File | undefined; // File object
   alt?: string;
   promptText: string;
   editedPrompt: string | null;
@@ -24,8 +24,10 @@ export interface ImgGenModalProps {
   versionIndex: number;
   totalVersions: number;
   progress: number;
+  statusText?: string;
   /** Whether to show a flash effect on the version indicator - used when a new version is added */
   versionFlash?: boolean;
+  isRegenerating?: boolean;
   classes?: {
     root?: string;
     image?: string;
@@ -53,9 +55,16 @@ export function ImgGenModal({
   versionIndex,
   totalVersions,
   progress,
+  statusText,
   versionFlash = false,
+  isRegenerating = false,
   classes = defaultClasses,
 }: ImgGenModalProps) {
+  // Debug logs for regeneration state
+  React.useEffect(() => {
+    console.log(`[ImgGenModal] isRegenerating: ${isRegenerating}, progress: ${progress}`);
+  }, [isRegenerating, progress]);
+
   // ESC handling while modal is open
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -101,9 +110,11 @@ export function ImgGenModal({
           versionIndex={versionIndex}
           totalVersions={totalVersions}
           progress={progress}
+          statusText={statusText}
+          versionFlash={versionFlash}
+          isRegenerating={isRegenerating}
           classes={classes}
           showDelete={true}
-          versionFlash={versionFlash}
         />
       </figure>
     </div>,

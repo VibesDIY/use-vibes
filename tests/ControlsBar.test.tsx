@@ -125,6 +125,28 @@ describe('ControlsBar Component', () => {
     const progressBar = container.querySelector('.imggen-progress');
     expect(progressBar).not.toBeInTheDocument();
   });
+
+  it('should disable regenerate button and add spinning class when isRegenerating=true', () => {
+    const { getByLabelText } = render(<ControlsBar {...defaultProps} isRegenerating={true} />);
+    
+    const regenButton = getByLabelText('Regenerate image');
+    expect(regenButton).toBeDisabled();
+    
+    // Check that the span inside the button has spinning animation class
+    const spinningIcon = regenButton.querySelector('.imggen-regen-spinning');
+    expect(spinningIcon).toBeInTheDocument();
+  });
+  
+  it('should enable regenerate button when isRegenerating=false', () => {
+    const { getByLabelText } = render(<ControlsBar {...defaultProps} isRegenerating={false} />);
+    
+    const regenButton = getByLabelText('Regenerate image');
+    expect(regenButton).not.toBeDisabled();
+    
+    // Spinning animation shouldn't be present
+    const spinningIcon = regenButton.querySelector('.imggen-regen-spinning');
+    expect(spinningIcon).not.toBeInTheDocument();
+  });
   
   it('should display status text when showControls is false and statusText is provided', () => {
     const { getByText } = render(

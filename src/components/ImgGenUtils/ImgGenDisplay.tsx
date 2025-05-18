@@ -65,6 +65,9 @@ export function ImgGenDisplay({
   
   // Track when a new version has been added to enable flash effect
   const [versionFlash, setVersionFlash] = React.useState(false);
+  
+  // Explicitly track regeneration state
+  const [isRegeneratingState, setIsRegeneratingState] = React.useState(false);
 
   // Derive the final version index - use user selection if available, otherwise use the document's current version
   const versionIndex = userSelectedIndex !== null ? userSelectedIndex : initialVersionIndex;
@@ -125,6 +128,11 @@ export function ImgGenDisplay({
 
   // Handle generating a new version
   function handleRegen() {
+    console.log(`[ImgGenDisplay] handleRegen called, starting regeneration...`);
+    
+    // Set regenerating state to true when starting regeneration
+    setIsRegeneratingState(true);
+    
     const { currentPrompt } = getPromptInfo(document, versionIndex);
 
     if (editedPrompt !== null) {
@@ -146,6 +154,13 @@ export function ImgGenDisplay({
     setUserSelectedIndex(null);
     
     setEditedPrompt(null);
+    
+    // Reset regenerating state after a short delay to simulate processing time
+    // In a real implementation, this would be reset when the new image arrives
+    setTimeout(() => {
+      setIsRegeneratingState(false);
+      console.log('[ImgGenDisplay] Regeneration completed');
+    }, 2000); // 2 seconds to match the animation duration
   }
 
   // Handle prompt editing
@@ -161,6 +176,12 @@ export function ImgGenDisplay({
 
   // Get progress from document
   const progress: number = (document as { progress?: number }).progress ?? 100;
+  
+  // Is regeneration in progress - either from progress or our explicit state
+  const isRegenerating = progress < 100 || isRegeneratingState;
+  
+  // Debug logs for regeneration state
+  console.log(`[ImgGenDisplay] progress: ${progress}, isRegenerating: ${isRegenerating}, isRegeneratingState: ${isRegeneratingState}`);
 
   if (!document._files || (!fileKey && !document._files.image)) {
     return <ImgGenError message="Missing image file" />;
@@ -197,6 +218,7 @@ export function ImgGenDisplay({
         progress={progress}
         classes={classes}
         versionFlash={versionFlash}
+        isRegenerating={isRegenerating}
       />
     </div>
   );

@@ -27,6 +27,8 @@ interface ControlsBarProps {
   isDeleteConfirmOpen?: boolean;
   /** Whether to flash the version indicator when a new version is added */
   versionFlash?: boolean;
+  /** Whether the regeneration is currently in progress */
+  isRegenerating?: boolean;
 }
 
 /**
@@ -48,6 +50,7 @@ export function ControlsBar({
   showDelete = true,
   isDeleteConfirmOpen = false,
   versionFlash = false,
+  isRegenerating = false
 }: ControlsBarProps) {
   // State for managing delete confirmation
   const [showConfirmation, setShowConfirmation] = React.useState(false);
@@ -87,6 +90,13 @@ export function ControlsBar({
       }
     };
   }, []);
+  
+  // Debug logs for regeneration state in useEffect
+  React.useEffect(() => {
+    console.log(`[ControlsBar] isRegenerating changed: ${isRegenerating}, progress: ${progress}`);
+    // Log CSS class for debugging
+    console.log(`[ControlsBar] CSS class: ${isRegenerating ? 'imggen-regen-spinning' : 'none'}`);
+  }, [isRegenerating, progress]);
   return (
     <>
       {/* Progress bar for generation progress - explicitly positioned at the top */}
@@ -178,16 +188,24 @@ export function ControlsBar({
               )}
 
               {/* Regenerate button - always visible */}
+              {/* Debug logs moved to useEffect */}
               <button
                 aria-label="Regenerate image"
-                onClick={handleRegen}
+                onClick={() => {
+                  console.log('[ControlsBar] Regen button clicked');
+                  handleRegen();
+                }}
+                disabled={isRegenerating}
                 className={combineClasses(
                   'imggen-button',
                   classes.button,
-                  editedPrompt !== null && editedPrompt.trim() !== promptText ? 'imggen-button-highlight' : ''
+                  editedPrompt !== null && editedPrompt.trim() !== promptText ? 'imggen-button-highlight' : '',
+                  isRegenerating ? 'imggen-button-disabled' : ''
                 )}
               >
-                ⟳
+                <span className={isRegenerating ? 'imggen-regen-spinning' : ''}>
+                  ⟳
+                </span>
               </button>
             </div>
           </>

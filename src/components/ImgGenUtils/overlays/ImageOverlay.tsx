@@ -34,6 +34,8 @@ interface ImageOverlayProps {
   showDelete?: boolean;
   /** Whether to show a flash effect on the version indicator - used when a new version is added */
   versionFlash?: boolean;
+  /** Whether regeneration is currently in progress */
+  isRegenerating?: boolean;
 }
 
 export function ImageOverlay({
@@ -55,7 +57,13 @@ export function ImageOverlay({
   progress = 100,
   showDelete = true,
   versionFlash = false,
+  isRegenerating = false,
 }: ImageOverlayProps) {
+  // Debug logs for regeneration state
+  React.useEffect(() => {
+    console.log(`[ImageOverlay] isRegenerating: ${isRegenerating}, progress: ${progress}`);
+  }, [isRegenerating, progress]);
+  
   // Normal overlay content regardless of delete confirmation state
   return (
     <div className={combineClasses('imggen-overlay', classes.overlay)} style={{ position: 'relative' }}>
@@ -93,6 +101,7 @@ export function ImageOverlay({
             progress={progress}
             isDeleteConfirmOpen={isDeleteConfirmOpen}
             versionFlash={versionFlash}
+            isRegenerating={isRegenerating}
           />
         </>
       )}

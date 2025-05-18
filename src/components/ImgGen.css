@@ -270,6 +270,17 @@
   animation: version-flash 2s ease-in-out;
 }
 
+/* Regenerate spinner animation */
+@keyframes regen-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.imggen-regen-spinning {
+  animation: regen-spin 2s linear infinite;
+  display: inline-block;
+}
+
 /* Status text (e.g. Generating...) */
 .imggen-status-text {
   width: 100%;
