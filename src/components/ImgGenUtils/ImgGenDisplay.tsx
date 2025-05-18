@@ -147,11 +147,12 @@ export function ImgGenDisplay({
   // --- Fullscreen backdrop state (simple) ---
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const openFullscreen = () => setIsFullscreen(true);
+  const closeFullscreen = () => setIsFullscreen(false);
 
   // Build portal element for fullscreen backdrop
   const fullscreenBackdrop = isFullscreen
     ? createPortal(
-        <div className="imggen-backdrop">
+        <div className="imggen-backdrop" onClick={closeFullscreen} role="presentation">
           <ImgFile
             file={currentFile}
             className="imggen-backdrop-image"
@@ -161,6 +162,19 @@ export function ImgGenDisplay({
         globalThis.document.body
       )
     : null;
+
+  // Handle Escape key to close fullscreen
+  React.useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeFullscreen();
+      }
+    };
+    if (isFullscreen) {
+      window.addEventListener('keydown', handleEsc);
+      return () => window.removeEventListener('keydown', handleEsc);
+    }
+  }, [isFullscreen]);
 
   if (!document._files || (!fileKey && !document._files.image)) {
     return <ImgGenError message="Missing image file" />;
