@@ -123,7 +123,7 @@ export function ImgGenPlaceholder({
           handleCancelDelete={() => {}}
           handlePrevVersion={() => {}}
           handleNextVersion={() => {}}
-          handleRefresh={() => {}}
+          handleRegen={() => {}}
           versionIndex={0}
           totalVersions={1}
           classes={classes}

@@ -19,7 +19,7 @@ interface ImageOverlayProps {
   handleCancelDelete: () => void;
   handlePrevVersion: () => void;
   handleNextVersion: () => void;
-  handleRefresh: () => void;
+  handleRegen: () => void;
   versionIndex: number;
   totalVersions: number;
   /** Custom CSS classes for styling component parts */
@@ -46,7 +46,7 @@ export function ImageOverlay({
   handleCancelDelete,
   handlePrevVersion,
   handleNextVersion,
-  handleRefresh,
+  handleRegen,
   versionIndex,
   totalVersions,
   classes = defaultClasses,
@@ -81,7 +81,7 @@ export function ImageOverlay({
             handleDeleteConfirm={handleDeleteConfirm}
             handlePrevVersion={handlePrevVersion}
             handleNextVersion={handleNextVersion}
-            handleRefresh={handleRefresh}
+            handleRegen={handleRegen}
             versionIndex={versionIndex}
             totalVersions={totalVersions}
             classes={classes}

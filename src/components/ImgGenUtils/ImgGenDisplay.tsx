@@ -124,7 +124,7 @@ export function ImgGenDisplay({
   }
 
   // Handle generating a new version
-  function handleRefresh() {
+  function handleRegen() {
     const { currentPrompt } = getPromptInfo(document, versionIndex);
 
     if (editedPrompt !== null) {
@@ -191,7 +191,7 @@ export function ImgGenDisplay({
         handleCancelDelete={handleCancelDelete}
         handlePrevVersion={handlePrevVersion}
         handleNextVersion={handleNextVersion}
-        handleRefresh={handleRefresh}
+        handleRegen={handleRegen}
         versionIndex={versionIndex}
         totalVersions={totalVersions}
         progress={progress}

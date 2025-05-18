@@ -6,7 +6,7 @@ interface ControlsBarProps {
   handleDeleteConfirm: () => void;
   handlePrevVersion: () => void;
   handleNextVersion: () => void;
-  handleRefresh: () => void;
+  handleRegen: () => void;
   versionIndex: number;
   totalVersions: number;
   /** Custom CSS classes for styling component parts */
@@ -36,7 +36,7 @@ export function ControlsBar({
   handleDeleteConfirm,
   handlePrevVersion,
   handleNextVersion,
-  handleRefresh,
+  handleRegen,
   versionIndex,
   totalVersions,
   classes = defaultClasses,
@@ -180,7 +180,7 @@ export function ControlsBar({
               {/* Refresh button - always visible */}
               <button
                 aria-label="Generate new version"
-                onClick={handleRefresh}
+                onClick={handleRegen}
                 className={combineClasses(
                   'imggen-button',
                   classes.button,

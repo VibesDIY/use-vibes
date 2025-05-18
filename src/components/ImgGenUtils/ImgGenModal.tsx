@@ -20,7 +20,7 @@ export interface ImgGenModalProps {
   handleCancelDelete: () => void;
   handlePrevVersion: () => void;
   handleNextVersion: () => void;
-  handleRefresh: () => void;
+  handleRegen: () => void;
   versionIndex: number;
   totalVersions: number;
   progress: number;
@@ -49,7 +49,7 @@ export function ImgGenModal({
   handleCancelDelete,
   handlePrevVersion,
   handleNextVersion,
-  handleRefresh,
+  handleRegen,
   versionIndex,
   totalVersions,
   progress,
@@ -97,7 +97,7 @@ export function ImgGenModal({
           handleCancelDelete={handleCancelDelete}
           handlePrevVersion={handlePrevVersion}
           handleNextVersion={handleNextVersion}
-          handleRefresh={handleRefresh}
+          handleRegen={handleRegen}
           versionIndex={versionIndex}
           totalVersions={totalVersions}
           progress={progress}
