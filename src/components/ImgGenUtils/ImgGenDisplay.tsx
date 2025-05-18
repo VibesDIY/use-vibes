@@ -6,6 +6,7 @@ import { getCurrentFileKey, getPromptInfo, getVersionInfo } from './ImgGenDispla
 import { DeleteConfirmationOverlay } from './overlays/DeleteConfirmationOverlay';
 import { ImageOverlay } from './overlays/ImageOverlay';
 import { combineClasses, defaultClasses } from '../../utils/style-utils';
+import { createPortal } from 'react-dom';
 
 // Component for displaying the generated image
 export function ImgGenDisplay({
@@ -137,6 +138,30 @@ export function ImgGenDisplay({
     setEditedPrompt(null); // Exit edit mode
   };
 
+  // Determine which file to use - either the versioned file or the legacy 'image' file
+  const currentFile =
+    fileKey && document._files
+      ? (document._files[fileKey] as File)
+      : (document._files?.image as File);
+
+  // --- Fullscreen backdrop state (simple) ---
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const openFullscreen = () => setIsFullscreen(true);
+
+  // Build portal element for fullscreen backdrop
+  const fullscreenBackdrop = isFullscreen
+    ? createPortal(
+        <div className="imggen-backdrop">
+          <ImgFile
+            file={currentFile}
+            className="imggen-backdrop-image"
+            alt={alt || 'Generated image'}
+          />
+        </div>,
+        globalThis.document.body
+      )
+    : null;
+
   if (!document._files || (!fileKey && !document._files.image)) {
     return <ImgGenError message="Missing image file" />;
   }
@@ -145,19 +170,14 @@ export function ImgGenDisplay({
   const promptInfo = getPromptInfo(document, versionIndex);
   const promptText = promptInfo.currentPrompt || alt || 'Generated image';
 
-  // Determine which file to use - either the versioned file or the legacy 'image' file
-  const currentFile =
-    fileKey && document._files
-      ? (document._files[fileKey] as File)
-      : (document._files?.image as File);
-
   return (
     <div className={combineClasses('imggen-root', className, classes.root)} title={promptText}>
       <ImgFile
         file={currentFile}
         className={combineClasses('imggen-image', classes.image)}
         alt={alt || 'Generated image'}
-        style={{ width: '100%' }}
+        style={{ width: '100%', cursor: 'pointer' }}
+        onClick={openFullscreen}
       />
 
       {/* Info button - visible when overlay is closed and showOverlay is true */}
@@ -207,6 +227,8 @@ export function ImgGenDisplay({
           handleCancelDelete={handleCancelDelete}
         />
       )}
+
+      {fullscreenBackdrop}
     </div>
   );
 }
