@@ -150,7 +150,8 @@ Commit slice.
 1. Swap prompt & controls markup for `<PromptBar … />` + `<ControlsBar … />`.  
 2. Pass same props that were previously inline (no new state plumbing).  
 3. Delete now-unused chunks inside `ImageOverlay`.  
-4. Run tests + manual smoke (generating → modal → delete etc.).
+4. Ensure progress bar shows in both main image and modal (currently only visible on main image).
+5. Run tests + manual smoke (generating → modal → delete etc.).
 
 Commit slice.
 
