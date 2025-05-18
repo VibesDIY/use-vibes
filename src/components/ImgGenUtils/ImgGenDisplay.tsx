@@ -12,7 +12,7 @@ export function ImgGenDisplay({
   className,
   alt,
   onDelete,
-  onRefresh,
+  onRegen,
   onPromptEdit,
   classes = defaultClasses,
 }: ImgGenDisplayProps) {
@@ -134,11 +134,11 @@ export function ImgGenDisplay({
         onPromptEdit?.(document._id, newPrompt);
       } else {
         // No change, just regenerate explicitly
-        onRefresh?.(document._id);
+        onRegen?.(document._id);
       }
     } else {
       // Not in edit mode → regenerate current prompt
-      onRefresh?.(document._id);
+      onRegen?.(document._id);
     }
 
     // Reset user selection when generating a new version

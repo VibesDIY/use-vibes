@@ -29,7 +29,7 @@ describe('ImageOverlay Component', () => {
     handleCancelDelete: mockHandleCancelDelete,
     handlePrevVersion: mockPrevVersion,
     handleNextVersion: mockNextVersion,
-    handleRefresh: mockRefresh,
+    handleRegen: mockRefresh,
     versionIndex: 0,
     totalVersions: 1,
     classes: defaultClasses,
@@ -68,7 +68,7 @@ describe('ImageOverlay Component', () => {
   //---------------------------------------------------------------
   describe('Controls Visible (default)', () => {
 
-    it('shows refresh button that triggers handleRefresh when clicked', () => {
+    it('shows refresh button that triggers handleRegen when clicked', () => {
       render(<ImageOverlay {...defaultProps} />);
       const refreshButton = screen.getByRole('button', { name: /generate new version/i });
       expect(refreshButton).toBeInTheDocument();

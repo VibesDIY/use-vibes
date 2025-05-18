@@ -9,7 +9,7 @@ describe('ControlsBar Component', () => {
     handleDeleteConfirm: vi.fn(),
     handlePrevVersion: vi.fn(),
     handleNextVersion: vi.fn(),
-    handleRefresh: vi.fn(),
+    handleRegen: vi.fn(),
     versionIndex: 1,
     totalVersions: 3,
     editedPrompt: null,
@@ -95,7 +95,7 @@ describe('ControlsBar Component', () => {
     
     // Test refresh button click
     fireEvent.click(refreshButton);
-    expect(defaultProps.handleRefresh).toHaveBeenCalled();
+    expect(defaultProps.handleRegen).toHaveBeenCalled();
   });
   
   it('should highlight refresh button when prompt has been edited', () => {

@@ -37,7 +37,7 @@ describe('ImgGenModal Component', () => {
     handleCancelDelete: vi.fn(),
     handlePrevVersion: vi.fn(),
     handleNextVersion: vi.fn(),
-    handleRefresh: vi.fn(),
+    handleRegen: vi.fn(),
     versionIndex: 0,
     totalVersions: 3,
     progress: 100,

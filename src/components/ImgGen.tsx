@@ -251,7 +251,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
             className={className}
             alt={altText}
             onDelete={handleDelete}
-            onRefresh={handleGenerateNewVersion}
+            onRegen={handleGenerateNewVersion}
             onPromptEdit={handlePromptEdit}
             classes={classes}
           />

@@ -53,7 +53,7 @@ describe('ImageOverlay Component Versions', () => {
       handleCancelDelete: vi.fn(),
       handlePrevVersion: vi.fn(),
       handleNextVersion: vi.fn(),
-      handleRefresh: vi.fn(),
+      handleRegen: vi.fn(),
       versionIndex: 0,
       totalVersions: 1,
       showControls: true,
@@ -67,7 +67,7 @@ describe('ImageOverlay Component Versions', () => {
   });
 
   // Test for the refresh button functionality
-  it('should call handleRefresh when refresh button is clicked', () => {
+  it('should call handleRegen when refresh button is clicked', () => {
     // Mock the refresh callback function
     const mockHandleRefresh = vi.fn();
 
@@ -83,7 +83,7 @@ describe('ImageOverlay Component Versions', () => {
       handleCancelDelete: vi.fn(),
       handlePrevVersion: vi.fn(),
       handleNextVersion: vi.fn(),
-      handleRefresh: mockHandleRefresh,
+      handleRegen: mockHandleRefresh,
       versionIndex: 0,
       totalVersions: 1,
       showControls: true,
@@ -121,7 +121,7 @@ describe('ImageOverlay Component Versions', () => {
       handleCancelDelete: vi.fn(),
       handlePrevVersion: mockHandlePrevVersion,
       handleNextVersion: mockHandleNextVersion,
-      handleRefresh: vi.fn(),
+      handleRegen: vi.fn(),
       versionIndex: 1, // Middle version (0-based index)
       totalVersions: 3, // Total of 3 versions
       showControls: true,

@@ -32,7 +32,7 @@
    - `ImgGen`:
      - `prompt` prop is required only when `_id` is undefined
      - If both are passed, `_id` takes precedence, and the external `prompt` is ignored
-   - `onRefresh` continues to append a new image version
+   - `onRegen` continues to append a new image version
    - Future: An internal prompt-edit UI can later add a new `promptKey` for edited prompts
 
 ## Files/Modules Affected

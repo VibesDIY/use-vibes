@@ -34,7 +34,7 @@ Result: `ImageOverlay` shrinks and prompt code moves out of the way.
      isDeleteConfirmOpen={isDeleteConfirmOpen}
      onPrev={handlePrevVersion}
      onNext={handleNextVersion}
-     onRegenerate={handleRefresh}
+     onRegenerate={handleRegen}
      versionInfo={{ index: versionIndex, total: totalVersions }}
      progress={progress}
      statusText={statusText}
