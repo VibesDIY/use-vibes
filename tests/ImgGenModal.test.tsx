@@ -31,7 +31,7 @@ describe('ImgGenModal Component', () => {
     editedPrompt: null,
     setEditedPrompt: vi.fn(),
     handlePromptEdit: vi.fn(),
-    toggleDeleteConfirm: vi.fn(),
+    // toggleDeleteConfirm is no longer used
     isDeleteConfirmOpen: false,
     handleDeleteConfirm: vi.fn(),
     handleCancelDelete: vi.fn(),
@@ -116,13 +116,24 @@ describe('ImgGenModal Component', () => {
     expect(mockProps.handlePrevVersion).toHaveBeenCalledTimes(1);
   });
 
-  it('should call toggleDeleteConfirm when delete button is clicked', () => {
+  it('should call handleDeleteConfirm when delete button is clicked twice', () => {
     render(<ImgGenModal {...mockProps} />);
     
-    // Click delete button
+    // First click shows confirmation
     fireEvent.click(screen.getByLabelText('Delete image'));
     
-    // Check that toggleDeleteConfirm was called
-    expect(mockProps.toggleDeleteConfirm).toHaveBeenCalledTimes(1);
+    // Second click should trigger handleDeleteConfirm 
+    // This is handled within the ControlsBar component
+    // The actual call to handleDeleteConfirm happens in the ControlsBar
+    // So this test needs to be updated to reflect the implementation in ControlsBar
+    
+    // We should see the confirmation message after first click
+    expect(screen.getByText(/Confirm delete, are you sure/i)).toBeInTheDocument();
+    
+    // Second click confirms deletion
+    fireEvent.click(screen.getByLabelText('Delete image'));
+    
+    // Check that handleDeleteConfirm was called
+    expect(mockProps.handleDeleteConfirm).toHaveBeenCalled();
   });
 });

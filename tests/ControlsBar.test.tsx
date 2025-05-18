@@ -6,7 +6,7 @@ import { ControlsBar } from '../src/components/ControlsBar';
 
 describe('ControlsBar Component', () => {
   const defaultProps = {
-    toggleDeleteConfirm: vi.fn(),
+    handleDeleteConfirm: vi.fn(),
     handlePrevVersion: vi.fn(),
     handleNextVersion: vi.fn(),
     handleRefresh: vi.fn(),
@@ -28,9 +28,12 @@ describe('ControlsBar Component', () => {
     expect(deleteButton).toHaveClass('imggen-button');
     expect(deleteButton).toHaveClass('imggen-delete-button');
     
-    // Test delete button click
+    // First click shows confirmation, not immediately calls handleDeleteConfirm
     fireEvent.click(deleteButton);
-    expect(defaultProps.toggleDeleteConfirm).toHaveBeenCalled();
+    
+    // We can click again to confirm the delete action
+    fireEvent.click(deleteButton);
+    expect(defaultProps.handleDeleteConfirm).toHaveBeenCalled();
   });
   
   it('should not display delete button when showDelete is false', () => {
