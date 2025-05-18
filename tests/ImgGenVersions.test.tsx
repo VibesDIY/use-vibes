@@ -68,8 +68,8 @@ describe('ImageOverlay Component Versions', () => {
 
   // Test for the refresh button functionality
   it('should call handleRegen when refresh button is clicked', () => {
-    // Mock the refresh callback function
-    const mockHandleRefresh = vi.fn();
+    // Mock the regenerate callback function
+    const mockHandleRegen = vi.fn();
 
     // Create mock props
     const mockProps = {
@@ -83,7 +83,7 @@ describe('ImageOverlay Component Versions', () => {
       handleCancelDelete: vi.fn(),
       handlePrevVersion: vi.fn(),
       handleNextVersion: vi.fn(),
-      handleRegen: mockHandleRefresh,
+      handleRegen: mockHandleRegen,
       versionIndex: 0,
       totalVersions: 1,
       showControls: true,
@@ -92,15 +92,15 @@ describe('ImageOverlay Component Versions', () => {
     // Render the ImageOverlay directly
     const { container } = render(<ImageOverlay {...mockProps} />);
 
-    // Find the refresh button
-    const refreshButton = container.querySelector('[aria-label="Generate new version"]');
+    // Find the regenerate button
+    const refreshButton = container.querySelector('[aria-label="Regenerate image"]');
     expect(refreshButton).toBeInTheDocument();
 
-    // Click the refresh button
+    // Click the regenerate button
     fireEvent.click(refreshButton!);
 
-    // Verify that the refresh callback was called
-    expect(mockHandleRefresh).toHaveBeenCalled();
+    // Verify that the regenerate callback was called
+    expect(mockHandleRegen).toHaveBeenCalled();
   });
 
   // Test version navigation for multiple versions

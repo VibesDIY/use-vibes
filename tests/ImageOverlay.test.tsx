@@ -10,7 +10,7 @@ describe('ImageOverlay Component', () => {
   // Mock functions for all the callbacks
   const mockPrevVersion = vi.fn();
   const mockNextVersion = vi.fn();
-  const mockRefresh = vi.fn();
+  const mockRegen = vi.fn();
   const mockSetEditedPrompt = vi.fn();
   const mockHandlePromptEdit = vi.fn();
   const mockToggleDeleteConfirm = vi.fn();
@@ -29,7 +29,7 @@ describe('ImageOverlay Component', () => {
     handleCancelDelete: mockHandleCancelDelete,
     handlePrevVersion: mockPrevVersion,
     handleNextVersion: mockNextVersion,
-    handleRegen: mockRefresh,
+    handleRegen: mockRegen,
     versionIndex: 0,
     totalVersions: 1,
     classes: defaultClasses,
@@ -68,13 +68,13 @@ describe('ImageOverlay Component', () => {
   //---------------------------------------------------------------
   describe('Controls Visible (default)', () => {
 
-    it('shows refresh button that triggers handleRegen when clicked', () => {
+    it('shows regenerate button that triggers handleRegen when clicked', () => {
       render(<ImageOverlay {...defaultProps} />);
-      const refreshButton = screen.getByRole('button', { name: /generate new version/i });
-      expect(refreshButton).toBeInTheDocument();
+      const regenButton = screen.getByRole('button', { name: /regenerate image/i });
+      expect(regenButton).toBeInTheDocument();
 
-      fireEvent.click(refreshButton);
-      expect(mockRefresh).toHaveBeenCalledTimes(1);
+      fireEvent.click(regenButton);
+      expect(mockRegen).toHaveBeenCalledTimes(1);
     });
 
     it('does not render prev/next buttons or version indicator when totalVersions = 1', () => {
@@ -241,7 +241,7 @@ describe('ImageOverlay Component', () => {
       // Version controls
       expect(screen.getByRole('button', { name: 'Previous version' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Next version' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Generate new version' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Regenerate image' })).toBeInTheDocument();
       
       // Delete control (should be available when enableDelete is true)
       expect(screen.getByRole('button', { name: 'Delete image' })).toBeInTheDocument();

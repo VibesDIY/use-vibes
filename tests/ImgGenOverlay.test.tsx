@@ -89,7 +89,7 @@ describe('ImageOverlay Component', () => {
     // Check for version navigation
     const prevButton = container.querySelector('[aria-label="Previous version"]');
     const nextButton = container.querySelector('[aria-label="Next version"]');
-    const refreshButton = container.querySelector('[aria-label="Generate new version"]');
+    const refreshButton = container.querySelector('[aria-label="Regenerate image"]');
     
     expect(prevButton).toBeInTheDocument();
     expect(nextButton).toBeInTheDocument();

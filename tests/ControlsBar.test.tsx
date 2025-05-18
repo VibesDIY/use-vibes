@@ -87,18 +87,18 @@ describe('ControlsBar Component', () => {
     expect(nextButton).toBeDisabled();
   });
   
-  it('should always display refresh button', () => {
+  it('should always display regenerate button', () => {
     const { getByLabelText } = render(<ControlsBar {...defaultProps} />);
     
-    const refreshButton = getByLabelText('Generate new version');
-    expect(refreshButton).toBeInTheDocument();
+    const regenButton = getByLabelText('Regenerate image');
+    expect(regenButton).toBeInTheDocument();
     
-    // Test refresh button click
-    fireEvent.click(refreshButton);
+    // Test regenerate button click
+    fireEvent.click(regenButton);
     expect(defaultProps.handleRegen).toHaveBeenCalled();
   });
   
-  it('should highlight refresh button when prompt has been edited', () => {
+  it('should highlight regenerate button when prompt has been edited', () => {
     const editedProps = {
       ...defaultProps,
       editedPrompt: 'Edited prompt',
@@ -107,8 +107,8 @@ describe('ControlsBar Component', () => {
     
     const { getByLabelText } = render(<ControlsBar {...editedProps} />);
     
-    const refreshButton = getByLabelText('Generate new version');
-    expect(refreshButton).toHaveClass('imggen-button-highlight');
+    const regenButton = getByLabelText('Regenerate image');
+    expect(regenButton).toHaveClass('imggen-button-highlight');
   });
   
   it('should display progress bar when progress < 100', () => {
@@ -143,6 +143,6 @@ describe('ControlsBar Component', () => {
     expect(queryByLabelText('Delete image')).not.toBeInTheDocument();
     expect(queryByLabelText('Previous version')).not.toBeInTheDocument();
     expect(queryByLabelText('Next version')).not.toBeInTheDocument();
-    expect(queryByLabelText('Generate new version')).not.toBeInTheDocument();
+    expect(queryByLabelText('Regenerate image')).not.toBeInTheDocument();
   });
 });

@@ -15,7 +15,7 @@ interface ControlsBarProps {
   showControls?: boolean;
   /** Optional status text to display (e.g. "Generating...") */
   statusText?: string;
-  /** Edited prompt for highlighting refresh button */
+  /** Edited prompt for highlighting regenerate button */
   editedPrompt: string | null;
   /** Original prompt text for comparison */
   promptText: string;
@@ -30,7 +30,7 @@ interface ControlsBarProps {
 }
 
 /**
- * ControlsBar component - Displays controls for deleting, navigating between versions, and refreshing
+ * ControlsBar component - Displays controls for deleting, navigating between versions, and regenerating
  */
 export function ControlsBar({
   handleDeleteConfirm,
@@ -177,9 +177,9 @@ export function ControlsBar({
                 </button>
               )}
 
-              {/* Refresh button - always visible */}
+              {/* Regenerate button - always visible */}
               <button
-                aria-label="Generate new version"
+                aria-label="Regenerate image"
                 onClick={handleRegen}
                 className={combineClasses(
                   'imggen-button',

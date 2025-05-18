@@ -20,7 +20,7 @@ export interface ImgGenDisplayProps {
   /** Callback when delete is confirmed - receives document ID */
   // eslint-disable-next-line no-unused-vars
   onDelete?: (id: string) => void;
-  /** Callback when refresh is requested - receives document ID */
+  /** Callback when regeneration is requested - receives document ID */
   // eslint-disable-next-line no-unused-vars
   onRegen?: (id: string) => void;
   /** Callback when prompt is edited - receives document ID and new prompt */

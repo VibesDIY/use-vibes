@@ -90,7 +90,7 @@ describe('ImgGenModal Component', () => {
     expect(screen.getByText('Test prompt')).toBeInTheDocument();
     
     // We can also verify that controls are present
-    expect(screen.getByLabelText('Generate new version')).toBeInTheDocument();
+    expect(screen.getByLabelText('Regenerate image')).toBeInTheDocument();
     
     // Verify version navigation is present
     expect(screen.getByText('1 / 3')).toBeInTheDocument();

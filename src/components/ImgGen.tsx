@@ -96,7 +96,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // This is done through the parent component's remounting logic with uuid()
 
   // Handle regeneration when the button is clicked
-  const handleGenerateNewVersion = React.useCallback(() => {
+  const handleRegen = React.useCallback(() => {
     if (document?._id || _id || prompt) {
       // Toggle regeneration flag
       regenerateRef.current = !regenerateRef.current;
@@ -162,12 +162,12 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
         }
 
         // Now trigger regeneration with the updated prompt
-        handleGenerateNewVersion();
+        handleRegen();
       } catch (error) {
         console.error('Error updating prompt:', error);
       }
     },
-    [db, onPromptEdit, handleGenerateNewVersion]
+    [db, onPromptEdit, handleRegen]
   );
 
   // Handle delete request
@@ -251,7 +251,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
             className={className}
             alt={altText}
             onDelete={handleDelete}
-            onRegen={handleGenerateNewVersion}
+            onRegen={handleRegen}
             onPromptEdit={handlePromptEdit}
             classes={classes}
           />
