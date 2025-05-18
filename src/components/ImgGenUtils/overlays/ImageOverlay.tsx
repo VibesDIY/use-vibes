@@ -127,7 +127,7 @@ export function ImageOverlay({
                 <button
                   aria-label="Delete image"
                   onClick={toggleDeleteConfirm}
-                  className={combineClasses('imggen-delete-button', classes.button)}
+                  className={combineClasses('imggen-button imggen-delete-button', classes.button)}
                 >
                   ✕
                 </button>

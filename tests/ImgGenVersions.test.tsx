@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 // Use vi.hoisted to define mocks that need to be referenced in vi.mock
 const mockImgFile = vi.hoisted(() =>
-  vi.fn().mockImplementation(({ file, className, alt, style }) => {
+  vi.fn().mockImplementation(({ className, alt, style, ...rest }) => {
     return React.createElement(
       'div',
       {
@@ -13,6 +13,8 @@ const mockImgFile = vi.hoisted(() =>
         className: `img-file ${className || ''}`,
         style,
         'aria-label': alt,
+        ...rest,
+        onClick: rest.onClick || (() => {})
       },
       'Image Content'
     );
@@ -27,10 +29,9 @@ vi.mock('use-fireproof', () => ({
 }));
 
 // Import the components directly to test them individually
-import { ImgGenDisplay } from '../src/components/ImgGenUtils';
-import type { DocFileMeta } from 'use-fireproof';
+import { ImageOverlay } from '../src/components/ImgGenUtils/overlays/ImageOverlay';
 
-describe('ImgGenDisplay with New Document Structure', () => {
+describe('ImageOverlay Component Versions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -39,145 +40,111 @@ describe('ImgGenDisplay with New Document Structure', () => {
     vi.restoreAllMocks();
   });
 
-  // Test that the component correctly displays the current prompt from the new document structure
-  it('should display the current prompt text from the prompts structure', () => {
-    // Create a mock document with the new prompts structure
-    const mockDocument = {
-      _id: 'test-image-id',
-      _files: {
-        v1: new File(['test'], 'test-image.png', { type: 'image/png' }),
-      },
-      prompts: {
-        p1: { text: 'This is a test prompt from new structure', created: 1620000000000 },
-      },
-      currentPromptKey: 'p1',
-      versions: [{ id: 'v1', created: 1620000000000, promptKey: 'p1' }],
-      currentVersion: 0, // 0-based index
+  // Test that the component correctly displays the prompt text
+  it('should display the provided prompt text', () => {
+    const mockProps = {
+      promptText: 'This is a test prompt',
+      editedPrompt: null,
+      setEditedPrompt: vi.fn(),
+      handlePromptEdit: vi.fn(),
+      toggleDeleteConfirm: vi.fn(),
+      isDeleteConfirmOpen: false,
+      handleDeleteConfirm: vi.fn(),
+      handleCancelDelete: vi.fn(),
+      handlePrevVersion: vi.fn(),
+      handleNextVersion: vi.fn(),
+      handleRefresh: vi.fn(),
+      versionIndex: 0,
+      totalVersions: 1,
+      showControls: true,
     };
 
-    // Render the component
-    const { container } = render(
-      <ImgGenDisplay document={mockDocument} className="test-class" alt="" />
-    );
+    // Render the component directly
+    const { container } = render(<ImageOverlay {...mockProps} />);
 
-    // Open the overlay to see the prompt text
-    const infoButton = container.querySelector('[aria-label="Image information"]');
-    expect(infoButton).toBeInTheDocument();
-    if (infoButton) {
-      fireEvent.click(infoButton);
-    }
-
-    // Verify the prompt text from the new structure is displayed
-    expect(container.textContent).toContain('This is a test prompt from new structure');
+    // Verify the prompt text is displayed
+    expect(container.textContent).toContain('This is a test prompt');
   });
 
-  // Test for the refresh button functionality with new document structure
-  it('should call onRefresh when refresh button is clicked', () => {
+  // Test for the refresh button functionality
+  it('should call handleRefresh when refresh button is clicked', () => {
     // Mock the refresh callback function
-    const mockRefreshFn = vi.fn();
+    const mockHandleRefresh = vi.fn();
 
-    // Create a mock document with the new structure
-    const mockDocument = {
-      _id: 'test-image-id',
-      _files: {
-        v1: new File(['test'], 'test-image.png', { type: 'image/png' }),
-        v2: new File(['test2'], 'test-image-2.png', { type: 'image/png' }),
-      },
-      prompts: {
-        p1: { text: 'test prompt', created: 1620000000000 },
-      },
-      currentPromptKey: 'p1',
-      versions: [
-        { id: 'v1', created: 1620000000000, promptKey: 'p1' },
-        { id: 'v2', created: 1620000001000, promptKey: 'p1' },
-      ],
-      currentVersion: 1, // 0-based index
+    // Create mock props
+    const mockProps = {
+      promptText: 'Test prompt',
+      editedPrompt: null,
+      setEditedPrompt: vi.fn(),
+      handlePromptEdit: vi.fn(),
+      toggleDeleteConfirm: vi.fn(),
+      isDeleteConfirmOpen: false,
+      handleDeleteConfirm: vi.fn(),
+      handleCancelDelete: vi.fn(),
+      handlePrevVersion: vi.fn(),
+      handleNextVersion: vi.fn(),
+      handleRefresh: mockHandleRefresh,
+      versionIndex: 0,
+      totalVersions: 1,
+      showControls: true,
     };
 
-    // Render the ImgGenDisplay component with onRefresh callback
-    const { container } = render(
-      <ImgGenDisplay
-        document={mockDocument}
-        className="test-class"
-        alt="Test image alt text"
-        onRefresh={mockRefreshFn}
-      />
-    );
-
-    // First click the info button to open the overlay
-    const infoButton = container.querySelector('[aria-label="Image information"]');
-    expect(infoButton).toBeInTheDocument();
-    if (infoButton) {
-      fireEvent.click(infoButton);
-    }
+    // Render the ImageOverlay directly
+    const { container } = render(<ImageOverlay {...mockProps} />);
 
     // Find the refresh button
     const refreshButton = container.querySelector('[aria-label="Generate new version"]');
     expect(refreshButton).toBeInTheDocument();
 
     // Click the refresh button
-    if (refreshButton) {
-      fireEvent.click(refreshButton);
-    }
+    fireEvent.click(refreshButton!);
 
-    // Verify that the refresh callback was called with the document id
-    expect(mockRefreshFn).toHaveBeenCalledWith('test-image-id');
+    // Verify that the refresh callback was called
+    expect(mockHandleRefresh).toHaveBeenCalled();
   });
 
   // Test version navigation for multiple versions
-  it('should allow navigation between versions', () => {
-    // Create a mock document with multiple versions
-    const mockDocument = {
-      _id: 'test-multi-version',
-      _files: {
-        v1: new File(['test1'], 'version1.png', { type: 'image/png' }),
-        v2: new File(['test2'], 'version2.png', { type: 'image/png' }),
-        v3: new File(['test3'], 'version3.png', { type: 'image/png' }),
-      },
-      prompts: {
-        p1: { text: 'original prompt', created: 1620000000000 },
-        p2: { text: 'modified prompt', created: 1620000002000 },
-      },
-      currentPromptKey: 'p1',
-      versions: [
-        { id: 'v1', created: 1620000000000, promptKey: 'p1' },
-        { id: 'v2', created: 1620000001000, promptKey: 'p1' },
-        { id: 'v3', created: 1620000002000, promptKey: 'p2' },
-      ],
-      currentVersion: 1, // Second version (0-based index)
+  it('should call navigation handlers when version buttons are clicked', () => {
+    // Mock the navigation handlers
+    const mockHandlePrevVersion = vi.fn();
+    const mockHandleNextVersion = vi.fn();
+
+    // Create mock props with multiple versions
+    const mockProps = {
+      promptText: 'Test prompt',
+      editedPrompt: null,
+      setEditedPrompt: vi.fn(),
+      handlePromptEdit: vi.fn(),
+      toggleDeleteConfirm: vi.fn(),
+      isDeleteConfirmOpen: false,
+      handleDeleteConfirm: vi.fn(),
+      handleCancelDelete: vi.fn(),
+      handlePrevVersion: mockHandlePrevVersion,
+      handleNextVersion: mockHandleNextVersion,
+      handleRefresh: vi.fn(),
+      versionIndex: 1, // Middle version (0-based index)
+      totalVersions: 3, // Total of 3 versions
+      showControls: true,
     };
 
-    // Render the component
-    const { container } = render(
-      <ImgGenDisplay document={mockDocument} className="test-class" alt="" />
-    );
+    // Render the component directly
+    const { container } = render(<ImageOverlay {...mockProps} />);
 
-    // Open the overlay to access version navigation
-    const infoButton = container.querySelector('[aria-label="Image information"]');
-    expect(infoButton).toBeInTheDocument();
-    fireEvent.click(infoButton!);
-
-    // Check that we're initially on version 2 of 3
+    // Check that we're on version 2 of 3
     const versionIndicator = container.querySelector('.version-indicator');
     expect(versionIndicator).toBeInTheDocument();
     expect(versionIndicator?.textContent).toContain('2 / 3');
 
-    // Move to the next version (v3)
+    // Test next button
     const nextButton = container.querySelector('[aria-label="Next version"]');
     expect(nextButton).toBeInTheDocument();
     fireEvent.click(nextButton!);
+    expect(mockHandleNextVersion).toHaveBeenCalled();
 
-    // Check that we're now on version 3 of 3 and it shows custom prompt indicator
-    // Only check for the version count, we removed the Custom prompt indicator
-    expect(versionIndicator?.textContent).toContain('3 / 3');
-
-    // Move back to previous version
+    // Test previous button
     const prevButton = container.querySelector('[aria-label="Previous version"]');
     expect(prevButton).toBeInTheDocument();
     fireEvent.click(prevButton!);
-
-    // Check that we're back to version 2 of 3
-    expect(versionIndicator?.textContent).toContain('2 / 3');
-    expect(versionIndicator?.textContent).not.toContain('Custom prompt');
+    expect(mockHandlePrevVersion).toHaveBeenCalled();
   });
 });

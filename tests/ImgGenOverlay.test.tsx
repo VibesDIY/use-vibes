@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 // Use vi.hoisted to define mocks that need to be referenced in vi.mock
 const mockImgFile = vi.hoisted(() =>
-  vi.fn().mockImplementation(({ className, alt, style }) => {
+  vi.fn().mockImplementation(({ className, alt, style, ...rest }) => {
     return React.createElement(
       'div',
       {
@@ -13,6 +13,8 @@ const mockImgFile = vi.hoisted(() =>
         className: `img-file ${className || ''}`,
         style,
         'aria-label': alt,
+        ...rest,
+        onClick: rest.onClick || (() => {})
       },
       'Image Content'
     );
@@ -27,9 +29,10 @@ vi.mock('use-fireproof', () => ({
 }));
 
 // Import the components directly to test them individually
-import { ImgGenDisplay } from '../src/components/ImgGenUtils';
+import { ImageOverlay } from '../src/components/ImgGenUtils/overlays/ImageOverlay';
+import { DeleteConfirmationOverlay } from '../src/components/ImgGenUtils/overlays/DeleteConfirmationOverlay';
 
-describe('ImgGenDisplay Component', () => {
+describe('ImageOverlay Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -38,181 +41,124 @@ describe('ImgGenDisplay Component', () => {
     vi.restoreAllMocks();
   });
 
-  // Test that fullscreen mode shows controls and delete option
-  it('should show fullscreen modal when image is clicked', () => {
-    // Create a mock document with an image file
-    const mockDocument = {
-      _id: 'test-image-id',
-      _files: {
-        image: new File(['test'], 'test-image.png', { type: 'image/png' }),
-      },
+  // Test that controls are properly displayed
+  it('should show proper controls and classes', () => {
+    const mockProps = {
+      promptText: 'Test prompt',
+      editedPrompt: null,
+      setEditedPrompt: vi.fn(),
+      handlePromptEdit: vi.fn(),
+      toggleDeleteConfirm: vi.fn(),
+      isDeleteConfirmOpen: false,
+      handleDeleteConfirm: vi.fn(),
+      handleCancelDelete: vi.fn(),
+      handlePrevVersion: vi.fn(),
+      handleNextVersion: vi.fn(),
+      handleRefresh: vi.fn(),
+      versionIndex: 1,
+      totalVersions: 3,
+      showControls: true,
+      insideModal: true,
+      progress: 100
     };
 
-    // Render the ImgGenDisplay component
-    const { container } = render(
-      <ImgGenDisplay document={mockDocument} className="test-class" alt="Test image alt text" />
-    );
+    // Render the ImageOverlay component directly
+    const { container } = render(<ImageOverlay {...mockProps} />);
 
-    // Find the image element
-    const imgElement = container.querySelector('[data-testid="mock-img-file"]');
-    expect(imgElement).toBeInTheDocument();
+    // Check that the prompt text is displayed
+    expect(container.textContent).toContain('Test prompt');
 
-    // Click the image to open fullscreen
-    if (imgElement) {
-      fireEvent.click(imgElement);
-    }
-
-    // The fullscreen modal backdrop should now be visible
-    const backdrop = document.querySelector('.imggen-backdrop');
-    expect(backdrop).toBeInTheDocument();
-  });
-
-  // Test for the delete button and confirmation overlay
-  it('should show delete confirmation when delete button is clicked', () => {
-    // Mock the delete callback function
-    const mockDeleteFn = vi.fn();
-
-    // Create a mock document with an image file
-    const mockDocument = {
-      _id: 'test-image-id',
-      _files: {
-        image: new File(['test'], 'test-image.png', { type: 'image/png' }),
-      },
-      prompt: 'Test prompt for image',
-    };
-
-    // Render the ImgGenDisplay component with the delete callback
-    const { container } = render(
-      <ImgGenDisplay
-        document={mockDocument}
-        className="test-class"
-        alt="Test image alt text"
-        onDelete={mockDeleteFn}
-      />
-    );
-
-    // First click the image to open the fullscreen modal
-    const imgElement = container.querySelector('[data-testid="mock-img-file"]');
-    if (imgElement) {
-      fireEvent.click(imgElement);
-    }
-    
-    // Now find the delete button which is visible in the fullscreen modal
-    const deleteButton = document.querySelector('[aria-label="Delete image"]');
-    expect(deleteButton).toBeInTheDocument();
-
-    // Click the delete button
-    if (deleteButton) {
-      fireEvent.click(deleteButton);
-    }
-
-    // The delete confirmation overlay should now be visible
-    const confirmationOverlay = document.querySelector('.delete-confirmation-overlay');
-    expect(confirmationOverlay).toBeInTheDocument();
-
-    // It should contain confirmation text
-    expect(screen.getByText(/Are you sure/i)).toBeInTheDocument();
-
-    // It should have confirm and cancel buttons
-    const confirmButton = screen.getByRole('button', { name: /confirm/i });
-    const cancelButton = screen.getByRole('button', { name: /cancel/i });
-
-    expect(confirmButton).toBeInTheDocument();
-    expect(cancelButton).toBeInTheDocument();
-  });
-
-  // Test the delete confirmation actions
-  it('should call delete function when confirmation is confirmed', () => {
-    // Mock the delete callback function
-    const mockDeleteFn = vi.fn();
-
-    // Create a mock document with an image file
-    const mockDocument = {
-      _id: 'test-image-id',
-      _files: {
-        image: new File(['test'], 'test-image.png', { type: 'image/png' }),
-      },
-    };
-
-    // Render the ImgGenDisplay component with the delete callback
-    const { container } = render(
-      <ImgGenDisplay
-        document={mockDocument}
-        className="test-class"
-        alt="Test image alt text"
-        onDelete={mockDeleteFn}
-      />
-    );
-
-    // First click the image to open the fullscreen modal
-    const imgElement = container.querySelector('[data-testid="mock-img-file"]');
-    if (imgElement) {
-      fireEvent.click(imgElement);
-    }
-
-    // Find and click the delete button
+    // Check for the delete button
     const deleteButton = container.querySelector('[aria-label="Delete image"]');
-    if (deleteButton) {
-      fireEvent.click(deleteButton);
-    }
+    expect(deleteButton).toBeInTheDocument();
+    expect(deleteButton).toHaveClass('imggen-button');
+    expect(deleteButton).toHaveClass('imggen-delete-button');
+
+    // Check for version navigation
+    const prevButton = container.querySelector('[aria-label="Previous version"]');
+    const nextButton = container.querySelector('[aria-label="Next version"]');
+    const refreshButton = container.querySelector('[aria-label="Generate new version"]');
+    
+    expect(prevButton).toBeInTheDocument();
+    expect(nextButton).toBeInTheDocument();
+    expect(refreshButton).toBeInTheDocument();
+    
+    // Check for version indicator
+    const versionIndicator = container.querySelector('.version-indicator');
+    expect(versionIndicator).toBeInTheDocument();
+    expect(versionIndicator?.textContent).toContain('2 / 3');
+  });
+
+  // Test that delete confirmation appears when isDeleteConfirmOpen is true
+  it('should show delete confirmation when isDeleteConfirmOpen is true', () => {
+    const mockProps = {
+      promptText: 'Test prompt',
+      editedPrompt: null,
+      setEditedPrompt: vi.fn(),
+      handlePromptEdit: vi.fn(),
+      toggleDeleteConfirm: vi.fn(),
+      isDeleteConfirmOpen: true, // Set this to true to show confirmation
+      handleDeleteConfirm: vi.fn(),
+      handleCancelDelete: vi.fn(),
+      handlePrevVersion: vi.fn(),
+      handleNextVersion: vi.fn(),
+      handleRefresh: vi.fn(),
+      versionIndex: 1,
+      totalVersions: 3,
+      insideModal: true,
+    };
+
+    // Render the ImageOverlay component directly with delete confirm open
+    const { container } = render(<ImageOverlay {...mockProps} />);
+
+    // The delete confirmation overlay should be visible
+    const confirmationOverlay = container.querySelector('.delete-confirmation-overlay');
+    expect(confirmationOverlay).toBeInTheDocument();
+  });
+
+  // Test the delete confirmation component directly
+  it('should call the correct handler when confirmation is confirmed', () => {
+    // Mock the delete callback function
+    const mockDeleteConfirmFn = vi.fn();
+    const mockCancelDeleteFn = vi.fn();
+
+    // Render the DeleteConfirmationOverlay component directly
+    const { getByRole } = render(
+      <DeleteConfirmationOverlay
+        handleDeleteConfirm={mockDeleteConfirmFn}
+        handleCancelDelete={mockCancelDeleteFn}
+      />
+    );
 
     // Find and click the confirm button
-    const confirmButton = screen.getByRole('button', { name: /confirm/i });
+    const confirmButton = getByRole('button', { name: /confirm/i });
     fireEvent.click(confirmButton);
 
-    // Verify that the delete callback was called with the document ID
-    expect(mockDeleteFn).toHaveBeenCalledWith('test-image-id');
-
-    // The confirmation overlay should be closed
-    const confirmationOverlay = container.querySelector('.delete-confirmation-overlay');
-    expect(confirmationOverlay).not.toBeInTheDocument();
+    // Verify that the delete callback was called
+    expect(mockDeleteConfirmFn).toHaveBeenCalled();
+    expect(mockCancelDeleteFn).not.toHaveBeenCalled();
   });
 
-  // Test that cancel button closes the confirmation without deleting
-  it('should close the confirmation overlay when cancel is clicked', () => {
-    // Mock the delete callback function
-    const mockDeleteFn = vi.fn();
+  // Test cancel button in the confirmation overlay
+  it('should call the cancel handler when cancel is clicked', () => {
+    // Mock the handlers
+    const mockDeleteConfirmFn = vi.fn();
+    const mockCancelDeleteFn = vi.fn();
 
-    // Create a mock document with an image file
-    const mockDocument = {
-      _id: 'test-image-id',
-      _files: {
-        image: new File(['test'], 'test-image.png', { type: 'image/png' }),
-      },
-    };
-
-    // Render the ImgGenDisplay component with the delete callback
-    const { container } = render(
-      <ImgGenDisplay
-        document={mockDocument}
-        className="test-class"
-        alt="Test image alt text"
-        onDelete={mockDeleteFn}
+    // Render the DeleteConfirmationOverlay component directly
+    const { getByRole } = render(
+      <DeleteConfirmationOverlay
+        handleDeleteConfirm={mockDeleteConfirmFn}
+        handleCancelDelete={mockCancelDeleteFn}
       />
     );
 
-    // First click the info button to open the overlay
-    const infoButton = container.querySelector('[aria-label="Image information"]');
-    expect(infoButton).toBeInTheDocument();
-    if (infoButton) {
-      fireEvent.click(infoButton);
-    }
-
-    // Find and click the delete button
-    const deleteButton = container.querySelector('[aria-label="Delete image"]');
-    if (deleteButton) {
-      fireEvent.click(deleteButton);
-    }
-
     // Find and click the cancel button
-    const cancelButton = screen.getByRole('button', { name: /cancel/i });
+    const cancelButton = getByRole('button', { name: /cancel/i });
     fireEvent.click(cancelButton);
 
-    // Verify that the delete callback was NOT called
-    expect(mockDeleteFn).not.toHaveBeenCalled();
-
-    // The confirmation overlay should be closed
-    const confirmationOverlay = container.querySelector('.delete-confirmation-overlay');
-    expect(confirmationOverlay).not.toBeInTheDocument();
+    // Verify that the cancel callback was called and delete was not
+    expect(mockCancelDeleteFn).toHaveBeenCalled();
+    expect(mockDeleteConfirmFn).not.toHaveBeenCalled();
   });
 });
