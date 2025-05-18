@@ -28,6 +28,8 @@ interface ImageOverlayProps {
   statusText?: string;
   /** Enable the delete controls (only true in fullscreen modal) */
   enableDelete?: boolean;
+  /** Progress value for generation (0-100), shows progress bar when < 100 */
+  progress?: number;
 }
 
 export function ImageOverlay({
@@ -48,6 +50,7 @@ export function ImageOverlay({
   showControls = true,
   statusText,
   enableDelete = true,
+  progress = 100,
 }: ImageOverlayProps) {
   if (isDeleteConfirmOpen && enableDelete) {
     return (
@@ -63,6 +66,10 @@ export function ImageOverlay({
   // Normal overlay content
   return (
     <div className={combineClasses('imggen-overlay', classes.overlay)}>
+      {/* Progress bar when generation is in progress */}
+      {progress < 100 && (
+        <div className="imggen-progress" style={{ width: `${progress}%` }} />
+      )}
       {/* Top row with prompt only */}
       <div className="imggen-top-line">
         <div className={combineClasses('imggen-prompt', classes.prompt)}>

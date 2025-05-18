@@ -17,8 +17,6 @@ export interface ImgGenDisplayProps {
   document: ImageDocument & { _id: string }; // Ensure _id is required for display
   className?: string;
   alt?: string;
-  /** Whether to show the overlay info button and controls (default: true) */
-  showOverlay?: boolean;
   /** Callback when delete is confirmed - receives document ID */
   // eslint-disable-next-line no-unused-vars
   onDelete?: (id: string) => void;

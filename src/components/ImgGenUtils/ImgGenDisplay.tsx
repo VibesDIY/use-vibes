@@ -155,10 +155,6 @@ export function ImgGenDisplay({
     ? createPortal(
         <div className="imggen-backdrop" onClick={closeFullscreen} role="presentation">
           <figure className="imggen-full-wrapper" onClick={(e) => e.stopPropagation()}>
-            {/* Progress bar when generation not complete */}
-            {progress < 100 && (
-              <div className="imggen-progress" style={{ width: `${progress}%` }} />
-            )}
             <ImgFile
               file={currentFile}
               className="imggen-backdrop-image"
@@ -179,6 +175,7 @@ export function ImgGenDisplay({
               handleRefresh={handleRefresh}
               versionIndex={versionIndex}
               totalVersions={totalVersions}
+              progress={progress}
               classes={classes}
               enableDelete={true}
             />

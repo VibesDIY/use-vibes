@@ -5,7 +5,7 @@ import '@testing-library/jest-dom';
 
 // Use vi.hoisted to define mocks that need to be referenced in vi.mock
 const mockImgFile = vi.hoisted(() =>
-  vi.fn().mockImplementation(({ file, className, alt, style }) => {
+  vi.fn().mockImplementation(({ className, alt, style }) => {
     return React.createElement(
       'div',
       {
@@ -28,7 +28,6 @@ vi.mock('use-fireproof', () => ({
 
 // Import the components directly to test them individually
 import { ImgGenDisplay } from '../src/components/ImgGenUtils';
-import type { DocFileMeta } from 'use-fireproof';
 
 describe('ImgGenDisplay Component', () => {
   beforeEach(() => {
@@ -39,8 +38,8 @@ describe('ImgGenDisplay Component', () => {
     vi.restoreAllMocks();
   });
 
-  // Initial test to verify info button is visible in READY state
-  it('should show info button when image is displayed', () => {
+  // Test that fullscreen mode shows controls and delete option
+  it('should show fullscreen modal when image is clicked', () => {
     // Create a mock document with an image file
     const mockDocument = {
       _id: 'test-image-id',
@@ -54,38 +53,18 @@ describe('ImgGenDisplay Component', () => {
       <ImgGenDisplay document={mockDocument} className="test-class" alt="Test image alt text" />
     );
 
-    // The info button should be available with aria-label
-    const infoButton = container.querySelector('[aria-label="Image information"]');
-    expect(infoButton).toBeInTheDocument();
-  });
+    // Find the image element
+    const imgElement = container.querySelector('[data-testid="mock-img-file"]');
+    expect(imgElement).toBeInTheDocument();
 
-  // Test that clicking the info button shows the overlay
-  it('should show the overlay when info button is clicked', () => {
-    // Create a mock document with an image file
-    const mockDocument = {
-      _id: 'test-image-id',
-      _files: {
-        image: new File(['test'], 'test-image.png', { type: 'image/png' }),
-      },
-    };
-
-    // Render the ImgGenDisplay component
-    const { container } = render(
-      <ImgGenDisplay document={mockDocument} className="test-class" alt="Test image alt text" />
-    );
-
-    // Find the info button
-    const infoButton = container.querySelector('[aria-label="Image information"]');
-    expect(infoButton).toBeInTheDocument();
-
-    // Click the info button
-    if (infoButton) {
-      fireEvent.click(infoButton);
+    // Click the image to open fullscreen
+    if (imgElement) {
+      fireEvent.click(imgElement);
     }
 
-    // The overlay should now be visible
-    const overlay = container.querySelector('.img-gen-overlay');
-    expect(overlay).toBeInTheDocument();
+    // The fullscreen modal backdrop should now be visible
+    const backdrop = document.querySelector('.imggen-backdrop');
+    expect(backdrop).toBeInTheDocument();
   });
 
   // Test for the delete button and confirmation overlay
@@ -112,15 +91,14 @@ describe('ImgGenDisplay Component', () => {
       />
     );
 
-    // First click the info button to open the overlay
-    const infoButton = container.querySelector('[aria-label="Image information"]');
-    expect(infoButton).toBeInTheDocument();
-    if (infoButton) {
-      fireEvent.click(infoButton);
+    // First click the image to open the fullscreen modal
+    const imgElement = container.querySelector('[data-testid="mock-img-file"]');
+    if (imgElement) {
+      fireEvent.click(imgElement);
     }
-
-    // Now find the delete button (✕) which is only visible when overlay is open
-    const deleteButton = container.querySelector('[aria-label="Delete image"]');
+    
+    // Now find the delete button which is visible in the fullscreen modal
+    const deleteButton = document.querySelector('[aria-label="Delete image"]');
     expect(deleteButton).toBeInTheDocument();
 
     // Click the delete button
@@ -129,7 +107,7 @@ describe('ImgGenDisplay Component', () => {
     }
 
     // The delete confirmation overlay should now be visible
-    const confirmationOverlay = container.querySelector('.delete-confirmation-overlay');
+    const confirmationOverlay = document.querySelector('.delete-confirmation-overlay');
     expect(confirmationOverlay).toBeInTheDocument();
 
     // It should contain confirmation text
@@ -166,11 +144,10 @@ describe('ImgGenDisplay Component', () => {
       />
     );
 
-    // First click the info button to open the overlay
-    const infoButton = container.querySelector('[aria-label="Image information"]');
-    expect(infoButton).toBeInTheDocument();
-    if (infoButton) {
-      fireEvent.click(infoButton);
+    // First click the image to open the fullscreen modal
+    const imgElement = container.querySelector('[data-testid="mock-img-file"]');
+    if (imgElement) {
+      fireEvent.click(imgElement);
     }
 
     // Find and click the delete button

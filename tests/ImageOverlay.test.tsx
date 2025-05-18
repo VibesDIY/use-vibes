@@ -8,12 +8,14 @@ import { defaultClasses } from '../src/utils/style-utils';
 
 describe('ImageOverlay Component', () => {
   // Mock functions for all the callbacks
-  const mockToggleOverlay = vi.fn();
   const mockPrevVersion = vi.fn();
   const mockNextVersion = vi.fn();
   const mockRefresh = vi.fn();
   const mockSetEditedPrompt = vi.fn();
   const mockHandlePromptEdit = vi.fn();
+  const mockToggleDeleteConfirm = vi.fn();
+  const mockHandleDeleteConfirm = vi.fn();
+  const mockHandleCancelDelete = vi.fn();
 
   // Default props to be used in most tests
   const defaultProps = {
@@ -21,7 +23,10 @@ describe('ImageOverlay Component', () => {
     editedPrompt: null,
     setEditedPrompt: mockSetEditedPrompt,
     handlePromptEdit: mockHandlePromptEdit,
-    toggleOverlay: mockToggleOverlay,
+    toggleDeleteConfirm: mockToggleDeleteConfirm,
+    isDeleteConfirmOpen: false,
+    handleDeleteConfirm: mockHandleDeleteConfirm,
+    handleCancelDelete: mockHandleCancelDelete,
     handlePrevVersion: mockPrevVersion,
     handleNextVersion: mockNextVersion,
     handleRefresh: mockRefresh,
@@ -62,14 +67,6 @@ describe('ImageOverlay Component', () => {
   // B. Controls Visible Tests (showControls = true, default)
   //---------------------------------------------------------------
   describe('Controls Visible (default)', () => {
-    it('shows info button that triggers toggleOverlay when clicked', () => {
-      render(<ImageOverlay {...defaultProps} />);
-      const infoButton = screen.getByRole('button', { name: /close info panel/i });
-      expect(infoButton).toBeInTheDocument();
-
-      fireEvent.click(infoButton);
-      expect(mockToggleOverlay).toHaveBeenCalledTimes(1);
-    });
 
     it('shows refresh button that triggers handleRefresh when clicked', () => {
       render(<ImageOverlay {...defaultProps} />);
@@ -130,19 +127,15 @@ describe('ImageOverlay Component', () => {
       expect(mockNextVersion).toHaveBeenCalledTimes(1);
     });
 
-    it('applies proper classes to buttons', () => {
+    it('adds the correct CSS classes to the buttons', () => {
       const { container } = render(
         <ImageOverlay {...defaultProps} totalVersions={3} versionIndex={1} />
       );
 
       const buttons = container.querySelectorAll('button');
       buttons.forEach((button) => {
-        // All buttons should have the imggen-button class (except info button with special class)
-        if (button.getAttribute('aria-label') !== 'Close info panel') {
-          expect(button).toHaveClass('imggen-button');
-        } else {
-          expect(button).toHaveClass('imggen-info-button');
-        }
+        // All buttons should have the imggen-button class
+        expect(button).toHaveClass('imggen-button');
       });
     });
   });
@@ -245,10 +238,13 @@ describe('ImageOverlay Component', () => {
     it('provides proper aria labels for interactive elements', () => {
       render(<ImageOverlay {...defaultProps} totalVersions={3} versionIndex={1} />);
 
-      expect(screen.getByRole('button', { name: 'Close info panel' })).toBeInTheDocument();
+      // Version controls
       expect(screen.getByRole('button', { name: 'Previous version' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Next version' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Generate new version' })).toBeInTheDocument();
+      
+      // Delete control (should be available when enableDelete is true)
+      expect(screen.getByRole('button', { name: 'Delete image' })).toBeInTheDocument();
     });
 
     it('includes aria-label for input in edit mode', () => {
