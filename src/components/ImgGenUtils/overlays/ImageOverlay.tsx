@@ -65,10 +65,13 @@ export function ImageOverlay({
 
   // Normal overlay content
   return (
-    <div className={combineClasses('imggen-overlay', classes.overlay)}>
-      {/* Progress bar when generation is in progress */}
+    <div className={combineClasses('imggen-overlay', classes.overlay)} style={{ position: 'relative' }}>
+      {/* Progress bar for generation progress */}
       {progress < 100 && (
-        <div className="imggen-progress" style={{ width: `${progress}%` }} />
+        <div 
+          className="imggen-progress"
+          style={{ width: `${progress}%` }}
+        />
       )}
       {/* Top row with prompt only */}
       <div className="imggen-top-line">
