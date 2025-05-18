@@ -3,7 +3,6 @@ import { ImgFile } from 'use-fireproof';
 import { ImgGenError } from './ImgGenError';
 import { ImgGenDisplayProps } from './types';
 import { getCurrentFileKey, getPromptInfo, getVersionInfo } from './ImgGenDisplayUtils';
-import { DeleteConfirmationOverlay } from './overlays/DeleteConfirmationOverlay';
 import { ImageOverlay } from './overlays/ImageOverlay';
 import { combineClasses, defaultClasses } from '../../utils/style-utils';
 import { createPortal } from 'react-dom';
@@ -176,13 +175,17 @@ export function ImgGenDisplay({
               editedPrompt={editedPrompt}
               setEditedPrompt={setEditedPrompt}
               handlePromptEdit={handlePromptEdit}
-              handleDelete={toggleDeleteConfirm}
+              toggleDeleteConfirm={toggleDeleteConfirm}
+              isDeleteConfirmOpen={isDeleteConfirmOpen}
+              handleDeleteConfirm={handleDeleteConfirm}
+              handleCancelDelete={handleCancelDelete}
               handlePrevVersion={handlePrevVersion}
               handleNextVersion={handleNextVersion}
               handleRefresh={handleRefresh}
               versionIndex={versionIndex}
               totalVersions={totalVersions}
               classes={classes}
+              enableDelete={true}
             />
           </figure>
         </div>,
@@ -224,21 +227,17 @@ export function ImgGenDisplay({
           editedPrompt={editedPrompt}
           setEditedPrompt={setEditedPrompt}
           handlePromptEdit={handlePromptEdit}
-          handleDelete={toggleDeleteConfirm}
+          toggleDeleteConfirm={toggleDeleteConfirm}
+          isDeleteConfirmOpen={isDeleteConfirmOpen}
+          handleDeleteConfirm={handleDeleteConfirm}
+          handleCancelDelete={handleCancelDelete}
           handlePrevVersion={handlePrevVersion}
           handleNextVersion={handleNextVersion}
           handleRefresh={handleRefresh}
           versionIndex={versionIndex}
           totalVersions={totalVersions}
           classes={classes}
-        />
-      )}
-
-      {/* Delete confirmation overlay */}
-      {isDeleteConfirmOpen && (
-        <DeleteConfirmationOverlay
-          handleDeleteConfirm={handleDeleteConfirm}
-          handleCancelDelete={handleCancelDelete}
+          enableDelete={false}
         />
       )}
 

@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { combineClasses, defaultClasses, ImgGenClasses } from '../../../utils/style-utils';
+import { DeleteConfirmationOverlay } from './DeleteConfirmationOverlay';
 
 interface ImageOverlayProps {
   promptText: string;
@@ -8,8 +9,12 @@ interface ImageOverlayProps {
   setEditedPrompt: (prompt: string | null) => void; // Set to null to exit edit mode
   // eslint-disable-next-line no-unused-vars
   handlePromptEdit: (prompt: string) => void;
-  /** Triggered when delete button is clicked */
-  handleDelete: () => void;
+  /** Toggle state of delete confirmation */
+  toggleDeleteConfirm: () => void;
+  /** Current state of delete confirmation */
+  isDeleteConfirmOpen: boolean;
+  handleDeleteConfirm: () => void;
+  handleCancelDelete: () => void;
   handlePrevVersion: () => void;
   handleNextVersion: () => void;
   handleRefresh: () => void;
@@ -21,6 +26,8 @@ interface ImageOverlayProps {
   showControls?: boolean;
   /** Optional status text to display (e.g. "Generating...") */
   statusText?: string;
+  /** Enable the delete controls (only true in fullscreen modal) */
+  enableDelete?: boolean;
 }
 
 export function ImageOverlay({
@@ -28,7 +35,10 @@ export function ImageOverlay({
   editedPrompt,
   setEditedPrompt,
   handlePromptEdit,
-  handleDelete,
+  toggleDeleteConfirm,
+  isDeleteConfirmOpen,
+  handleDeleteConfirm,
+  handleCancelDelete,
   handlePrevVersion,
   handleNextVersion,
   handleRefresh,
@@ -37,7 +47,20 @@ export function ImageOverlay({
   classes = defaultClasses,
   showControls = true,
   statusText,
+  enableDelete = true,
 }: ImageOverlayProps) {
+  if (isDeleteConfirmOpen && enableDelete) {
+    return (
+      <div className={combineClasses('imggen-overlay', classes.overlay)}>
+        <DeleteConfirmationOverlay
+          handleDeleteConfirm={handleDeleteConfirm}
+          handleCancelDelete={handleCancelDelete}
+        />
+      </div>
+    );
+  }
+
+  // Normal overlay content
   return (
     <div className={combineClasses('imggen-overlay', classes.overlay)}>
       {/* Top row with prompt only */}
@@ -82,15 +105,17 @@ export function ImageOverlay({
         {showControls ? (
           <>
             {/* Left side: Delete button */}
-            <div>
-              <button
-                aria-label="Delete image"
-                onClick={handleDelete}
-                className={combineClasses('imggen-delete-button', classes.button)}
-              >
-                ✕
-              </button>
-            </div>
+            {enableDelete && (
+              <div>
+                <button
+                  aria-label="Delete image"
+                  onClick={toggleDeleteConfirm}
+                  className={combineClasses('imggen-delete-button', classes.button)}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             {/* Right side: Version controls */}
             <div className="imggen-control-group">

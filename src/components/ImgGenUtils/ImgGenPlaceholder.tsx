@@ -118,7 +118,10 @@ export function ImgGenPlaceholder({
           editedPrompt={null}
           setEditedPrompt={() => {}}
           handlePromptEdit={() => {}}
-          handleDelete={() => {}}
+          toggleDeleteConfirm={() => {}}
+          isDeleteConfirmOpen={false}
+          handleDeleteConfirm={() => {}}
+          handleCancelDelete={() => {}}
           handlePrevVersion={() => {}}
           handleNextVersion={() => {}}
           handleRefresh={() => {}}
@@ -127,6 +130,7 @@ export function ImgGenPlaceholder({
           classes={classes}
           showControls={false}
           statusText="Generating..."
+          enableDelete={false}
         />
       )}
     </div>
