@@ -118,7 +118,7 @@ export function ImgGenPlaceholder({
           editedPrompt={null}
           setEditedPrompt={() => {}}
           handlePromptEdit={() => {}}
-          toggleOverlay={() => {}}
+          handleDelete={() => {}}
           handlePrevVersion={() => {}}
           handleNextVersion={() => {}}
           handleRefresh={() => {}}

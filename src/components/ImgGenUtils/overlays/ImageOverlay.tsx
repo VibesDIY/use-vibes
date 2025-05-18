@@ -8,7 +8,8 @@ interface ImageOverlayProps {
   setEditedPrompt: (prompt: string | null) => void; // Set to null to exit edit mode
   // eslint-disable-next-line no-unused-vars
   handlePromptEdit: (prompt: string) => void;
-  toggleOverlay: () => void;
+  /** Triggered when delete button is clicked */
+  handleDelete: () => void;
   handlePrevVersion: () => void;
   handleNextVersion: () => void;
   handleRefresh: () => void;
@@ -27,7 +28,7 @@ export function ImageOverlay({
   editedPrompt,
   setEditedPrompt,
   handlePromptEdit,
-  toggleOverlay,
+  handleDelete,
   handlePrevVersion,
   handleNextVersion,
   handleRefresh,
@@ -80,15 +81,14 @@ export function ImageOverlay({
       <div className={combineClasses('imggen-controls', classes.controls)}>
         {showControls ? (
           <>
-            {/* Left side: Info button */}
+            {/* Left side: Delete button */}
             <div>
               <button
-                aria-label="Close info panel"
-                onClick={toggleOverlay}
-                className={combineClasses('imggen-info-button', classes.button)}
-                style={{ color: 'var(--imggen-text-color)' }}
+                aria-label="Delete image"
+                onClick={handleDelete}
+                className={combineClasses('imggen-delete-button', classes.button)}
               >
-                ⓘ
+                ✕
               </button>
             </div>
 

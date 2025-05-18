@@ -151,7 +151,9 @@ export function ImgGenDisplay({
 
   // --- Fullscreen backdrop state (simple) ---
   const [isFullscreen, setIsFullscreen] = React.useState(false);
-  const openFullscreen = () => setIsFullscreen(true);
+  const openFullscreen = () => {
+    setIsFullscreen(true);
+  };
   const closeFullscreen = () => setIsFullscreen(false);
 
   // Get prompt text early (moved before portal)
@@ -174,7 +176,7 @@ export function ImgGenDisplay({
               editedPrompt={editedPrompt}
               setEditedPrompt={setEditedPrompt}
               handlePromptEdit={handlePromptEdit}
-              toggleOverlay={closeFullscreen}
+              handleDelete={toggleDeleteConfirm}
               handlePrevVersion={handlePrevVersion}
               handleNextVersion={handleNextVersion}
               handleRefresh={handleRefresh}
@@ -215,29 +217,6 @@ export function ImgGenDisplay({
         onClick={openFullscreen}
       />
 
-      {/* Info button - visible when overlay is closed and showOverlay is true */}
-      {!isOverlayOpen && showOverlay && (
-        <button
-          aria-label="Image information"
-          onClick={toggleOverlay}
-          className={combineClasses('imggen-info-button', classes.button)}
-        >
-          ⓘ
-        </button>
-      )}
-
-      {/* Delete button - visible when the overlay is open */}
-      {isOverlayOpen && (
-        <button
-          aria-label="Delete image"
-          onClick={toggleDeleteConfirm}
-          className={combineClasses('imggen-delete-button', classes.button)}
-          title="Delete this image?"
-        >
-          ✕
-        </button>
-      )}
-
       {/* Image Overlay - shows prompt and controls */}
       {isOverlayOpen && showOverlay && (
         <ImageOverlay
@@ -245,7 +224,7 @@ export function ImgGenDisplay({
           editedPrompt={editedPrompt}
           setEditedPrompt={setEditedPrompt}
           handlePromptEdit={handlePromptEdit}
-          toggleOverlay={toggleOverlay}
+          handleDelete={toggleDeleteConfirm}
           handlePrevVersion={handlePrevVersion}
           handleNextVersion={handleNextVersion}
           handleRefresh={handleRefresh}
