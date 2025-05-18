@@ -15,14 +15,14 @@ interface ControlsBarProps {
   showControls?: boolean;
   /** Optional status text to display (e.g. "Generating...") */
   statusText?: string;
-  /** Whether this overlay is inside the fullscreen modal (enables delete) */
-  insideModal?: boolean;
   /** Edited prompt for highlighting refresh button */
   editedPrompt: string | null;
   /** Original prompt text for comparison */
   promptText: string;
   /** Progress value for generation (0-100), shows progress bar when < 100 */
   progress?: number;
+  /** Show delete button (defaults to true) */
+  showDelete?: boolean;
 }
 
 /**
@@ -38,10 +38,10 @@ export function ControlsBar({
   classes = defaultClasses,
   showControls = true,
   statusText,
-  insideModal = true,
   editedPrompt,
   promptText,
   progress = 100,
+  showDelete = true,
 }: ControlsBarProps) {
   return (
     <>
@@ -65,17 +65,18 @@ export function ControlsBar({
         {showControls ? (
           <>
             {/* Left side: Delete button */}
-            {insideModal && (
-              <div>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              {showDelete && (
                 <button
                   aria-label="Delete image"
                   onClick={toggleDeleteConfirm}
                   className={combineClasses('imggen-button imggen-delete-button', classes.button)}
+                  style={{ position: 'static', width: 'var(--imggen-button-size)', height: 'var(--imggen-button-size)' }}
                 >
                   ✕
                 </button>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Right side: Version controls */}
             <div className="imggen-control-group">

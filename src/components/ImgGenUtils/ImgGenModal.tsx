@@ -100,7 +100,7 @@ export function ImgGenModal({
           totalVersions={totalVersions}
           progress={progress}
           classes={classes}
-          insideModal={true}
+          showDelete={true}
         />
       </figure>
     </div>,

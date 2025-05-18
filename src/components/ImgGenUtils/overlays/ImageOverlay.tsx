@@ -28,10 +28,10 @@ interface ImageOverlayProps {
   showControls?: boolean;
   /** Optional status text to display (e.g. "Generating...") */
   statusText?: string;
-  /** Whether this overlay is inside the fullscreen modal (enables delete) */
-  insideModal?: boolean;
   /** Progress value for generation (0-100), shows progress bar when < 100 */
   progress?: number;
+  /** Show delete button (defaults to true) */
+  showDelete?: boolean;
 }
 
 export function ImageOverlay({
@@ -51,10 +51,10 @@ export function ImageOverlay({
   classes = defaultClasses,
   showControls = true,
   statusText,
-  insideModal = true,
   progress = 100,
+  showDelete = true,
 }: ImageOverlayProps) {
-  if (isDeleteConfirmOpen && insideModal) {
+  if (isDeleteConfirmOpen && showDelete) {
     return (
       <div className={combineClasses('imggen-overlay', classes.overlay)}>
         <DeleteConfirmationOverlay
@@ -88,7 +88,7 @@ export function ImageOverlay({
         classes={classes}
         showControls={showControls}
         statusText={statusText}
-        insideModal={insideModal}
+        showDelete={showDelete}
         editedPrompt={editedPrompt}
         promptText={promptText}
         progress={progress}

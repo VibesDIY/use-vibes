@@ -130,7 +130,7 @@ export function ImgGenPlaceholder({
           classes={classes}
           showControls={false}
           statusText="Generating..."
-          insideModal={false}
+          showDelete={false}
         />
       )}
     </div>

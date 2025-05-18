@@ -20,8 +20,8 @@ describe('ControlsBar Component', () => {
     vi.clearAllMocks();
   });
 
-  it('should display delete button when insideModal is true', () => {
-    const { getByLabelText } = render(<ControlsBar {...defaultProps} insideModal={true} />);
+  it('should display delete button when showDelete is true', () => {
+    const { getByLabelText } = render(<ControlsBar {...defaultProps} showDelete={true} />);
     
     const deleteButton = getByLabelText('Delete image');
     expect(deleteButton).toBeInTheDocument();
@@ -33,8 +33,8 @@ describe('ControlsBar Component', () => {
     expect(defaultProps.toggleDeleteConfirm).toHaveBeenCalled();
   });
   
-  it('should not display delete button when insideModal is false', () => {
-    const { queryByLabelText } = render(<ControlsBar {...defaultProps} insideModal={false} />);
+  it('should not display delete button when showDelete is false', () => {
+    const { queryByLabelText } = render(<ControlsBar {...defaultProps} showDelete={false} />);
     
     const deleteButton = queryByLabelText('Delete image');
     expect(deleteButton).not.toBeInTheDocument();
