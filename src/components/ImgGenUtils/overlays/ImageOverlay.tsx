@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { combineClasses, defaultClasses, ImgGenClasses } from '../../../utils/style-utils';
 import { DeleteConfirmationOverlay } from './DeleteConfirmationOverlay';
+import { PromptBar } from '../../../components/PromptBar';
+import { ControlsBar } from '../../../components/ControlsBar';
 
 interface ImageOverlayProps {
   promptText: string;
@@ -66,126 +68,31 @@ export function ImageOverlay({
   // Normal overlay content
   return (
     <div className={combineClasses('imggen-overlay', classes.overlay)} style={{ position: 'relative' }}>
-      {/* Progress bar for generation progress - explicitly positioned at the top */}
-      {progress < 100 && (
-        <div 
-          className="imggen-progress"
-          style={{
-            width: `${progress}%`,
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            height: 'var(--imggen-progress-height)',
-            zIndex: 20
-          }}
-        />
-      )}
-      {/* Top row with prompt only */}
-      <div className="imggen-top-line">
-        <div className={combineClasses('imggen-prompt', classes.prompt)}>
-          {editedPrompt !== null ? (
-            <input
-              type="text"
-              value={editedPrompt}
-              onChange={(e) => setEditedPrompt(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handlePromptEdit(editedPrompt);
-                } else if (e.key === 'Escape') {
-                  setEditedPrompt(null); // Exit edit mode
-                }
-              }}
-              onBlur={() => setEditedPrompt(null)} // Exit edit mode
-              autoFocus
-              className="imggen-prompt-input imggen-edit-mode"
-              aria-label="Edit prompt"
-            />
-          ) : (
-            <div
-              onClick={(e) => {
-                if (e.detail === 2) {
-                  setEditedPrompt(promptText);
-                }
-              }}
-              className="imggen-prompt-text imggen-truncate"
-              title="Double-click to edit prompt"
-            >
-              {promptText}
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Prompt bar component */}
+      <PromptBar
+        promptText={promptText}
+        editedPrompt={editedPrompt}
+        setEditedPrompt={setEditedPrompt}
+        handlePromptEdit={handlePromptEdit}
+        classes={classes}
+      />
 
-      {/* Bottom row with controls or status */}
-      <div className={combineClasses('imggen-controls', classes.controls)}>
-        {showControls ? (
-          <>
-            {/* Left side: Delete button */}
-            {insideModal && (
-              <div>
-                <button
-                  aria-label="Delete image"
-                  onClick={toggleDeleteConfirm}
-                  className={combineClasses('imggen-button imggen-delete-button', classes.button)}
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-
-            {/* Right side: Version controls */}
-            <div className="imggen-control-group">
-              {/* Previous version button - only when multiple versions */}
-              {totalVersions > 1 && (
-                <button
-                  aria-label="Previous version"
-                  disabled={versionIndex === 0}
-                  onClick={handlePrevVersion}
-                  className={combineClasses('imggen-button', classes.button)}
-                >
-                  ◀︎
-                </button>
-              )}
-
-              {/* Version indicator - only display if we have versions */}
-              {totalVersions > 1 && (
-                <span className="imggen-version-indicator version-indicator" aria-live="polite">
-                  {versionIndex + 1} / {totalVersions}
-                </span>
-              )}
-
-              {/* Next version button - only when multiple versions */}
-              {totalVersions > 1 && (
-                <button
-                  aria-label="Next version"
-                  disabled={versionIndex >= totalVersions - 1}
-                  onClick={handleNextVersion}
-                  className={combineClasses('imggen-button', classes.button)}
-                >
-                  ▶︎
-                </button>
-              )}
-
-              {/* Refresh button - always visible */}
-              <button
-                aria-label="Generate new version"
-                onClick={handleRefresh}
-                className={combineClasses(
-                  'imggen-button',
-                  classes.button,
-                  editedPrompt !== null && editedPrompt.trim() !== promptText ? 'imggen-button-highlight' : ''
-                )}
-              >
-                ⟳
-              </button>
-            </div>
-          </>
-        ) : statusText ? (
-          // Status text centered when controls are hidden
-          <div className="imggen-status-text">{statusText}</div>
-        ) : null}
-      </div>
+      {/* Controls bar component */}
+      <ControlsBar
+        toggleDeleteConfirm={toggleDeleteConfirm}
+        handlePrevVersion={handlePrevVersion}
+        handleNextVersion={handleNextVersion}
+        handleRefresh={handleRefresh}
+        versionIndex={versionIndex}
+        totalVersions={totalVersions}
+        classes={classes}
+        showControls={showControls}
+        statusText={statusText}
+        insideModal={insideModal}
+        editedPrompt={editedPrompt}
+        promptText={promptText}
+        progress={progress}
+      />
     </div>
   );
 }

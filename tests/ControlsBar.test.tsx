@@ -1,0 +1,145 @@
+import { describe, it, expect, vi } from 'vitest';
+import React from 'react';
+import { render, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import { ControlsBar } from '../src/components/ControlsBar';
+
+describe('ControlsBar Component', () => {
+  const defaultProps = {
+    toggleDeleteConfirm: vi.fn(),
+    handlePrevVersion: vi.fn(),
+    handleNextVersion: vi.fn(),
+    handleRefresh: vi.fn(),
+    versionIndex: 1,
+    totalVersions: 3,
+    editedPrompt: null,
+    promptText: 'Test prompt',
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should display delete button when insideModal is true', () => {
+    const { getByLabelText } = render(<ControlsBar {...defaultProps} insideModal={true} />);
+    
+    const deleteButton = getByLabelText('Delete image');
+    expect(deleteButton).toBeInTheDocument();
+    expect(deleteButton).toHaveClass('imggen-button');
+    expect(deleteButton).toHaveClass('imggen-delete-button');
+    
+    // Test delete button click
+    fireEvent.click(deleteButton);
+    expect(defaultProps.toggleDeleteConfirm).toHaveBeenCalled();
+  });
+  
+  it('should not display delete button when insideModal is false', () => {
+    const { queryByLabelText } = render(<ControlsBar {...defaultProps} insideModal={false} />);
+    
+    const deleteButton = queryByLabelText('Delete image');
+    expect(deleteButton).not.toBeInTheDocument();
+  });
+  
+  it('should display version navigation controls when totalVersions > 1', () => {
+    const { getByLabelText, getByText } = render(<ControlsBar {...defaultProps} />);
+    
+    // Test previous version button
+    const prevButton = getByLabelText('Previous version');
+    expect(prevButton).toBeInTheDocument();
+    fireEvent.click(prevButton);
+    expect(defaultProps.handlePrevVersion).toHaveBeenCalled();
+    
+    // Test next version button
+    const nextButton = getByLabelText('Next version');
+    expect(nextButton).toBeInTheDocument();
+    fireEvent.click(nextButton);
+    expect(defaultProps.handleNextVersion).toHaveBeenCalled();
+    
+    // Test version indicator
+    const versionIndicator = getByText('2 / 3');
+    expect(versionIndicator).toBeInTheDocument();
+    expect(versionIndicator).toHaveClass('version-indicator');
+  });
+  
+  it('should not display version navigation when totalVersions <= 1', () => {
+    const { queryByLabelText, queryByText } = render(<ControlsBar {...defaultProps} totalVersions={1} />);
+    
+    // Version navigation should not be present
+    expect(queryByLabelText('Previous version')).not.toBeInTheDocument();
+    expect(queryByLabelText('Next version')).not.toBeInTheDocument();
+    expect(queryByText('1 / 1')).not.toBeInTheDocument();
+  });
+  
+  it('should disable previous button when on first version', () => {
+    const { getByLabelText } = render(<ControlsBar {...defaultProps} versionIndex={0} />);
+    
+    const prevButton = getByLabelText('Previous version');
+    expect(prevButton).toBeDisabled();
+  });
+  
+  it('should disable next button when on last version', () => {
+    const { getByLabelText } = render(<ControlsBar {...defaultProps} versionIndex={2} />);
+    
+    const nextButton = getByLabelText('Next version');
+    expect(nextButton).toBeDisabled();
+  });
+  
+  it('should always display refresh button', () => {
+    const { getByLabelText } = render(<ControlsBar {...defaultProps} />);
+    
+    const refreshButton = getByLabelText('Generate new version');
+    expect(refreshButton).toBeInTheDocument();
+    
+    // Test refresh button click
+    fireEvent.click(refreshButton);
+    expect(defaultProps.handleRefresh).toHaveBeenCalled();
+  });
+  
+  it('should highlight refresh button when prompt has been edited', () => {
+    const editedProps = {
+      ...defaultProps,
+      editedPrompt: 'Edited prompt',
+      promptText: 'Original prompt',
+    };
+    
+    const { getByLabelText } = render(<ControlsBar {...editedProps} />);
+    
+    const refreshButton = getByLabelText('Generate new version');
+    expect(refreshButton).toHaveClass('imggen-button-highlight');
+  });
+  
+  it('should display progress bar when progress < 100', () => {
+    const { container } = render(<ControlsBar {...defaultProps} progress={50} />);
+    
+    const progressBar = container.querySelector('.imggen-progress');
+    expect(progressBar).toBeInTheDocument();
+    expect(progressBar).toHaveStyle('width: 50%');
+  });
+  
+  it('should not display progress bar when progress is 100', () => {
+    const { container } = render(<ControlsBar {...defaultProps} progress={100} />);
+    
+    const progressBar = container.querySelector('.imggen-progress');
+    expect(progressBar).not.toBeInTheDocument();
+  });
+  
+  it('should display status text when showControls is false and statusText is provided', () => {
+    const { getByText } = render(
+      <ControlsBar {...defaultProps} showControls={false} statusText="Generating..." />
+    );
+    
+    const statusElement = getByText('Generating...');
+    expect(statusElement).toBeInTheDocument();
+    expect(statusElement).toHaveClass('imggen-status-text');
+  });
+  
+  it('should not display controls when showControls is false', () => {
+    const { queryByLabelText } = render(<ControlsBar {...defaultProps} showControls={false} />);
+    
+    // No buttons should be visible
+    expect(queryByLabelText('Delete image')).not.toBeInTheDocument();
+    expect(queryByLabelText('Previous version')).not.toBeInTheDocument();
+    expect(queryByLabelText('Next version')).not.toBeInTheDocument();
+    expect(queryByLabelText('Generate new version')).not.toBeInTheDocument();
+  });
+});
