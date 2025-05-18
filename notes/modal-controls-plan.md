@@ -118,3 +118,91 @@ Result: `ImageOverlay` shrinks and prompt code moves out of the way.
 | Progress logic (modal regen) | `ControlsBar` background |
 
 Follow this roadmap sequentially to arrive at the cleaner, component-focused architecture without breaking the existing public API or user experience.
+
+## Evening Cleanup Plan (One-Night Version)
+
+### "No-Regression" Cleanup Roadmap  
+Objective: ship tidier code **without breaking** existing behaviour.  
+Time-box: one evening (≈ 6 h).  
+Strategy: refactor in *thin, test-backed slices*—each slice compiles, runs, and keeps current UI/UX intact.
+
+### 1 · Stabilise Baseline (30 min)
+
+1. `pnpm test` → all green (or document existing failures).  
+2. Commit **baseline** branch `cleanup/base-<date>` so you can bisect if needed.
+
+### 2 · Introduce New Leaf Components (PromptBar & ControlsBar) (1 h)
+
+1. **Copy, don't move** code from `ImageOverlay` into:  
+   • `src/components/PromptBar.tsx` – view *and* edit mode.  
+   • `src/components/ControlsBar.tsx` – full delete logic, version nav, regen, progress.  
+2. Export them and add *unit tests* that mount each in isolation.  
+   ```tsx
+   render(<PromptBar prompt="foo" … />)
+   expect(screen.getByText('foo')).toBeVisible()
+   ```  
+3. Ensure `ImageOverlay` continues to import **old JSX**; no behaviour change yet.
+
+Commit slice.
+
+### 3 · Refactor ImageOverlay to *use* New Parts (1 h)
+
+1. Swap prompt & controls markup for `<PromptBar … />` + `<ControlsBar … />`.  
+2. Pass same props that were previously inline (no new state plumbing).  
+3. Delete now-unused chunks inside `ImageOverlay`.  
+4. Run tests + manual smoke (generating → modal → delete etc.).
+
+Commit slice.
+
+### 4 · Extract ImgGenModal (1.5 h)
+
+1. Move backdrop + figure markup from `ImgGenDisplay` into **new** `ImgGenModal.tsx`.  
+2. Inside modal, keep `<PromptBar>` & `<ControlsBar>`.  
+3. `ImgGenDisplay` now only toggles `showModal` and passes required props.  
+4. Keep *old* generating overlay path untouched.  
+5. Update tests:  
+   * modal opens & closes  
+   * controls still fire callbacks.
+
+Commit slice.
+
+### 5 · Simplify Props (insideModal → delete) (45 min)
+
+1. Because delete now lives only in modal, nuke `insideModal` / `enableDelete`.  
+2. Fix types & snapshots.  
+3. Grep for the old prop names to be sure they're gone.  
+4. CI tests green.
+
+Commit slice.
+
+### 6 · Generating State Cleanup (45 min)
+
+1. Replace overlay-based generating view with simple `<div class="imggen-placeholder">`.  
+2. Re-use `<PromptBar>` for prompt + progress.  
+3. Remove `ImgGenPlaceholder.tsx` entirely.  
+4. Tests: generating state shows progress, no regressions.
+
+Commit slice.
+
+### 7 · CSS Hygiene (30 min)
+
+1. Delete unused classes: `.imggen-info-button`, old overlay bits.  
+2. Co-locate new SCSS per component, keep variables in `ImgGen.css`.  
+3. Run `pnpm lint:css`.
+
+Commit slice.
+
+### 8 · Final QA + Docs (30 min)
+
+1. Full manual flow (generate → expand → edit prompt → regen → delete).  
+2. Cross-browser spot-check (Chrome/Safari).  
+3. Update `modal-controls.md` to reflect final file names.  
+4. Merge branch to `main`.
+
+### Ordering Rationale
+
+• Each slice is **vertical**—touches JS, TS types, tests, and CSS only where needed, so nothing half-wired gets merged.  
+• Tests at every step prevent regressions.  
+• By keeping old components until the very end, the visible UI never breaks.
+
+Tackle slices 1-3 tonight; you'll already have cleaner, componentised internals without behaviour change—good enough to demo. If time allows, push into slices 4-5 to eliminate the last confusing props.
