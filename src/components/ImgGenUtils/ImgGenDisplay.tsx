@@ -2,27 +2,30 @@ import * as React from 'react';
 import { ImgFile } from 'use-fireproof';
 import { ImgGenError } from './ImgGenError';
 import { ImgGenDisplayProps } from './types';
-import { getCurrentFileKey, getPromptInfo, getVersionInfo } from './ImgGenDisplayUtils';
-import { ImageOverlay } from './overlays/ImageOverlay';
 import { combineClasses, defaultClasses } from '../../utils/style-utils';
 import { createPortal } from 'react-dom';
+import { getCurrentFileKey, getPromptInfo, getVersionInfo } from './ImgGenDisplayUtils';
+import { ImageOverlay } from './overlays/ImageOverlay';
 
 // Component for displaying the generated image
 export function ImgGenDisplay({
   document,
   className,
   alt,
-  showOverlay = true,
   onDelete,
   onRefresh,
   onPromptEdit,
   classes = defaultClasses,
 }: ImgGenDisplayProps) {
-  const [isOverlayOpen, setIsOverlayOpen] = React.useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = React.useState(false);
 
   // Use null to indicate not editing, or string for edit mode
   const [editedPrompt, setEditedPrompt] = React.useState<string | null>(null);
+
+  // --- Fullscreen backdrop state ---
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const openFullscreen = () => setIsFullscreen(true);
+  const closeFullscreen = () => setIsFullscreen(false);
 
   // Get version information directly at render time
   const { versions, currentVersion } = getVersionInfo(document);
@@ -53,65 +56,69 @@ export function ImgGenDisplay({
   // We now use getPromptInfo directly at render time as a pure function
 
   // Navigation handlers
-  const handlePrevVersion = () => {
+  function handlePrevVersion() {
     if (versionIndex > 0) {
       setVersionIndex(versionIndex - 1);
       // Exit edit mode when changing versions
       setEditedPrompt(null);
     }
-  };
+  }
 
-  const handleNextVersion = () => {
+  function handleNextVersion() {
     if (versionIndex < totalVersions - 1) {
       setVersionIndex(versionIndex + 1);
       // Exit edit mode when changing versions
       setEditedPrompt(null);
     }
-  };
+  }
 
-  // Keyboard handler for escape key only
+  // ESC handling while fullscreen
   React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOverlayOpen) return;
-
+    const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (isDeleteConfirmOpen) {
           handleCancelDelete();
         } else {
-          toggleOverlay();
+          closeFullscreen();
         }
       }
     };
+    if (isFullscreen) {
+      window.addEventListener('keydown', handleEsc);
+      return () => window.removeEventListener('keydown', handleEsc);
+    }
+  }, [isFullscreen, isDeleteConfirmOpen]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOverlayOpen, isDeleteConfirmOpen]);
+  // Determine which file to use - either the versioned file or the legacy 'image' file
+  const currentFile: File | undefined =
+    fileKey && document._files
+      ? (document._files[fileKey] as File)
+      : (document._files?.image as File);
 
-  // Toggle overlay visibility
-  const toggleOverlay = () => {
-    setIsOverlayOpen(!isOverlayOpen);
-  };
+  // Get prompt text early (moved before portal)
+  const promptInfo = getPromptInfo(document, versionIndex);
+  const promptText = promptInfo.currentPrompt || alt || 'Generated image';
 
   // Toggle delete confirmation
-  const toggleDeleteConfirm = () => {
-    setIsDeleteConfirmOpen(!isDeleteConfirmOpen);
-  };
+  function toggleDeleteConfirm() {
+    setIsDeleteConfirmOpen((prev) => !prev);
+  }
 
   // Handle delete confirmation
-  const handleDeleteConfirm = () => {
+  function handleDeleteConfirm() {
     if (onDelete) {
       onDelete(document._id);
     }
     setIsDeleteConfirmOpen(false);
-  };
+  }
 
   // Handle cancel delete
-  const handleCancelDelete = () => {
+  function handleCancelDelete() {
     setIsDeleteConfirmOpen(false);
-  };
+  }
 
   // Handle generating a new version
-  const handleRefresh = () => {
+  function handleRefresh() {
     const { currentPrompt } = getPromptInfo(document, versionIndex);
 
     if (editedPrompt !== null) {
@@ -129,10 +136,10 @@ export function ImgGenDisplay({
     }
 
     setEditedPrompt(null);
-  };
+  }
 
   // Handle prompt editing
-  const handlePromptEdit = (newPrompt: string) => {
+  function handlePromptEdit(newPrompt: string) {
     // Get the current prompt for comparison at the exact time of editing
     const { currentPrompt } = getPromptInfo(document, versionIndex);
 
@@ -140,30 +147,18 @@ export function ImgGenDisplay({
       onPromptEdit(document._id, newPrompt.trim());
     }
     setEditedPrompt(null); // Exit edit mode
-  };
-
-  // Determine which file to use - either the versioned file or the legacy 'image' file
-  const currentFile =
-    fileKey && document._files
-      ? (document._files[fileKey] as File)
-      : (document._files?.image as File);
-
-  // --- Fullscreen backdrop state (simple) ---
-  const [isFullscreen, setIsFullscreen] = React.useState(false);
-  const openFullscreen = () => {
-    setIsFullscreen(true);
-  };
-  const closeFullscreen = () => setIsFullscreen(false);
-
-  // Get prompt text early (moved before portal)
-  const promptInfo = getPromptInfo(document, versionIndex);
-  const promptText = promptInfo.currentPrompt || alt || 'Generated image';
+  }
 
   // Build portal element for fullscreen backdrop
+  const progress: number = (document as { progress?: number }).progress ?? 100;
   const fullscreenBackdrop = isFullscreen
     ? createPortal(
         <div className="imggen-backdrop" onClick={closeFullscreen} role="presentation">
           <figure className="imggen-full-wrapper" onClick={(e) => e.stopPropagation()}>
+            {/* Progress bar when generation not complete */}
+            {progress < 100 && (
+              <div className="imggen-progress" style={{ width: `${progress}%` }} />
+            )}
             <ImgFile
               file={currentFile}
               className="imggen-backdrop-image"
@@ -193,19 +188,6 @@ export function ImgGenDisplay({
       )
     : null;
 
-  // Handle Escape key to close fullscreen
-  React.useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        closeFullscreen();
-      }
-    };
-    if (isFullscreen) {
-      window.addEventListener('keydown', handleEsc);
-      return () => window.removeEventListener('keydown', handleEsc);
-    }
-  }, [isFullscreen]);
-
   if (!document._files || (!fileKey && !document._files.image)) {
     return <ImgGenError message="Missing image file" />;
   }
@@ -219,27 +201,6 @@ export function ImgGenDisplay({
         style={{ width: '100%', cursor: 'pointer' }}
         onClick={openFullscreen}
       />
-
-      {/* Image Overlay - shows prompt and controls */}
-      {isOverlayOpen && showOverlay && (
-        <ImageOverlay
-          promptText={promptText}
-          editedPrompt={editedPrompt}
-          setEditedPrompt={setEditedPrompt}
-          handlePromptEdit={handlePromptEdit}
-          toggleDeleteConfirm={toggleDeleteConfirm}
-          isDeleteConfirmOpen={isDeleteConfirmOpen}
-          handleDeleteConfirm={handleDeleteConfirm}
-          handleCancelDelete={handleCancelDelete}
-          handlePrevVersion={handlePrevVersion}
-          handleNextVersion={handleNextVersion}
-          handleRefresh={handleRefresh}
-          versionIndex={versionIndex}
-          totalVersions={totalVersions}
-          classes={classes}
-          enableDelete={false}
-        />
-      )}
 
       {fullscreenBackdrop}
     </div>
