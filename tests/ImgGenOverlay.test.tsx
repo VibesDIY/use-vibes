@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import React from 'react';
-import { render, fireEvent, screen } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 // Use vi.hoisted to define mocks that need to be referenced in vi.mock
@@ -42,13 +42,12 @@ describe('ImageOverlay Component', () => {
   });
 
   // Test that controls are properly displayed
-  it('should show proper controls and classes', () => {
+  it('should show proper controls and classes', async () => {
     const mockProps = {
       promptText: 'Test prompt',
       editedPrompt: null,
       setEditedPrompt: vi.fn(),
       handlePromptEdit: vi.fn(),
-      toggleDeleteConfirm: vi.fn(),
       isDeleteConfirmOpen: false,
       handleDeleteConfirm: vi.fn(),
       handleCancelDelete: vi.fn(),
@@ -58,7 +57,7 @@ describe('ImageOverlay Component', () => {
       versionIndex: 1,
       totalVersions: 3,
       showControls: true,
-      insideModal: true,
+      showDelete: true,
       progress: 100
     };
 
@@ -73,6 +72,19 @@ describe('ImageOverlay Component', () => {
     expect(deleteButton).toBeInTheDocument();
     expect(deleteButton).toHaveClass('imggen-button');
     expect(deleteButton).toHaveClass('imggen-delete-button');
+    
+    // In the actual implementation, the first click shows the confirmation, not triggers handleDeleteConfirm
+    // The handleDeleteConfirm is only called when the button is clicked while confirmation is showing
+    if (deleteButton) {
+      // First click just shows confirmation message
+      fireEvent.click(deleteButton);
+      
+      // Clicking again while confirmation is showing should call handleDeleteConfirm
+      // But we can't test this here as the internal state is managed by ControlsBar
+      // This would be better tested in the ControlsBar test
+    }
+    
+    // Note: We would normally test the timeout functionality using vi.useFakeTimers()
 
     // Check for version navigation
     const prevButton = container.querySelector('[aria-label="Previous version"]');
@@ -96,7 +108,6 @@ describe('ImageOverlay Component', () => {
       editedPrompt: null,
       setEditedPrompt: vi.fn(),
       handlePromptEdit: vi.fn(),
-      toggleDeleteConfirm: vi.fn(),
       isDeleteConfirmOpen: true, // Set this to true to show confirmation
       handleDeleteConfirm: vi.fn(),
       handleCancelDelete: vi.fn(),
@@ -105,66 +116,80 @@ describe('ImageOverlay Component', () => {
       handleRefresh: vi.fn(),
       versionIndex: 1,
       totalVersions: 3,
-      insideModal: true,
+      showDelete: true,
     };
 
     // Render the ImageOverlay component directly with delete confirm open
     const { container } = render(<ImageOverlay {...mockProps} />);
 
-    // The delete confirmation overlay should be visible
+    // The delete confirmation message should be visible
     const confirmationOverlay = container.querySelector('.imggen-delete-message');
     expect(confirmationOverlay).toBeInTheDocument();
     
-    // Check that it has the confirmation buttons
-    const confirmButton = screen.getByRole('button', { name: 'Confirm delete' });
-    const cancelButton = screen.getByRole('button', { name: 'Cancel delete' });
-    expect(confirmButton).toBeInTheDocument();
-    expect(cancelButton).toBeInTheDocument();
+    // It should show the confirmation message
+    expect(confirmationOverlay).toHaveTextContent('Confirm delete? This action cannot be undone.');
+    
+    // Click on the message should confirm the delete action
+    if (confirmationOverlay) {
+      fireEvent.click(confirmationOverlay);
+      expect(mockProps.handleDeleteConfirm).toHaveBeenCalled();
+    }
   });
 
   // Test the delete confirmation component directly
-  it('should call the correct handler when confirmation is confirmed', () => {
+  it('should call the correct handler when clicking on the message', () => {
     // Mock the delete callback function
     const mockDeleteConfirmFn = vi.fn();
     const mockCancelDeleteFn = vi.fn();
+    
+    // Set up fake timers to test the auto-cancel timeout
+    vi.useFakeTimers();
 
     // Render the DeleteConfirmationOverlay component directly
-    const { getByRole } = render(
+    const { getByText } = render(
       <DeleteConfirmationOverlay
         handleDeleteConfirm={mockDeleteConfirmFn}
         handleCancelDelete={mockCancelDeleteFn}
       />
     );
 
-    // Find and click the confirm button
-    const confirmButton = getByRole('button', { name: /confirm/i });
-    fireEvent.click(confirmButton);
+    // Find and click the confirmation message
+    const confirmMessage = getByText(/confirm delete\? this action cannot be undone\./i);
+    fireEvent.click(confirmMessage);
 
     // Verify that the delete callback was called
     expect(mockDeleteConfirmFn).toHaveBeenCalled();
     expect(mockCancelDeleteFn).not.toHaveBeenCalled();
+    
+    // Cleanup fake timers
+    vi.useRealTimers();
   });
 
-  // Test cancel button in the confirmation overlay
-  it('should call the cancel handler when cancel is clicked', () => {
+  // Test auto-dismissal of the confirmation overlay
+  it('should automatically call the cancel handler after timeout', () => {
     // Mock the handlers
     const mockDeleteConfirmFn = vi.fn();
     const mockCancelDeleteFn = vi.fn();
 
+    // Set up fake timers to test the auto-cancel timeout
+    vi.useFakeTimers();
+
     // Render the DeleteConfirmationOverlay component directly
-    const { getByRole } = render(
+    render(
       <DeleteConfirmationOverlay
         handleDeleteConfirm={mockDeleteConfirmFn}
         handleCancelDelete={mockCancelDeleteFn}
       />
     );
 
-    // Find and click the cancel button
-    const cancelButton = getByRole('button', { name: /cancel/i });
-    fireEvent.click(cancelButton);
+    // Advance timers by 3 seconds (timeout duration)
+    vi.advanceTimersByTime(3000);
 
-    // Verify that the cancel callback was called and delete was not
+    // Verify that the cancel callback was called after the timeout
     expect(mockCancelDeleteFn).toHaveBeenCalled();
     expect(mockDeleteConfirmFn).not.toHaveBeenCalled();
+    
+    // Cleanup fake timers
+    vi.useRealTimers();
   });
 });

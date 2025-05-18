@@ -2,8 +2,8 @@ import * as React from 'react';
 import { combineClasses, defaultClasses, ImgGenClasses } from '../utils/style-utils';
 
 interface ControlsBarProps {
-  /** Toggle state of delete confirmation */
-  toggleDeleteConfirm: () => void;
+  /** Handle delete confirmation */
+  handleDeleteConfirm: () => void;
   handlePrevVersion: () => void;
   handleNextVersion: () => void;
   handleRefresh: () => void;
@@ -23,13 +23,15 @@ interface ControlsBarProps {
   progress?: number;
   /** Show delete button (defaults to true) */
   showDelete?: boolean;
+  /** Whether delete confirmation is being shown */
+  isDeleteConfirmOpen?: boolean;
 }
 
 /**
  * ControlsBar component - Displays controls for deleting, navigating between versions, and refreshing
  */
 export function ControlsBar({
-  toggleDeleteConfirm,
+  handleDeleteConfirm,
   handlePrevVersion,
   handleNextVersion,
   handleRefresh,
@@ -42,7 +44,46 @@ export function ControlsBar({
   promptText,
   progress = 100,
   showDelete = true,
+  isDeleteConfirmOpen = false,
 }: ControlsBarProps) {
+  // State for managing delete confirmation
+  const [showConfirmation, setShowConfirmation] = React.useState(false);
+  
+  // Timer ref for automatic cancellation
+  const cancelTimerRef = React.useRef<number | null>(null);
+  
+  // Use external state if provided
+  const isConfirming = isDeleteConfirmOpen || showConfirmation;
+  
+  // Handle delete click
+  const onDeleteClick = () => {
+    if (isConfirming) {
+      // User clicked delete while confirmation is showing - confirm the delete
+      handleDeleteConfirm();
+      setShowConfirmation(false);
+      if (cancelTimerRef.current) {
+        window.clearTimeout(cancelTimerRef.current);
+        cancelTimerRef.current = null;
+      }
+    } else {
+      // Show confirmation
+      setShowConfirmation(true);
+      
+      // Set timer to auto-hide confirmation after 3 seconds
+      cancelTimerRef.current = window.setTimeout(() => {
+        setShowConfirmation(false);
+      }, 3000);
+    }
+  };
+  
+  // Clean up timer on unmount
+  React.useEffect(() => {
+    return () => {
+      if (cancelTimerRef.current) {
+        window.clearTimeout(cancelTimerRef.current);
+      }
+    };
+  }, []);
   return (
     <>
       {/* Progress bar for generation progress - explicitly positioned at the top */}
@@ -65,16 +106,35 @@ export function ControlsBar({
         {showControls ? (
           <>
             {/* Left side: Delete button */}
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flex: 1 }}>
               {showDelete && (
-                <button
-                  aria-label="Delete image"
-                  onClick={toggleDeleteConfirm}
-                  className={combineClasses('imggen-button imggen-delete-button', classes.button)}
-                  style={{ position: 'static', width: 'var(--imggen-button-size)', height: 'var(--imggen-button-size)' }}
-                >
-                  ✕
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    aria-label="Delete image"
+                    onClick={onDeleteClick}
+                    className={combineClasses('imggen-button imggen-delete-button', classes.button)}
+                    style={{
+                      position: 'static', 
+                      width: 'var(--imggen-button-size)', 
+                      height: 'var(--imggen-button-size)',
+                      backgroundColor: isConfirming ? 'var(--imggen-error-border)' : undefined,
+                      color: isConfirming ? 'white' : undefined,
+                      opacity: isConfirming ? 1 : undefined
+                    }}
+                  >
+                    ✕
+                  </button>
+                  {isConfirming && (
+                    <span style={{ 
+                      fontSize: 'var(--imggen-font-size)',
+                      fontWeight: 'bold',
+                      fontStyle: 'italic',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      Confirm delete, are you sure?
+                    </span>
+                  )}
+                </div>
               )}
             </div>
 

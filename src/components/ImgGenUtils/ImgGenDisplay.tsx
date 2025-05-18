@@ -160,7 +160,6 @@ export function ImgGenDisplay({
         editedPrompt={editedPrompt}
         setEditedPrompt={setEditedPrompt}
         handlePromptEdit={handlePromptEdit}
-        toggleDeleteConfirm={toggleDeleteConfirm}
         isDeleteConfirmOpen={isDeleteConfirmOpen}
         handleDeleteConfirm={handleDeleteConfirm}
         handleCancelDelete={handleCancelDelete}

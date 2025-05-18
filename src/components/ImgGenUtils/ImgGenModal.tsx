@@ -13,7 +13,6 @@ export interface ImgGenModalProps {
   editedPrompt: string | null;
   setEditedPrompt: (_editedPrompt: string | null) => void;
   handlePromptEdit: (_newPrompt: string) => void;
-  toggleDeleteConfirm: () => void;
   isDeleteConfirmOpen: boolean;
   handleDeleteConfirm: () => void;
   handleCancelDelete: () => void;
@@ -41,7 +40,6 @@ export function ImgGenModal({
   editedPrompt,
   setEditedPrompt,
   handlePromptEdit,
-  toggleDeleteConfirm,
   isDeleteConfirmOpen,
   handleDeleteConfirm,
   handleCancelDelete,
@@ -89,7 +87,6 @@ export function ImgGenModal({
           editedPrompt={editedPrompt}
           setEditedPrompt={setEditedPrompt}
           handlePromptEdit={handlePromptEdit}
-          toggleDeleteConfirm={toggleDeleteConfirm}
           isDeleteConfirmOpen={isDeleteConfirmOpen}
           handleDeleteConfirm={handleDeleteConfirm}
           handleCancelDelete={handleCancelDelete}

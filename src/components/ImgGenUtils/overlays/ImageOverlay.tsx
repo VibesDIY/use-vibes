@@ -11,11 +11,11 @@ interface ImageOverlayProps {
   setEditedPrompt: (prompt: string | null) => void; // Set to null to exit edit mode
   // eslint-disable-next-line no-unused-vars
   handlePromptEdit: (prompt: string) => void;
-  /** Toggle state of delete confirmation */
-  toggleDeleteConfirm: () => void;
   /** Current state of delete confirmation */
   isDeleteConfirmOpen: boolean;
+  /** Function to handle deletion confirmation */
   handleDeleteConfirm: () => void;
+  /** Function to handle deletion cancellation */
   handleCancelDelete: () => void;
   handlePrevVersion: () => void;
   handleNextVersion: () => void;
@@ -39,7 +39,6 @@ export function ImageOverlay({
   editedPrompt,
   setEditedPrompt,
   handlePromptEdit,
-  toggleDeleteConfirm,
   isDeleteConfirmOpen,
   handleDeleteConfirm,
   handleCancelDelete,
@@ -76,7 +75,7 @@ export function ImageOverlay({
 
           {/* Controls bar component */}
           <ControlsBar
-            toggleDeleteConfirm={toggleDeleteConfirm}
+            handleDeleteConfirm={handleDeleteConfirm}
             handlePrevVersion={handlePrevVersion}
             handleNextVersion={handleNextVersion}
             handleRefresh={handleRefresh}
@@ -89,6 +88,7 @@ export function ImageOverlay({
             editedPrompt={editedPrompt}
             promptText={promptText}
             progress={progress}
+            isDeleteConfirmOpen={isDeleteConfirmOpen}
           />
         </>
       )}
