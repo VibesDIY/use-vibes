@@ -219,7 +219,6 @@ export function useImageGen({
               // Only attempt if we have a document with a prompt
               if (generationId && currentPromptText) {
                 // Create a completely unique key for the regeneration request to avoid deduplication
-                // at the image generation API call level (not just the document level)
                 const timestamp = Date.now();
                 const regenerationOptions = {
                   ...options,
@@ -349,8 +348,39 @@ export function useImageGen({
                   `Failed to load image from document: ${err instanceof Error ? err.message : String(err)}`
                 );
               }
-            } else {
-              throw new Error(`Document exists but has no files: ${_id}`);
+            } else if (existingDoc) {
+              // Document exists but has no files - check if it has a prompt field we can use
+              if (
+                'prompt' in existingDoc &&
+                typeof existingDoc.prompt === 'string' &&
+                existingDoc.prompt
+              ) {
+                // Use the document's prompt to generate an image
+                console.log(`Document ${_id} has no files but has prompt, generating image`);
+                const docPrompt = existingDoc.prompt;
+                // Generate image using the document's prompt
+                data = await callImageGeneration(docPrompt, options);
+                if (data?.data?.[0]?.b64_json) {
+                  setImageData(data.data[0].b64_json);
+
+                  // Create a file object from the base64 data
+                  const blob = base64ToFile(data.data[0].b64_json, 'image/png');
+                  const newImageFile = new File([blob], generateSafeFilename(docPrompt), {
+                    type: 'image/png',
+                  });
+
+                  // Add the file to the document
+                  // Use type assertion to help TypeScript understand this is an ImageDocument
+                  const typedDoc = existingDoc as unknown as ImageDocument;
+                  const updatedDoc = addNewVersion(typedDoc, newImageFile, docPrompt);
+                  await db.put(updatedDoc);
+                  setDocument(updatedDoc);
+                  return; // Exit early since we've handled this case
+                }
+              } else {
+                // Document has no files and no usable prompt
+                throw new Error(`Document exists but has no files: ${_id}`);
+              }
             }
           } else if (prompt) {
             // No document ID provided but we have a prompt - generate a new image
