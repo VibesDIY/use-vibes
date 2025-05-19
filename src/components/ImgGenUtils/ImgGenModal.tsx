@@ -2,6 +2,7 @@ import * as React from 'react';
 import { ImgFile } from 'use-fireproof';
 import { createPortal } from 'react-dom';
 import { ImageOverlay } from './overlays/ImageOverlay';
+import { ImgGenError } from './ImgGenError';
 import { defaultClasses } from '../../utils/style-utils';
 
 export interface ImgGenModalProps {
@@ -27,6 +28,8 @@ export interface ImgGenModalProps {
   /** Whether to show a flash effect on the version indicator - used when a new version is added */
   versionFlash?: boolean;
   isRegenerating?: boolean;
+  /** Error if image generation failed */
+  error?: Error | null;
   classes?: {
     root?: string;
     image?: string;
@@ -56,6 +59,7 @@ export function ImgGenModal({
   progress,
   versionFlash = false,
   isRegenerating = false,
+  error = null,
   classes = defaultClasses,
 }: ImgGenModalProps) {
   // ESC handling while modal is open
@@ -83,11 +87,17 @@ export function ImgGenModal({
   return createPortal(
     <div className="imggen-backdrop" onClick={onClose} role="presentation">
       <figure className="imggen-full-wrapper" onClick={(e) => e.stopPropagation()}>
-        <ImgFile
-          file={currentFile}
-          className="imggen-backdrop-image"
-          alt={alt || 'Generated image'}
-        />
+        {error ? (
+          <div className="imggen-backdrop-error">
+            <ImgGenError message={error.message} />
+          </div>
+        ) : (
+          <ImgFile
+            file={currentFile}
+            className="imggen-backdrop-image"
+            alt={alt || 'Generated image'}
+          />
+        )}
         {/* Overlay as caption */}
         <ImageOverlay
           promptText={promptText}

@@ -28,6 +28,10 @@ export interface ImgGenDisplayProps {
   onPromptEdit?: (id: string, newPrompt: string) => void;
   /** Custom CSS classes for styling component parts */
   classes?: ImgGenClasses;
+  /** Whether the component is currently loading */
+  loading?: boolean;
+  /** Error if image generation failed */
+  error?: Error | null;
 }
 
 // Props for the error component

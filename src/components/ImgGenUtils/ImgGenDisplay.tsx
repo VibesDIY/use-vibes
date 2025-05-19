@@ -15,6 +15,8 @@ export function ImgGenDisplay({
   onRegen,
   onPromptEdit,
   classes = defaultClasses,
+  loading,
+  error,
 }: ImgGenDisplayProps) {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = React.useState(false);
 
@@ -218,12 +220,12 @@ export function ImgGenDisplay({
   }
 
   // We're not using document.progress as it's always 100
-  // Just track the loading state
-  const loading: boolean = (document as { loading?: boolean }).loading ?? false;
+  // Just track the document loading state
+  const documentLoading: boolean = (document as { loading?: boolean }).loading ?? false;
   
   // Reset regeneration state when loading state changes
   React.useEffect(() => {
-    if (!loading && pendingRegenerationRef.current) {
+    if (!documentLoading && pendingRegenerationRef.current) {
       pendingRegenerationRef.current = false;
       setPendingRegeneration(false);
       
@@ -241,7 +243,7 @@ export function ImgGenDisplay({
         setSimulatedProgress(null);
       }, 500);
     }
-  }, [loading]);
+  }, [documentLoading]);
   
   // Additional check for document updates to detect version changes
   const documentIdRef = React.useRef(document?._id);
@@ -287,7 +289,7 @@ export function ImgGenDisplay({
   const effectiveProgress = simulatedProgress ?? 100;
   
   // Is regeneration in progress - either from loading state or pending state
-  const isRegenerating = loading || pendingRegeneration;
+  const isRegenerating = pendingRegeneration || (documentLoading === true) || (loading === true);
 
   if (!document._files || (!fileKey && !document._files.image)) {
     return <ImgGenError message="Missing image file" />;
@@ -328,6 +330,7 @@ export function ImgGenDisplay({
         classes={classes}
         versionFlash={versionFlash}
         isRegenerating={isRegenerating}
+        error={error}
       />
     </div>
   );

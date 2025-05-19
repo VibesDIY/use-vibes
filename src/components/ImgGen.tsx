@@ -262,6 +262,8 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
             onRegen={handleRegen}
             onPromptEdit={handlePromptEdit}
             classes={classes}
+            loading={loading}
+            error={error}
           />
 
           {/* Show progress overlay during regeneration */}
