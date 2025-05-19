@@ -418,24 +418,90 @@ export function useImageGen({
             }
           } else if (prompt) {
             // No document ID provided but we have a prompt - generate a new image
-
-            // Build generation options; if this is a regeneration request (generationId present)
-            // attach a unique _regenerationId to force a fresh network call and clear cached key.
-            let generationOptions = options;
-            if (generationId) {
-              generationOptions = {
+            
+            // If we have a document in memory and a generationId, we should add a version
+            // to the existing document instead of creating a new one
+            if (document?._id && generationId) {
+              console.log('[loadOrGenerateImage] Using existing document for regeneration:', document._id);
+              
+              // Extract the prompt text from the document
+              const { prompts, currentPromptKey } = getPromptsFromDocument(document);
+              const currentPromptText = 
+                (currentPromptKey && prompts[currentPromptKey]?.text) ||
+                (document.prompt || '') ||
+                prompt || ''; // Fall back to provided prompt if document has none, ensure string type
+                
+              // Create regeneration options with unique ID to force new API call
+              const regenerationOptions = {
                 ...options,
                 _regenerationId: Date.now(),
               } as typeof options & { _regenerationId: number };
-
-              // Clear any cached promise for the original prompt+options so that
-              // imageGen will not re-use the previous response.
-              const requestKey = `${prompt}-${JSON.stringify(getRelevantOptions(options))}`;
+              
+              // Clear any cached promise for the original prompt+options
+              const requestKey = `${currentPromptText}-${JSON.stringify(getRelevantOptions(options))}`;
               cleanupRequestKey(requestKey);
-            }
+              
+              // Generate a new image
+              data = await callImageGeneration(currentPromptText, regenerationOptions);
+              
+              if (data?.data?.[0]?.b64_json) {
+                // Create a File object from the base64 data
+                const filename = generateSafeFilename(currentPromptText);
+                const newImageFile = base64ToFile(data.data[0].b64_json, filename);
+                
+                // Ensure we preserve the original document ID
+                const originalDocId = document._id;
+                
+                // Add the new version to the document
+                const updatedDoc = addNewVersion(document, newImageFile, currentPromptText);
+                
+                // Make sure the _id is preserved
+                updatedDoc._id = originalDocId;
+                
+                // Save the updated document
+                await db.put(updatedDoc);
+                
+                // Get the updated document with the new version
+                const refreshedDoc = await db.get(originalDocId);
+                setDocument(refreshedDoc as unknown as ImageDocument);
+                
+                // Set the image data from the new version
+                const reader = new FileReader();
+                reader.readAsDataURL(newImageFile);
+                await new Promise<void>((resolve) => {
+                  reader.onloadend = () => {
+                    if (typeof reader.result === 'string') {
+                      setImageData(reader.result);
+                    }
+                    resolve();
+                  };
+                });
+                
+                // Set progress to 100%
+                setProgress(100);
+                return;
+              }
+            } else {
+              // Regular prompt-only generation (no document in memory)
+              
+              // Build generation options; if this is a regeneration request (generationId present)
+              // attach a unique _regenerationId to force a fresh network call and clear cached key.
+              let generationOptions = options;
+              if (generationId) {
+                generationOptions = {
+                  ...options,
+                  _regenerationId: Date.now(),
+                } as typeof options & { _regenerationId: number };
 
-            // Generate the image
-            data = await callImageGeneration(prompt, generationOptions);
+                // Clear any cached promise for the original prompt+options so that
+                // imageGen will not re-use the previous response.
+                const requestKey = `${prompt}-${JSON.stringify(getRelevantOptions(options))}`;
+                cleanupRequestKey(requestKey);
+              }
+
+              // Generate the image
+              data = await callImageGeneration(prompt, generationOptions);
+            }
 
             // Process the data response
             if (data?.data?.[0]?.b64_json) {
