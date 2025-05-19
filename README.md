@@ -23,7 +23,7 @@ Add a CSS link tag to your HTML:
 Or for ESM/CDN environments like importmap scenarios:
 
 ```html
-<link rel="stylesheet" href="https://esm.sh/use-vibes@0.3.0/components/ImgGen.css" />
+<link rel="stylesheet" href="https://esm.sh/use-vibes@0.4.0/components/ImgGen.css" />
 ```
 
 #### Option B: Automatic CSS loading (convenient for prototyping)
@@ -67,6 +67,8 @@ function MyComponent() {
 - `onError`: Callback when image load fails, receives the error as parameter
 - `onDelete`: Callback when an image is deleted, receives the document ID
 - `onPromptEdit`: Callback when the prompt is edited, receives document ID and new prompt
+- `editedPrompt`: Custom prompt text to use for regeneration (overrides document prompt)
+- `generationId`: Optional ID to trigger regeneration of existing images
 - `classes`: Object containing custom CSS classes for styling component parts (see Styling section)
 
 #### Features
@@ -85,6 +87,16 @@ Setting `overlay={false}` will hide all these controls, showing only the image.
 ##### Prompt Editing
 
 Double-click the prompt text in the overlay to edit it. Press Enter to submit changes and regenerate the image with the new prompt.
+
+##### Image Regeneration
+
+When regenerating images, the component will:
+- Use the edited prompt if one has been provided (via `editedPrompt` prop, `onPromptEdit` callback, or direct editing in the UI)
+- Fall back to the original prompt from the document if no edits were made
+- Preserve versions under the same document ID to maintain history
+- Add the new image as a version to the existing document instead of creating a new one
+
+This allows for iterative refinement of images while maintaining version history.
 
 #### Styling
 
@@ -171,6 +183,19 @@ pnpm build
 # Run tests
 pnpm test
 ```
+
+### Testing Notes
+
+When writing tests for components that use the image generation functionality:
+
+- Use the provided mock implementations for `call-ai` and `use-fireproof`
+- Wrap React state updates in `act()` to prevent test warnings
+- Use `vi.useFakeTimers()` and `vi.advanceTimersByTime()` to control async behavior
+- Be aware that `imageGen` API calls need to be properly mocked
+
+### Browser Compatibility
+
+This library is compatible with all modern browsers that support React 18+ and ES6 features.
 
 ## License
 
