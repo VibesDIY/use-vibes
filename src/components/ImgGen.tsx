@@ -109,6 +109,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Handle prompt editing
   const handlePromptEdit = React.useCallback(
     async (id: string, newPrompt: string) => {
+      console.log('[DEBUG handlePromptEdit] Called with:', { id, newPrompt });
       try {
         // First, update the document in the database with the new prompt
         const docToUpdate = (await db.get(id)) as unknown as ImageDocument;

@@ -162,18 +162,30 @@ export function ImgGenDisplay({
     progressTimerRef.current = timer;
     
     const { currentPrompt } = getPromptInfo(document, versionIndex);
-
+    console.log('[DEBUG handleRegen] Current state:', { 
+      editedPrompt, 
+      currentPrompt, 
+      versionIndex,
+      id: document._id 
+    });
+    
     if (editedPrompt !== null) {
+      // User has edited the prompt - always use the edited version
+      // even if it happens to be the same as the current prompt
       const newPrompt = editedPrompt.trim();
-      if (newPrompt && newPrompt !== currentPrompt) {
-        // Persist new prompt; assume backend regenerates
+      console.log('[DEBUG handleRegen] Using edited prompt:', newPrompt);
+      if (newPrompt) {
+        // Always submit the edited prompt as a new prompt
+        console.log('[DEBUG handleRegen] Calling onPromptEdit with:', document._id, newPrompt);
         onPromptEdit?.(document._id, newPrompt);
       } else {
-        // No change, just regenerate explicitly
+        // Empty prompt, just regenerate with existing prompt
+        console.log('[DEBUG handleRegen] Empty edited prompt, using onRegen');
         onRegen?.(document._id);
       }
     } else {
       // Not in edit mode → regenerate current prompt
+      console.log('[DEBUG handleRegen] No edited prompt, using onRegen');
       onRegen?.(document._id);
     }
 

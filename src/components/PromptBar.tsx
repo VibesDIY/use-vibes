@@ -38,20 +38,19 @@ export function PromptBar({
                 setEditedPrompt(null); // Exit edit mode
               }
             }}
-            onBlur={() => setEditedPrompt(null)} // Exit edit mode
+            // Removed onBlur handler to prevent edit mode from being exited when clicking buttons
             autoFocus
             className="imggen-prompt-input imggen-edit-mode"
             aria-label="Edit prompt"
           />
         ) : (
           <div
-            onClick={(e) => {
-              if (e.detail === 2) {
-                setEditedPrompt(promptText);
-              }
+            onClick={() => {
+              // Enter edit mode on single click
+              setEditedPrompt(promptText);
             }}
             className="imggen-prompt-text imggen-truncate"
-            title="Double-click to edit prompt"
+            title="Click to edit prompt"
           >
             {promptText}
           </div>
