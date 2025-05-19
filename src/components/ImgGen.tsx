@@ -107,21 +107,10 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
 
   // Handle regeneration when the button is clicked
   const handleRegen = React.useCallback(() => {
-    console.log('[ImgGen] Starting regeneration, document state:', {
-      hasDocument: !!document,
-      documentId: document?._id,
-      providedId: _id,
-      hasPrompt: !!prompt,
-      promptText: prompt,
-    });
-
     if (document?._id || _id || prompt) {
       // Create a new unique ID to trigger regeneration
       const newGenId = crypto.randomUUID();
       setGenerationId(newGenId);
-      console.log(`[ImgGen] Regeneration requested with new generationId: ${newGenId}`);
-    } else {
-      console.warn('[ImgGen] Regeneration skipped - no document, ID, or prompt available');
     }
   }, [document, _id, prompt]);
 

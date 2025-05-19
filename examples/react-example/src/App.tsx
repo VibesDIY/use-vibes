@@ -63,11 +63,6 @@ function App() {
     descending: true,
   });
 
-  useEffect(() => {
-    console.log('activePrompt', activePrompt);
-    console.log('selectedImageId', selectedImageId);
-  }, [activePrompt, selectedImageId]);
-
   return (
     <div className="container">
       <h1>Simple Image Generator</h1>

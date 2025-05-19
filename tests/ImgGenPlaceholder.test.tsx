@@ -190,14 +190,14 @@ describe('ImgGenDisplayPlaceholder Component', () => {
       vi.useRealTimers();
     });
 
-    it('does not show content message area when in generating state', () => {
+    it('shows prompt in the content area during generation state', () => {
       const { container } = render(
         <ImgGenDisplayPlaceholder prompt="Test prompt" progress={50} error={undefined} />
       );
 
-      // Content area should be empty during generation
+      // Content area now displays the prompt text during generation
       const contentDiv = container.querySelector('.imggen-placeholder > div:nth-child(2)');
-      expect(contentDiv?.textContent).toBe('');
+      expect(contentDiv?.textContent).toBe('Test prompt');
     });
   });
 

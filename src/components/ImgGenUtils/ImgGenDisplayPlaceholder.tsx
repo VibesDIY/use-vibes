@@ -3,13 +3,6 @@ import { ImgGenPlaceholderProps } from './types';
 import { combineClasses, defaultClasses } from '../../utils/style-utils';
 import { ImageOverlay } from './overlays/ImageOverlay';
 
-// Detect test environment
-const isTestEnvironment =
-  typeof window !== 'undefined' &&
-  (Object.prototype.hasOwnProperty.call(window, '__vitest__') ||
-    // @ts-expect-error - for test environment detection
-    typeof vi !== 'undefined');
-
 // Component for loading/placeholder state
 export function ImgGenDisplayPlaceholder({
   className,
@@ -172,27 +165,7 @@ export function ImgGenDisplayPlaceholder({
       )}
 
       {/* When prompt exists and we have no error, handle differently in test vs production */}
-      {prompt && !error && isTestEnvironment ? (
-        /* In test environment, make it match expected behavior in tests */
-        <>
-          <div style={{ display: 'none' }} data-testid="empty-for-test"></div>
-          <ImageOverlay
-            promptText={prompt || ''}
-            editedPrompt={null}
-            setEditedPrompt={() => {}}
-            handlePromptEdit={() => {}}
-            handleDeleteConfirm={() => {}}
-            handlePrevVersion={() => {}}
-            handleNextVersion={() => {}}
-            handleRegen={() => {}}
-            versionIndex={0}
-            totalVersions={1}
-            classes={classes}
-            showControls={false}
-            showDelete={false}
-          />
-        </>
-      ) : (
+      {prompt && !error && (
         /* In production environment, show the styled prompt text */
         <>
           <div

@@ -86,29 +86,12 @@ export function useImageGen({
     // Detect when generationId changes - this indicates a request for regeneration
     const generationRequested = generationId !== previousGenerationIdRef.current;
 
-    if (generationRequested) {
-      console.log('[useImageGen] Regeneration detected:', {
-        generationId,
-        previousId: previousGenerationIdRef.current,
-        _id,
-        prompt,
-        currentDocument: document?._id,
-      });
-    }
-
     // Update refs for next check
     previousIdRef.current = _id;
     previousGenerationIdRef.current = generationId;
 
     // Only proceed with state resets when needed
     if (idChanged || generationRequested) {
-      console.log('[useImageGen] State reset triggered:', {
-        idChanged,
-        generationRequested,
-        _id,
-        document: document?._id,
-      });
-
       // Reset all state when inputs change
       setImageData(null);
       setError(null);
@@ -117,10 +100,7 @@ export function useImageGen({
       // Clear document state when ID changes
       // This ensures a clean start when navigating to a new document
       if (idChanged) {
-        console.log('[useImageGen] ID changed, clearing document state');
         setDocument(null);
-      } else {
-        console.log('[useImageGen] Preserving document during regeneration:', document?._id);
       }
     }
 
@@ -140,23 +120,6 @@ export function useImageGen({
 
   // Track the last request parameters to prevent duplicate requests
   const lastRequestRef = useRef<string>('');
-
-  // Helper to detect test environment
-  const isTestEnvironment = () => {
-    try {
-      // Check for test environment markers
-      return (
-        typeof window !== 'undefined' &&
-        (Object.prototype.hasOwnProperty.call(window, '__vitest__') ||
-          // @ts-expect-error - for test environment detection
-          typeof vi !== 'undefined' ||
-          // @ts-expect-error - for test environment detection
-          (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test'))
-      );
-    } catch {
-      return false;
-    }
-  };
 
   // Generate the image when prompt or options change or load by ID
   useEffect(() => {
@@ -179,14 +142,8 @@ export function useImageGen({
       options: shouldConsiderOptions ? getRelevantOptions(memoizedOptions) : undefined,
     });
 
-    // Prevent duplicate requests with identical parameters - but not in test environment
-    if (!isTestEnvironment() && requestSignature === lastRequestRef.current && document) {
-      console.log('[useImageGen] Preventing duplicate request with same parameters:', {
-        prompt,
-        _id,
-        generationId: generationId ? 'present' : 'absent',
-        hasDocument: !!document,
-      });
+    // Prevent duplicate requests with identical parameters
+    if (requestSignature === lastRequestRef.current && document) {
       return;
     }
 
@@ -202,17 +159,6 @@ export function useImageGen({
     // When only options change and we aren't explicitly regenerating,
     // skip regeneration for existing documents to prevent duplicate generations
     if (optionsChanged && !generationId && document?._id) {
-      console.log(
-        '[useImageGen] Options changed but skipping regeneration for existing document:',
-        {
-          docId: document._id,
-          changes: {
-            previous: previousRelevantOptions,
-            current: currentRelevantOptions,
-          },
-        }
-      );
-
       // Update our reference without triggering regeneration
       prevOptionsRef.current = currentRelevantOptions;
       setLoading(false);
@@ -251,19 +197,8 @@ export function useImageGen({
           // FIXED: Always try to load the document if we have an _id, regardless of regeneration state
           // We'll use the document for info even during regeneration
           const hasDocumentId = !!_id;
-          const isRegenerating = !!generationId;
-
-          console.log('[loadOrGenerateImage] Document loading decision:', {
-            _id,
-            generationId,
-            hasDocumentId,
-            isRegenerating,
-            hasPrompt: !!prompt,
-            promptText: prompt,
-          });
 
           if (hasDocumentId) {
-            console.log(`[loadOrGenerateImage] Attempting to load document with ID: ${_id}`);
             const existingDoc = await db.get(_id).catch((err) => {
               console.error(`[loadOrGenerateImage] Failed to load document ${_id}:`, err);
               return null;
@@ -423,21 +358,10 @@ export function useImageGen({
             // If we have a document in memory and a generationId, we should add a version
             // to the existing document instead of creating a new one
             if (document?._id && generationId) {
-              console.log(
-                '[loadOrGenerateImage] Using existing document for regeneration:',
-                document._id
-              );
-
-              // If an edited prompt is provided, use that instead of the document prompt
-              // This is the key change to handle edited prompts during regeneration
               let currentPromptText = '';
 
               if (editedPrompt) {
                 // Use the edited prompt provided from the UI
-                console.log(
-                  '[loadOrGenerateImage] Using edited prompt for regeneration:',
-                  editedPrompt
-                );
                 currentPromptText = editedPrompt;
               } else {
                 // Otherwise extract the prompt from the document
@@ -724,22 +648,11 @@ export function useImageGen({
       }
     };
 
-    let loadImageTimer: ReturnType<typeof setTimeout> | undefined;
-
-    // Skip delay in test environment
-    if (isTestEnvironment()) {
-      // In test environment, call immediately
+    const loadImageTimer = setTimeout(() => {
       if (isMounted) {
         loadOrGenerateImage();
       }
-    } else {
-      // Add a small delay to avoid multiple rapid calls in production
-      loadImageTimer = setTimeout(() => {
-        if (isMounted) {
-          loadOrGenerateImage();
-        }
-      }, 10); // Small delay to allow React to batch updates
-    }
+    }, 10); // Small delay to allow React to batch updates
 
     return () => {
       isMounted = false;

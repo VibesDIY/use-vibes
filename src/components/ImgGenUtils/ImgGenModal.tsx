@@ -46,7 +46,6 @@ export function ImgGenModal({
   alt,
   promptText,
   editedPrompt,
-  document,
   setEditedPrompt,
   handlePromptEdit,
   handleDeleteConfirm,
@@ -61,30 +60,6 @@ export function ImgGenModal({
   error = null,
   classes = defaultClasses,
 }: ImgGenModalProps) {
-  // Log when modal opens or changes content
-  React.useEffect(() => {
-    if (isOpen) {
-      // Log simple summary info
-      console.log('[ImgGenModal] Modal opened or updated:', {
-        hasFile: !!currentFile,
-        fileName: currentFile?.name,
-        fileSize: currentFile?.size,
-        fileType: currentFile?.type,
-        promptText,
-        editedPrompt,
-        versionIndex,
-        totalVersions,
-        hasError: !!error,
-        errorMessage: error?.message,
-      });
-
-      // Log the plain old whole document as requested
-      if (document) {
-        console.log('[ImgGenModal] Full document:', document);
-      }
-    }
-  }, [isOpen, currentFile, promptText, editedPrompt, versionIndex, error, document]);
-
   // ESC handling while modal is open
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -104,8 +79,6 @@ export function ImgGenModal({
   }
 
   // Determine what prompt to show in the modal
-  // This looks redundant but it's added for the logging - removing this would
-  // make the debugging more difficult
   const effectivePromptText = promptText;
 
   return createPortal(

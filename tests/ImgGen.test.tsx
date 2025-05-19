@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { ImgGen } from '../src/index';
 import React from 'react';
-import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
+import { render, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 // Create a mock base64 image for testing
@@ -10,7 +10,7 @@ const mockBase64Image =
 
 // Use vi.hoisted for mocks that need to be referenced in vi.mock
 const mockImageGen = vi.hoisted(() =>
-  vi.fn().mockImplementation((prompt, options) => {
+  vi.fn().mockImplementation((prompt) => {
     if (prompt === 'error prompt') {
       return Promise.reject(new Error('API error'));
     }
@@ -52,7 +52,7 @@ const mockDb = vi.hoisted(() => ({
 }));
 
 const mockImgFile = vi.hoisted(() =>
-  vi.fn().mockImplementation(({ file, className, alt, style }) => {
+  vi.fn().mockImplementation(({ className, alt, style }) => {
     return React.createElement(
       'div',
       {
@@ -70,7 +70,7 @@ const mockImgFile = vi.hoisted(() =>
 vi.mock('call-ai', async () => {
   const actual = await vi.importActual('call-ai');
   return {
-    ...(actual as Object),
+    ...(actual as object),
     imageGen: mockImageGen,
   };
 });
@@ -125,7 +125,7 @@ describe('ImgGen Component', () => {
 
     // Check that the placeholder is rendered
     // The placeholder could be showing either 'Generating image...' or an error state
-    const placeholder = container.querySelector('.img-gen-placeholder');
+    const placeholder = container.querySelector('.imggen-placeholder');
     expect(placeholder).toBeInTheDocument();
   });
 
@@ -137,20 +137,38 @@ describe('ImgGen Component', () => {
     mockImageGen.mockReturnValue(
       Promise.resolve({
         created: Date.now(),
-        data: [{ b64_json: 'mockBase64Image' }],
+        data: [
+          {
+            b64_json: mockBase64Image,
+            url: null,
+            revised_prompt: 'Generated test image',
+          },
+        ],
       })
     );
 
-    // Custom options for testing
-    const customOptions = { size: '512x512', style: 'vivid' };
+    // Prepare custom options for testing
+    const customOptions = {
+      size: '512x512',
+      quality: 'standard',
+    };
 
-    // Render with prompt and options
+    // Use fake timers to control the setTimeout
+    vi.useFakeTimers();
+
+    // Render the ImgGen component with our test configuration
+    render(<ImgGen prompt="beautiful landscape" options={customOptions} />);
+
+    // Wait for the setTimeout in useImageGen (it uses 10ms)
     await act(async () => {
-      render(<ImgGen prompt="beautiful landscape" options={customOptions} />);
-
-      // Allow time for rendering and the API call to complete
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Advance timers past the 10ms delay
+      vi.advanceTimersByTime(20);
+      // Give the promises a chance to resolve
+      await Promise.resolve();
     });
+
+    // Restore real timers
+    vi.useRealTimers();
 
     // Verify the mock was called with correct parameters
     expect(mockImageGen).toHaveBeenCalledWith(
@@ -166,22 +184,36 @@ describe('ImgGen Component', () => {
     // Reset the mock behavior for a clean test
     mockImageGen.mockReset();
 
-    // Set up the mock to return an object with an error property instead of throwing
-    mockImageGen.mockReturnValue(Promise.resolve({ error: 'API error' }));
+    // Set up the mock to reject with an error, but wrap it to capture the rejection
+    // This creates a mock that returns a promise that's already been caught
+    mockImageGen.mockImplementation(() => {
+      return Promise.reject(new Error('API error')).catch((err) => {
+        // Return a rejected promise, but in a controlled way that won't cause unhandled rejection
+        return Promise.resolve({ error: err.message });
+      });
+    });
 
     // Silence console errors for this test since we expect errors
     const originalError = console.error;
     console.error = vi.fn();
 
     try {
-      let renderResult;
+      // Use fake timers to control setTimeout behavior
+      vi.useFakeTimers();
 
-      // Use act for the entire render and state update cycle
+      // Render with the error prompt
+      const renderResult = render(<ImgGen prompt="error prompt" />);
+
+      // Wait for the setTimeout in useImageGen (10ms)
       await act(async () => {
-        renderResult = render(<ImgGen prompt="error prompt" />);
-        // Give time for the error to be processed
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        // Advance timers past the delay
+        vi.advanceTimersByTime(20);
+        // Give the promises a chance to resolve
+        await Promise.resolve();
       });
+
+      // Restore real timers
+      vi.useRealTimers();
 
       const { container } = renderResult;
 
@@ -189,7 +221,7 @@ describe('ImgGen Component', () => {
       expect(mockImageGen).toHaveBeenCalledWith('error prompt', expect.anything());
 
       // Check for the presence of any placeholder/error element
-      const placeholder = container.querySelector('.img-gen-placeholder');
+      const placeholder = container.querySelector('.imggen-placeholder');
       expect(placeholder).toBeInTheDocument();
     } finally {
       // Restore console error
