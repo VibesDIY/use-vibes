@@ -1,6 +1,6 @@
 {
   "name": "use-vibes",
-  "version": "0.4.3",
+  "version": "0.4.5",
   "type": "module",
   "description": "Transform any DOM element into an AI-powered micro-app",
   "main": "dist/index.js",

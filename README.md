@@ -23,7 +23,7 @@ Add a CSS link tag to your HTML:
 Or for ESM/CDN environments like importmap scenarios:
 
 ```html
-<link rel="stylesheet" href="https://esm.sh/use-vibes@0.4.3/dist/components/ImgGen.css" />
+<link rel="stylesheet" href="https://esm.sh/use-vibes@0.4.5/dist/components/ImgGen.css" />
 ```
 
 #### Option B: Automatic CSS loading (convenient for prototyping)
