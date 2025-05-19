@@ -358,6 +358,14 @@ export function useImageGen({
                 // Use the document's prompt to generate an image
                 console.log(`Document ${_id} has no files but has prompt, generating image`);
                 const docPrompt = existingDoc.prompt;
+
+                // Set loading state to true to show progress indicator
+                setLoading(true);
+
+                // Set the document immediately so UI knows we have a document with a prompt
+                // This prevents "Waiting for prompt" message
+                setDocument(existingDoc as unknown as ImageDocument);
+
                 // Generate image using the document's prompt
                 data = await callImageGeneration(docPrompt, options);
                 if (data?.data?.[0]?.b64_json) {
