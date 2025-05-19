@@ -20,7 +20,7 @@
   
   /* Dimensions */
   --imggen-border-radius: 8px;
-  --imggen-padding: 8px 12px;
+  --imggen-padding: 8px;
   --imggen-button-size: 28px;
   --imggen-progress-height: 8px;
   
@@ -68,28 +68,40 @@
   z-index: 20;
   background-color: var(--imggen-button-bg);
   border-radius: 50%;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
   cursor: pointer;
-  opacity: 0.7;
+  opacity: 0; /* Initially invisible */
   transition: opacity var(--imggen-transition-speed) ease, transform var(--imggen-transition-speed) ease;
   padding: 0;
   color: var(--imggen-text-color);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+/* Show button on container hover */
+.imggen-image-container:hover .imggen-expand-button {
+  opacity: 0.5;
+}
+
 .imggen-expand-button:hover {
-  opacity: 1;
+  opacity: 1 !important;
   transform: scale(1.1);
 }
 
 .imggen-expand-button svg {
   width: 20px;
   height: 20px;
+}
+
+@media (hover: none) {
+  /* On touch devices, always show the expand button */
+  .imggen-expand-button {
+    opacity: 0.5 !important;
+  }
 }
 
 /* The image itself - limited styling since we can't change ImgFile */
