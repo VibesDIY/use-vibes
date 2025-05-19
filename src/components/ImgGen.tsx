@@ -105,7 +105,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
       documentId: document?._id,
       providedId: _id,
       hasPrompt: !!prompt,
-      promptText: prompt
+      promptText: prompt,
     });
 
     if (document?._id || _id || prompt) {

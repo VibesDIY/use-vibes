@@ -1,10 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useFireproof } from 'use-fireproof';
-import { ImageResponse } from 'call-ai';
+import { ImageResponse, ImageGenOptions } from 'call-ai';
 import { UseImageGenOptions, UseImageGenResult, ImageDocument } from './types';
 
-// We now use generationId instead of a boolean regenerate flag
-// When the generationId changes, we know a new generation request was made
 import {
   hashInput,
   base64ToFile,
@@ -49,25 +47,35 @@ export function useImageGen({
   const size = options?.size || '1024x1024';
   const [width, height] = size.split('x').map(Number);
 
-  // Memoize the options object to prevent unnecessary re-renders
+  // Memoize options to prevent unnecessary re-renders and regeneration
   const memoizedOptions = useMemo(
-    () => options,
-    [
-      // Only include specific option properties that should trigger regeneration
-      options?.quality,
-      options?.size,
-      options?.model,
-      options?.style,
-      // Add any other properties from options that matter for image generation
-    ]
+    () => ({
+      size: options?.size,
+      quality: options?.quality,
+      model: options?.model,
+      style: options?.style,
+    }),
+    [options?.size, options?.quality, options?.model, options?.style]
   );
+  
+  // Store reference to previous options to detect changes
+  const prevOptionsRef = useRef<ReturnType<typeof getRelevantOptions>>(getRelevantOptions({}));
 
-  // Create a unique request ID for logging/debugging only (not for document ID generation)
+  // Determine if we should include options in generation ID based on regeneration flag
+  const shouldConsiderOptions = useMemo(() => !generationId, [generationId]);
+
+  // Create a unique request ID for loading by ID or new generation
+  // For regeneration requests, we exclude options from the hash to prevent unwanted regeneration
   const requestId = useMemo(() => {
-    return hashInput(prompt || _id || 'unknown', options);
-  }, [prompt, _id, options?.size, options?.quality, options?.model, options?.style]);
+    return hashInput(prompt || _id || 'unknown', shouldConsiderOptions ? memoizedOptions : undefined);
+  }, [
+    prompt,
+    _id,
+    shouldConsiderOptions,
+    memoizedOptions
+  ]);
 
-  // Track ID and regeneration state changes
+  // Track ID and generation state changes
   const previousIdRef = useRef<string | undefined>(_id);
   const previousGenerationIdRef = useRef<string | undefined>(generationId);
 
@@ -78,14 +86,14 @@ export function useImageGen({
 
     // Detect when generationId changes - this indicates a request for regeneration
     const generationRequested = generationId !== previousGenerationIdRef.current;
-    
+
     if (generationRequested) {
-      console.log('[useImageGen] Regeneration detected:', { 
+      console.log('[useImageGen] Regeneration detected:', {
         generationId,
         previousId: previousGenerationIdRef.current,
         _id,
         prompt,
-        currentDocument: document?._id
+        currentDocument: document?._id,
       });
     }
 
@@ -95,13 +103,13 @@ export function useImageGen({
 
     // Only proceed with state resets when needed
     if (idChanged || generationRequested) {
-      console.log('[useImageGen] State reset triggered:', { 
-        idChanged, 
-        generationRequested, 
+      console.log('[useImageGen] State reset triggered:', {
+        idChanged,
+        generationRequested,
         _id,
-        document: document?._id
+        document: document?._id,
       });
-      
+
       // Reset all state when inputs change
       setImageData(null);
       setError(null);
@@ -144,6 +152,31 @@ export function useImageGen({
       return;
     }
 
+    // Check if only options have changed and we have an existing document
+    const currentRelevantOptions = getRelevantOptions(memoizedOptions);
+    const previousRelevantOptions = prevOptionsRef.current;
+    const optionsChanged = JSON.stringify(currentRelevantOptions) !== JSON.stringify(previousRelevantOptions);
+
+    // When only options change and we aren't explicitly regenerating,
+    // skip regeneration for existing documents to prevent duplicate generations
+    if (optionsChanged && !generationId && document?._id) {
+      console.log('[useImageGen] Options changed but skipping regeneration for existing document:', {
+        docId: document._id,
+        changes: {
+          previous: previousRelevantOptions,
+          current: currentRelevantOptions,
+        },
+      });
+
+      // Update our reference without triggering regeneration
+      prevOptionsRef.current = currentRelevantOptions;
+      setLoading(false);
+      return;
+    }
+    
+    // Track current options for future comparison
+    prevOptionsRef.current = currentRelevantOptions;
+
     setLoading(true);
     setProgress(0);
     setError(null);
@@ -174,14 +207,14 @@ export function useImageGen({
           // We'll use the document for info even during regeneration
           const hasDocumentId = !!_id;
           const isRegenerating = !!generationId;
-          
-          console.log('[loadOrGenerateImage] Document loading decision:', { 
-            _id, 
-            generationId, 
+
+          console.log('[loadOrGenerateImage] Document loading decision:', {
+            _id,
+            generationId,
             hasDocumentId,
             isRegenerating,
             hasPrompt: !!prompt,
-            promptText: prompt
+            promptText: prompt,
           });
 
           if (hasDocumentId) {
@@ -483,7 +516,7 @@ export function useImageGen({
               _id,
               hasPrompt: !!prompt,
               promptLength: prompt?.length,
-              generationId
+              generationId,
             });
             throw new Error('Document not found and no prompt provided for generation');
           }

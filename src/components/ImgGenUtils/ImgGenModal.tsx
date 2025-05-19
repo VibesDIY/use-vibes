@@ -65,8 +65,8 @@ export function ImgGenModal({
   React.useEffect(() => {
     if (isOpen) {
       // Log simple summary info
-      console.log('[ImgGenModal] Modal opened or updated:', { 
-        hasFile: !!currentFile, 
+      console.log('[ImgGenModal] Modal opened or updated:', {
+        hasFile: !!currentFile,
         fileName: currentFile?.name,
         fileSize: currentFile?.size,
         fileType: currentFile?.type,
@@ -75,16 +75,16 @@ export function ImgGenModal({
         versionIndex,
         totalVersions,
         hasError: !!error,
-        errorMessage: error?.message
+        errorMessage: error?.message,
       });
-      
+
       // Log the plain old whole document as requested
       if (document) {
         console.log('[ImgGenModal] Full document:', document);
       }
     }
   }, [isOpen, currentFile, promptText, editedPrompt, versionIndex, error, document]);
-  
+
   // ESC handling while modal is open
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
