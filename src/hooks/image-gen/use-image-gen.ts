@@ -3,8 +3,8 @@ import { useFireproof } from 'use-fireproof';
 import { ImageResponse } from 'call-ai';
 import { UseImageGenOptions, UseImageGenResult, ImageDocument } from './types';
 
-// We previously extended ImageGenOptions to include regenerate flag, but this isn't needed
-// The regenerate flag is handled at the hook level directly
+// We now use generationId instead of a boolean regenerate flag
+// When the generationId changes, we know a new generation request was made
 import {
   hashInput,
   base64ToFile,
@@ -31,7 +31,7 @@ export function useImageGen({
   options = {},
   database = 'ImgGen',
   skip = false, // Skip processing flag
-  regenerate = false, // Flag to force regeneration
+  generationId, // Unique ID that changes for each new generation request
 }: UseImageGenOptions): UseImageGenResult {
   // If both are provided, _id takes precedence
   // This silently prioritizes the document's internal prompt
@@ -68,23 +68,22 @@ export function useImageGen({
 
   // Track ID and regeneration state changes
   const previousIdRef = useRef<string | undefined>(_id);
-  const previousRegenerateRef = useRef<boolean>(regenerate);
-  const previousPromptRef = useRef<string | undefined>(prompt);
+  const previousGenerationIdRef = useRef<string | undefined>(generationId);
 
-  // Reset state when prompt, _id, or regenerate flag changes
+  // Reset state when prompt, _id, or generationId changes
   useEffect(() => {
-    // const promptChanged = prompt !== previousPromptRef.current; // Not currently used
+    // Keep track of whether _id has changed
     const idChanged = _id !== previousIdRef.current;
-    // Fix: Previously this would only detect changes when regenerate=true
-    // Change detection logic to detect ANY change in the regenerate flag
-    const regenerateChanged = regenerate !== previousRegenerateRef.current;
 
-    previousPromptRef.current = prompt;
+    // Detect when generationId changes - this indicates a request for regeneration
+    const generationRequested = generationId !== previousGenerationIdRef.current;
+
+    // Update refs for next check
     previousIdRef.current = _id;
-    previousRegenerateRef.current = regenerate;
+    previousGenerationIdRef.current = generationId;
 
     // Only proceed with state resets when needed
-    if (idChanged || regenerateChanged) {
+    if (idChanged || generationRequested) {
       // Reset all state when inputs change
       setImageData(null);
       setError(null);
@@ -150,8 +149,11 @@ export function useImageGen({
         // Log the request for debugging
 
         try {
-          // If we have a document ID, try to load the existing document
-          if (_id) {
+          // If we have a document ID and not regenerating, load the existing document
+          // We're regenerating if a generationId is provided
+          const isLoadingExisting = _id && !generationId;
+
+          if (isLoadingExisting) {
             const existingDoc = await db.get(_id).catch(() => null);
 
             if (existingDoc && existingDoc._files) {
@@ -165,9 +167,9 @@ export function useImageGen({
                 (existingDoc as unknown as ImageDocument).prompt ||
                 '';
 
-              // If regenerate flag is true, we're creating a new version
+              // If generationId is provided, we're creating a new version
               // Only attempt if we have a document with a prompt
-              if (regenerate && currentPromptText) {
+              if (generationId && currentPromptText) {
                 // Create a completely unique key for the regeneration request to avoid deduplication
                 // at the image generation API call level (not just the document level)
                 const timestamp = Date.now();
@@ -314,12 +316,13 @@ export function useImageGen({
               // Define a stable key for deduplication based on all relevant parameters.
               // Include _id (if present) and current time for regeneration requests
               // to ensure each regeneration gets a unique key
-              // Create a unique stable key for this request that changes with regenerate flag
-              const regenPart = regenerate ? `regen-${Date.now()}` : '0';
+              // Create a unique stable key for this request that changes with generationId
+              // When generationId changes, we'll generate a new image
+              const regenPart = generationId ? `gen-${generationId}` : '0';
               const stableKey = [
                 prompt || '',
                 _id || '',
-                // For regenerate requests, add a timestamp to ensure uniqueness
+                // For generation requests, use the generationId to ensure uniqueness
                 // When there's no _id but there is a prompt, we still want regeneration to work
                 regenPart,
                 // Stringify only relevant options to avoid spurious cache misses
@@ -457,6 +460,18 @@ export function useImageGen({
           } else {
             throw error;
           }
+        } finally {
+          // Always reset loading state and progress indicators
+          // This ensures UI progress bars are stopped even if an error occurs
+          if (isMounted) {
+            setLoading(false);
+            setProgress(0); // Reset progress to 0 instead of null
+          }
+          // Clear progress timer
+          if (progressTimerRef.current) {
+            clearInterval(progressTimerRef.current);
+            progressTimerRef.current = null;
+          }
         }
 
         // Update state with the image data
@@ -493,7 +508,7 @@ export function useImageGen({
     return () => {
       isMounted = false;
     };
-  }, [prompt, _id, memoizedOptions, requestId, database, skip, regenerate]); // Dependencies that trigger image loading/generation
+  }, [prompt, _id, memoizedOptions, requestId, database, skip, generationId]); // Dependencies that trigger image loading/generation
 
   return {
     imageData,

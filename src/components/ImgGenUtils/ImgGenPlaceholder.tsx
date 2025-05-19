@@ -77,6 +77,35 @@ export function ImgGenPlaceholder({
     return { title, body, code };
   };
 
+  // Check if we're displaying an error
+  if (error) {
+    return (
+      <div
+        className={combineClasses(
+          'imggen-placeholder',
+          'imggen-error-container',
+          className,
+          classes.placeholder
+        )}
+        aria-label={alt || 'Error display'}
+        role="img"
+      >
+        <div className={combineClasses('imggen-error', classes.error)}>
+          {(() => {
+            const { title, body } = parseErrorInfo(error);
+            return (
+              <>
+                <h3 className="imggen-error-title">{title}</h3>
+                <p className="imggen-error-message">{body}</p>
+              </>
+            );
+          })()}
+        </div>
+      </div>
+    );
+  }
+
+  // Regular placeholder when no error
   return (
     <div
       className={combineClasses('imggen-placeholder', className, classes.placeholder)}
@@ -84,7 +113,7 @@ export function ImgGenPlaceholder({
       role="img"
     >
       {/* Progress bar at the very top */}
-      {prompt && !error && (
+      {prompt && (
         <div
           className={combineClasses('imggen-progress', classes.progress)}
           style={{ width: `${visibleProgress}%` }}
@@ -92,19 +121,7 @@ export function ImgGenPlaceholder({
         />
       )}
       <div style={{ textAlign: 'center', padding: '10px', width: '100%', wordWrap: 'break-word' }}>
-        {error ? (
-          <div className={combineClasses('imggen-error', classes.error)}>
-            {(() => {
-              const { title, body } = parseErrorInfo(error);
-              return (
-                <>
-                  <h3 className="imggen-error-title">{title}</h3>
-                  <p className="imggen-error-message">{body}</p>
-                </>
-              );
-            })()}
-          </div>
-        ) : !prompt ? (
+        {!prompt ? (
           <div>Waiting for prompt</div>
         ) : // When generating with a prompt, don't show anything here
         // as we'll display the info in the overlay

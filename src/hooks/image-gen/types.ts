@@ -27,21 +27,27 @@ export interface VersionInfo {
   promptKey?: string; // Reference to the prompt used for this version (e.g. "p1")
 }
 
+export type GenerationPhase = 'idle' | 'generating' | 'complete' | 'error';
+
+/** Input options for the useImageGen hook */
 export interface UseImageGenOptions {
-  /** Text prompt for image generation (required unless _id is provided) */
+  /** Prompt text for image generation */
   prompt?: string;
 
-  /** Document ID to load a specific image instead of generating a new one */
+  /** Document ID for fetching existing image */
   _id?: string;
-
-  /** Options for image generation */
-  options?: ImageGenOptions;
 
   /** Fireproof database name or instance */
   database?: string | Database;
 
-  /** Flag to force regeneration of the image */
-  regenerate?: boolean;
+  /** Image generator options */
+  options?: ImageGenOptions;
+
+  /**
+   * Generation ID - a unique identifier that changes ONLY when a fresh request is made.
+   * This replaces the regenerate flag with a more explicit state change signal.
+   */
+  generationId?: string;
 
   /** Flag to skip processing when neither prompt nor _id is valid */
   skip?: boolean;

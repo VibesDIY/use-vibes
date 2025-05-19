@@ -307,17 +307,34 @@
   box-sizing: border-box;
 }
 
+/* Error container wrapper to ensure consistent dark background */
+.imggen-error-container {
+  background-color: #222;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  width: 100%;
+  border-radius: var(--imggen-border-radius);
+  overflow: hidden;
+}
+
 /* Error container */
 .imggen-error {
-  background-color: var(--imggen-error-bg);
-  padding: 20px;
+  background-color: #000;
+  color: var(--imggen-error-text);
+  padding: 1.5rem;
   border-radius: var(--imggen-border-radius);
-  margin: 15px;
   border: 1px solid var(--imggen-error-border);
   box-shadow: var(--imggen-shadow);
-  max-width: 90%;
-  max-height: 80%;
-  overflow: auto;
+  max-width: 80%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
 }
 
 /* Error title */

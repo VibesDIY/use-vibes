@@ -169,11 +169,11 @@ describe('ImgGen ID Switching Behavior', () => {
 
     const { rerender } = render(<ImgGen _id="doc-1" />);
 
-    // The first call should contain _id but no regenerate flag
+    // The first call should contain _id and have generationId as undefined (no regeneration)
     expect(useImageGenMock).toHaveBeenCalledWith(
       expect.objectContaining({
         _id: 'doc-1',
-        regenerate: false,
+        generationId: undefined,
       })
     );
 
@@ -186,7 +186,7 @@ describe('ImgGen ID Switching Behavior', () => {
     expect(useImageGenMock).toHaveBeenCalledWith(
       expect.objectContaining({
         _id: 'doc-2',
-        regenerate: false,
+        generationId: undefined,
       })
     );
   });

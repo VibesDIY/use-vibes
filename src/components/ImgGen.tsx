@@ -6,6 +6,7 @@ import { useFireproof, Database } from 'use-fireproof';
 import { ImageDocument } from '../hooks/image-gen/types';
 import { ImgGenPromptWaiting, ImgGenPlaceholder, ImgGenDisplay, ImgGenError } from './ImgGenUtils';
 import { ImgGenClasses, defaultClasses, combineClasses } from '../utils/style-utils';
+import './ImgGen.css';
 
 export interface ImgGenProps {
   /** Text prompt for image generation (required unless _id is provided) */
@@ -68,12 +69,9 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Get access to the Fireproof database directly
   const { database: db } = useFireproof(database || 'ImgGen');
 
-  // Use a ref to track regeneration state instead of a state variable
-  // This avoids unnecessary re-renders when toggling regeneration state
-  const regenerateRef = React.useRef(false);
-
-  // Store the counter in state for triggering re-renders when needed
-  const [regenerateCounter, setRegenerateCounter] = React.useState(0);
+  // Use a unique generationId to trigger regeneration
+  // This provides a clearer signal when regeneration is needed
+  const [generationId, setGenerationId] = React.useState<string | undefined>(undefined);
 
   // Calculate isPlaceholder as a pure expression instead of using useMemo
   // This is simple enough that React doesn't need to track dependencies or cache the result
@@ -86,8 +84,8 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     _id: _id,
     options,
     database,
-    // Use the ref value for regeneration flag
-    regenerate: regenerateRef.current,
+    // Use the generationId to signal when we want a new image
+    generationId,
     // Skip processing if neither prompt nor _id is provided
     skip: isPlaceholder,
   });
@@ -98,11 +96,9 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Handle regeneration when the button is clicked
   const handleRegen = React.useCallback(() => {
     if (document?._id || _id || prompt) {
-      // Toggle regeneration flag
-      regenerateRef.current = !regenerateRef.current;
-
-      // Increment counter to trigger a re-render
-      setRegenerateCounter((prev) => prev + 1);
+      // Create a new unique ID to trigger regeneration
+      setGenerationId(crypto.randomUUID());
+      console.log('[ImgGen] Regeneration requested with new generationId');
     }
   }, [document, _id, prompt]);
 
@@ -212,18 +208,9 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     }
   }, [loading, error, document, onLoad, onError]);
 
-  // Detect completion of regeneration to prepare for next one
-  React.useEffect(() => {
-    // When loading finishes and regeneration flag is on, reset it
-    if (!loading && regenerateRef.current) {
-      // Using a small delay to ensure the UI fully updates first
-      const timer = setTimeout(() => {
-        setRegenerateCounter((prev) => prev + 1);
-      }, 100);
-
-      return () => clearTimeout(timer);
-    }
-  }, [loading, regenerateCounter]);
+  // No longer need to detect regeneration completion
+  // The generationId approach doesn't require resetting since each regeneration
+  // uses a new unique ID, eliminating the need for this effect
 
   // Render function that determines what to show
   const renderContent = () => {
@@ -267,7 +254,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
           />
 
           {/* Show progress overlay during regeneration */}
-          {loading && regenerateRef.current && (
+          {loading && generationId && (
             <div className="imggen-progress-container">
               {/* Progress bar */}
               <div
@@ -284,8 +271,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     // Otherwise, for initial load or error states, show the placeholder
     if (loading || !imageData || error) {
       // Use the edited prompt during regeneration if available
-      const displayPrompt =
-        regenerateRef.current && currentEditedPrompt ? currentEditedPrompt : prompt;
+      const displayPrompt = currentEditedPrompt || prompt;
 
       return (
         <ImgGenPlaceholder
