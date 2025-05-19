@@ -485,6 +485,28 @@ export function useImageGen({
                 // First check if there's already a document ID for this request
                 const existingDocId = MODULE_STATE.createdDocuments.get(stableKey);
 
+                if (_id) {
+                  try {
+                    // Try to get the document from the database
+                    // If it exists, we'll use its internal prompts for display
+                    const existingDoc = await db.get(_id);
+
+                    // If the document has a prompt, use it as the prompt text
+                    // Need to check for prompt using 'in' operator to avoid TypeScript errors
+                    if (
+                      'prompt' in existingDoc &&
+                      typeof existingDoc.prompt === 'string' &&
+                      existingDoc.prompt
+                    ) {
+                      prompt = existingDoc.prompt;
+                    }
+
+                    setDocument(existingDoc as unknown as ImageDocument);
+                  } catch {
+                    // Error fetching existing document, ignore silently
+                  }
+                }
+
                 if (existingDocId) {
                   try {
                     // Try to get the existing document
