@@ -1,6 +1,6 @@
 {
   "name": "use-vibes",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "type": "module",
   "description": "Transform any DOM element into an AI-powered micro-app",
   "main": "dist/index.js",
@@ -16,8 +16,7 @@
       "types": "./dist/style-loader.d.ts",
       "import": "./dist/style-loader.js",
       "require": "./dist/style-loader.js"
-    },
-    "./components/ImgGen.css": "./dist/components/ImgGen.css"
+    }
   },
   "files": [
     "dist"
