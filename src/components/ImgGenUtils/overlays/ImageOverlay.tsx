@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { combineClasses, defaultClasses, ImgGenClasses } from '../../../utils/style-utils';
-import { DeleteConfirmationOverlay } from './DeleteConfirmationOverlay';
 import { PromptBar } from '../../../components/PromptBar';
 import { ControlsBar } from '../../../components/ControlsBar';
 
@@ -11,12 +10,8 @@ interface ImageOverlayProps {
   setEditedPrompt: (prompt: string | null) => void; // Set to null to exit edit mode
   // eslint-disable-next-line no-unused-vars
   handlePromptEdit: (prompt: string) => void;
-  /** Current state of delete confirmation */
-  isDeleteConfirmOpen: boolean;
   /** Function to handle deletion confirmation */
   handleDeleteConfirm: () => void;
-  /** Function to handle deletion cancellation */
-  handleCancelDelete: () => void;
   handlePrevVersion: () => void;
   handleNextVersion: () => void;
   handleRegen: () => void;
@@ -41,9 +36,7 @@ export function ImageOverlay({
   editedPrompt,
   setEditedPrompt,
   handlePromptEdit,
-  isDeleteConfirmOpen,
   handleDeleteConfirm,
-  handleCancelDelete,
   handlePrevVersion,
   handleNextVersion,
   handleRegen,
@@ -62,13 +55,7 @@ export function ImageOverlay({
       className={combineClasses('imggen-overlay', classes.overlay)}
       style={{ position: 'relative' }}
     >
-      {isDeleteConfirmOpen && showDelete ? (
-        <DeleteConfirmationOverlay
-          handleDeleteConfirm={handleDeleteConfirm}
-          handleCancelDelete={handleCancelDelete}
-          classes={classes}
-        />
-      ) : (
+      {
         <>
           {/* Prompt bar component */}
           <PromptBar
@@ -93,12 +80,11 @@ export function ImageOverlay({
             editedPrompt={editedPrompt}
             promptText={promptText}
             progress={progress}
-            isDeleteConfirmOpen={isDeleteConfirmOpen}
             versionFlash={versionFlash}
             isRegenerating={isRegenerating}
           />
         </>
-      )}
+      }
     </div>
   );
 }

@@ -18,7 +18,7 @@ export function ImgGenDisplay({
   loading,
   error,
 }: ImgGenDisplayProps) {
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = React.useState(false);
+  // Delete confirmation is now handled within ControlsBar
 
   // Use null to indicate not editing, or string for edit mode
   const [editedPrompt, setEditedPrompt] = React.useState<string | null>(null);
@@ -130,12 +130,6 @@ export function ImgGenDisplay({
     if (onDelete) {
       onDelete(document._id);
     }
-    setIsDeleteConfirmOpen(false);
-  }
-
-  // Handle cancel delete
-  function handleCancelDelete() {
-    setIsDeleteConfirmOpen(false);
   }
 
   // Handle generating a new version
@@ -330,9 +324,7 @@ export function ImgGenDisplay({
         editedPrompt={editedPrompt}
         setEditedPrompt={setEditedPrompt}
         handlePromptEdit={handlePromptEdit}
-        isDeleteConfirmOpen={isDeleteConfirmOpen}
         handleDeleteConfirm={handleDeleteConfirm}
-        handleCancelDelete={handleCancelDelete}
         handlePrevVersion={handlePrevVersion}
         handleNextVersion={handleNextVersion}
         handleRegen={handleRegen}

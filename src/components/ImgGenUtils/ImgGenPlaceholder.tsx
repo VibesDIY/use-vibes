@@ -118,9 +118,7 @@ export function ImgGenPlaceholder({
           editedPrompt={null}
           setEditedPrompt={() => {}}
           handlePromptEdit={() => {}}
-          isDeleteConfirmOpen={false}
           handleDeleteConfirm={() => {}}
-          handleCancelDelete={() => {}}
           handlePrevVersion={() => {}}
           handleNextVersion={() => {}}
           handleRegen={() => {}}

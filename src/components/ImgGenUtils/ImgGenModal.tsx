@@ -16,9 +16,7 @@ export interface ImgGenModalProps {
   setEditedPrompt: (_editedPrompt: string | null) => void;
   // eslint-disable-next-line no-unused-vars
   handlePromptEdit: (_newPrompt: string) => void;
-  isDeleteConfirmOpen: boolean;
   handleDeleteConfirm: () => void;
-  handleCancelDelete: () => void;
   handlePrevVersion: () => void;
   handleNextVersion: () => void;
   handleRegen: () => void;
@@ -48,9 +46,7 @@ export function ImgGenModal({
   editedPrompt,
   setEditedPrompt,
   handlePromptEdit,
-  isDeleteConfirmOpen,
   handleDeleteConfirm,
-  handleCancelDelete,
   handlePrevVersion,
   handleNextVersion,
   handleRegen,
@@ -66,11 +62,7 @@ export function ImgGenModal({
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (isDeleteConfirmOpen) {
-          handleCancelDelete();
-        } else {
-          onClose();
-        }
+        onClose();
       }
     };
 
@@ -78,7 +70,7 @@ export function ImgGenModal({
       window.addEventListener('keydown', handleEsc);
       return () => window.removeEventListener('keydown', handleEsc);
     }
-  }, [isOpen, isDeleteConfirmOpen, handleCancelDelete, onClose]);
+  }, [isOpen, onClose]);
 
   if (!isOpen || !currentFile) {
     return null;
@@ -109,9 +101,7 @@ export function ImgGenModal({
           editedPrompt={editedPrompt}
           setEditedPrompt={setEditedPrompt}
           handlePromptEdit={handlePromptEdit}
-          isDeleteConfirmOpen={isDeleteConfirmOpen}
           handleDeleteConfirm={handleDeleteConfirm}
-          handleCancelDelete={handleCancelDelete}
           handlePrevVersion={handlePrevVersion}
           handleNextVersion={handleNextVersion}
           handleRegen={handleRegen}

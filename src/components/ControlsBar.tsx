@@ -21,8 +21,7 @@ interface ControlsBarProps {
   progress?: number;
   /** Show delete button (defaults to true) */
   showDelete?: boolean;
-  /** Whether delete confirmation is being shown */
-  isDeleteConfirmOpen?: boolean;
+
   /** Whether to flash the version indicator when a new version is added */
   versionFlash?: boolean;
   /** Whether the regeneration is currently in progress */
@@ -45,7 +44,6 @@ export function ControlsBar({
   promptText,
   progress = 100,
   showDelete = true,
-  isDeleteConfirmOpen = false,
   versionFlash = false,
   isRegenerating = false,
 }: ControlsBarProps) {
@@ -56,7 +54,7 @@ export function ControlsBar({
   const cancelTimerRef = React.useRef<number | null>(null);
 
   // Use external state if provided
-  const isConfirming = isDeleteConfirmOpen || showConfirmation;
+  const isConfirming = showConfirmation;
 
   // Handle delete click
   const onDeleteClick = () => {
