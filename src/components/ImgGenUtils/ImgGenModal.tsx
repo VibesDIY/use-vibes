@@ -4,7 +4,6 @@ import { createPortal } from 'react-dom';
 import { ImageOverlay } from './overlays/ImageOverlay';
 import { ImgGenError } from './ImgGenError';
 import { defaultClasses } from '../../utils/style-utils';
-import { ImageDocument } from '../../hooks/image-gen/types';
 
 export interface ImgGenModalProps {
   isOpen: boolean;
@@ -13,7 +12,6 @@ export interface ImgGenModalProps {
   alt?: string;
   promptText: string;
   editedPrompt: string | null;
-  document?: Partial<ImageDocument> & { _id?: string }; // Document containing image metadata
   // eslint-disable-next-line no-unused-vars
   setEditedPrompt: (_editedPrompt: string | null) => void;
   // eslint-disable-next-line no-unused-vars
