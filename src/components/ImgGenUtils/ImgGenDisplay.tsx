@@ -188,11 +188,21 @@ export function ImgGenDisplay({
   function handlePromptEdit(newPrompt: string) {
     // Get the current prompt for comparison at the exact time of editing
     const { currentPrompt } = getPromptInfo(document, versionIndex);
+    const trimmedPrompt = newPrompt.trim();
 
-    if (onPromptEdit && newPrompt.trim() && newPrompt !== currentPrompt) {
-      onPromptEdit(document._id, newPrompt.trim());
+    if (trimmedPrompt && trimmedPrompt !== currentPrompt) {
+      console.log(`[ImgGenDisplay] handlePromptEdit called, setting new prompt and triggering regeneration...`);
+      
+      // Set the edited prompt to the new trimmed value
+      setEditedPrompt(trimmedPrompt);
+      
+      // Now use handleRegen to handle the regeneration process
+      // This ensures the regeneration logic is consistent
+      handleRegen();
+    } else {
+      // If the prompt hasn't changed, just exit edit mode
+      setEditedPrompt(null);
     }
-    setEditedPrompt(null); // Exit edit mode
   }
 
   // Get progress from document
