@@ -146,20 +146,20 @@ describe('ImgGen ID Switching Behavior', () => {
   });
 
   it('resets state when switching between image IDs', async () => {
-    const onLoad = vi.fn();
-    const { rerender } = render(<ImgGen _id="doc-1" onLoad={onLoad} />);
+    const onComplete = vi.fn();
+    const { rerender } = render(<ImgGen _id="doc-1" onComplete={onComplete} />);
 
     await waitFor(() => {
-      expect(onLoad).toHaveBeenCalled();
+      expect(onComplete).toHaveBeenCalled();
     });
 
     // Reset mock and switch to a different ID
-    onLoad.mockReset();
-    rerender(<ImgGen _id="doc-2" onLoad={onLoad} />);
+    onComplete.mockReset();
+    rerender(<ImgGen _id="doc-2" onComplete={onComplete} />);
 
-    // With the mountKey approach, the component should be remounted and onLoad called again
+    // With the mountKey approach, the component should be remounted and onComplete called again
     await waitFor(() => {
-      expect(onLoad).toHaveBeenCalled();
+      expect(onComplete).toHaveBeenCalled();
     });
   });
 

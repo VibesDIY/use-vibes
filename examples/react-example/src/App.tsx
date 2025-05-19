@@ -131,7 +131,7 @@ function App() {
             imgUrl: 'https://vibecode.garden',
             size: '1024x1024',
           }}
-          onLoad={handleImageLoad}
+          onComplete={handleImageLoad}
           onError={handleImageError}
         />
       </div>

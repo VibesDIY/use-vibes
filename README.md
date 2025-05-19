@@ -59,6 +59,7 @@ function MyComponent() {
 - `prompt`: Text prompt for image generation (required unless `_id` is provided)
 - `_id`: Document ID to load a specific image instead of generating a new one
 - `options` (object, optional): Configuration options for image generation
+
   - `model` (string, optional): Model to use for image generation, defaults to 'gpt-image-1'
   - `size` (string, optional): Size of the generated image (Must be one of 1024x1024, 1536x1024 (landscape), 1024x1536 (portrait), or 'auto' (default value) for gpt-image-1, and one of 256x256, 512x512, or 1024x1024 for dall-e-2.)
   - `quality` (string, optional): Quality of the generated image (high, medium and low are only supported for gpt-image-1. dall-e-2 only supports standard quality. Defaults to auto.)
@@ -68,7 +69,7 @@ function MyComponent() {
 - `alt`: Alt text for the image (defaults to prompt)
 - `overlay`: Whether to show overlay controls and info button (default: `true`)
 - `database`: Database name or instance to use for storing images (default: `'ImgGen'`)
-- `onLoad`: Callback when image load completes successfully
+- `onComplete`: Callback when image load completes successfully
 - `onError`: Callback when image load fails, receives the error as parameter
 - `onDelete`: Callback when an image is deleted, receives the document ID
 - `onPromptEdit`: Callback when the prompt is edited, receives document ID and new prompt

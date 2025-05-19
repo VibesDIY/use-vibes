@@ -33,7 +33,7 @@ export interface ImgGenProps {
   database?: string | Database;
 
   /** Callback when image load completes successfully */
-  onLoad?: () => void;
+  onComplete?: () => void;
 
   /** Callback when image load fails */
   // eslint-disable-next-line no-unused-vars
@@ -64,7 +64,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     alt,
     options,
     database,
-    onLoad,
+    onComplete,
     onError,
     onDelete,
     onPromptEdit,
@@ -210,10 +210,10 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
         onError?.(error); // Pass error to callback
       } else if (document && document._files) {
         // Image generation succeeded - now supports both legacy and versioned files
-        onLoad?.();
+        onComplete?.();
       }
     }
-  }, [loading, error, document, onLoad, onError]);
+  }, [loading, error, document, onComplete, onError]);
 
   // No longer need to detect regeneration completion
   // The generationId approach doesn't require resetting since each regeneration
