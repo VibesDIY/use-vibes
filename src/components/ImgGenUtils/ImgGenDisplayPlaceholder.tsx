@@ -88,11 +88,11 @@ export function ImgGenDisplayPlaceholder({
           classes.placeholder
         )}
         style={{
-          backgroundColor: '#222',  // Dark gray background
+          backgroundColor: '#222', // Dark gray background
           width: '100%',
           height: '100%',
-          minHeight: '512px',      // Standard image height
-          aspectRatio: '1 / 1',    // Square aspect ratio like images
+          minHeight: '512px', // Standard image height
+          aspectRatio: '1 / 1', // Square aspect ratio like images
         }}
         aria-label={alt || 'Error display'}
         role="img"
@@ -102,8 +102,15 @@ export function ImgGenDisplayPlaceholder({
             const { title, body } = parseErrorInfo(error);
             return (
               <>
-                <h3 className="imggen-error-title" style={{ color: '#ff4d4d', margin: '0 0 0.75rem 0' }}>{title}</h3>
-                <p className="imggen-error-message" style={{ color: '#e0e0e0', margin: '0' }}>{body}</p>
+                <h3
+                  className="imggen-error-title"
+                  style={{ color: '#ff4d4d', margin: '0 0 0.75rem 0' }}
+                >
+                  {title}
+                </h3>
+                <p className="imggen-error-message" style={{ color: '#e0e0e0', margin: '0' }}>
+                  {body}
+                </p>
               </>
             );
           })()}

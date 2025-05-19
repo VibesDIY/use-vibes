@@ -114,7 +114,9 @@ describe('ImgGenDisplayPlaceholder Component', () => {
     it('handles moderation blocked errors with special formatting', () => {
       const moderationError = new Error('Error: {"code": "moderation_blocked"}');
 
-      render(<ImgGenDisplayPlaceholder prompt="Test prompt" progress={0} error={moderationError} />);
+      render(
+        <ImgGenDisplayPlaceholder prompt="Test prompt" progress={0} error={moderationError} />
+      );
 
       expect(screen.getByText('Failed to generate image')).toBeInTheDocument();
       expect(screen.getByText(/Your request was rejected/)).toBeInTheDocument();

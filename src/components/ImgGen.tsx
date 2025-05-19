@@ -4,7 +4,12 @@ import type { ImageGenOptions } from 'call-ai';
 import { useImageGen } from '../hooks/image-gen/use-image-gen';
 import { useFireproof, Database } from 'use-fireproof';
 import { ImageDocument } from '../hooks/image-gen/types';
-import { ImgGenPromptWaiting, ImgGenDisplayPlaceholder, ImgGenDisplay, ImgGenError } from './ImgGenUtils';
+import {
+  ImgGenPromptWaiting,
+  ImgGenDisplayPlaceholder,
+  ImgGenDisplay,
+  ImgGenError,
+} from './ImgGenUtils';
 import { ImgGenClasses, defaultClasses, combineClasses } from '../utils/style-utils';
 import './ImgGen.css';
 
@@ -79,8 +84,8 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
 
   // Use the custom hook for all the image generation logic
   const { imageData, loading, error, progress, document } = useImageGen({
-    // Always use the original props, no need for state tracking
-    prompt: _id ? undefined : prompt || '',
+    // Always provide prompt when available, even with _id (helps with fallback generation)
+    prompt: prompt || '',
     _id: _id,
     options,
     database,
