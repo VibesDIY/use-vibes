@@ -91,12 +91,6 @@ export function ControlsBar({
     };
   }, []);
   
-  // Debug logs for regeneration state in useEffect
-  React.useEffect(() => {
-    console.log(`[ControlsBar] isRegenerating changed: ${isRegenerating}, progress: ${progress}`);
-    // Log CSS class for debugging
-    console.log(`[ControlsBar] CSS class: ${isRegenerating ? 'imggen-regen-spinning' : 'none'}`);
-  }, [isRegenerating, progress]);
   return (
     <>
       {/* Progress bar for generation progress - explicitly positioned at the top */}

@@ -59,11 +59,6 @@ export function ImageOverlay({
   versionFlash = false,
   isRegenerating = false,
 }: ImageOverlayProps) {
-  // Debug logs for regeneration state
-  React.useEffect(() => {
-    console.log(`[ImageOverlay] isRegenerating: ${isRegenerating}, progress: ${progress}`);
-  }, [isRegenerating, progress]);
-  
   // Normal overlay content regardless of delete confirmation state
   return (
     <div className={combineClasses('imggen-overlay', classes.overlay)} style={{ position: 'relative' }}>

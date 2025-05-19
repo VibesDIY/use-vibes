@@ -60,11 +60,6 @@ export function ImgGenModal({
   isRegenerating = false,
   classes = defaultClasses,
 }: ImgGenModalProps) {
-  // Debug logs for regeneration state
-  React.useEffect(() => {
-    console.log(`[ImgGenModal] isRegenerating: ${isRegenerating}, progress: ${progress}`);
-  }, [isRegenerating, progress]);
-
   // ESC handling while modal is open
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {

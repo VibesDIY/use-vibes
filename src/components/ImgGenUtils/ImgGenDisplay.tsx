@@ -135,7 +135,6 @@ export function ImgGenDisplay({
 
   // Handle generating a new version
   function handleRegen() {
-    console.log(`[ImgGenDisplay] handleRegen called, starting regeneration...`);
     
     // Set pending regeneration flag
     setPendingRegeneration(true);
@@ -191,7 +190,6 @@ export function ImgGenDisplay({
     const trimmedPrompt = newPrompt.trim();
 
     if (trimmedPrompt && trimmedPrompt !== currentPrompt) {
-      console.log(`[ImgGenDisplay] handlePromptEdit called, setting new prompt and triggering regeneration...`);
       
       // Set the edited prompt to the new trimmed value
       setEditedPrompt(trimmedPrompt);
@@ -205,15 +203,13 @@ export function ImgGenDisplay({
     }
   }
 
-  // Get progress from document
-  const progress: number = (document as { progress?: number }).progress ?? 100;
+  // We're not using document.progress as it's always 100
+  // Just track the loading state
   const loading: boolean = (document as { loading?: boolean }).loading ?? false;
   
-  // Track when progress changes or loading state changes
+  // Reset regeneration state when loading state changes
   React.useEffect(() => {
-    // If progress is 100% and loading is false, regeneration is complete
-    if (progress === 100 && !loading) {
-      console.log('[ImgGenDisplay] Regeneration completed - resetting state');
+    if (!loading && pendingRegenerationRef.current) {
       pendingRegenerationRef.current = false;
       setPendingRegeneration(false);
       
@@ -223,19 +219,15 @@ export function ImgGenDisplay({
         progressTimerRef.current = null;
       }
       
-      // Reset simulated progress
-      setSimulatedProgress(null);
+      // Set simulated progress to 100% to complete the progress bar
+      setSimulatedProgress(100);
+      
+      // Then clear it after a short delay to hide the progress bar
+      setTimeout(() => {
+        setSimulatedProgress(null);
+      }, 500);
     }
-    // If progress is less than 100%, we're in the middle of regeneration
-    else if (progress < 100) {
-      console.log(`[ImgGenDisplay] Regeneration in progress: ${progress}%`);
-    }
-    
-    // Log loading state changes
-    if (loading) {
-      console.log('[ImgGenDisplay] Loading state active');
-    }
-  }, [progress, loading]);
+  }, [loading]);
   
   // Additional check for document updates to detect version changes
   const documentIdRef = React.useRef(document?._id);
@@ -244,9 +236,22 @@ export function ImgGenDisplay({
   React.useEffect(() => {
     // Check if a new version was added (version count increased)
     if (versions?.length > versionsLengthRef.current) {
-      console.log('[ImgGenDisplay] New version detected - regeneration complete');
       pendingRegenerationRef.current = false;
       setPendingRegeneration(false);
+      
+      // Clear the simulated progress timer
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      
+      // Set simulated progress to 100% to complete the progress bar
+      setSimulatedProgress(100);
+      
+      // Then clear it after a short delay to hide the progress bar
+      setTimeout(() => {
+        setSimulatedProgress(null);
+      }, 500);
     }
     
     // Update refs
@@ -265,14 +270,17 @@ export function ImgGenDisplay({
   }, []);
   
   // Calculate the effective progress - use simulated progress during regeneration if available
-  const effectiveProgress = pendingRegeneration && simulatedProgress !== null ? 
-    simulatedProgress : progress;
+  const effectiveProgress = simulatedProgress ?? 100;
   
-  // Is regeneration in progress - either from progress < 100, loading state, or pending state
-  const isRegenerating = effectiveProgress < 100 || loading || pendingRegeneration;
+  // Is regeneration in progress - either from loading state or pending state
+  const isRegenerating = loading || pendingRegeneration;
   
-  // Debug logs for regeneration state
-  console.log(`[ImgGenDisplay] actual progress: ${progress}, simulated: ${simulatedProgress}, effective: ${effectiveProgress}, loading: ${loading}, pendingRegen: ${pendingRegeneration}, isRegenerating: ${isRegenerating}`);
+  // Create a better status message during regeneration
+  const statusText = isRegenerating ? 
+    pendingRegeneration && simulatedProgress !== null ? 
+      `Reimagining... ${Math.round(simulatedProgress)}%` : 
+      'Processing image...' : 
+    undefined;
 
   if (!document._files || (!fileKey && !document._files.image)) {
     return <ImgGenError message="Missing image file" />;
@@ -307,6 +315,7 @@ export function ImgGenDisplay({
         versionIndex={versionIndex}
         totalVersions={totalVersions}
         progress={effectiveProgress}
+        statusText={statusText}
         classes={classes}
         versionFlash={versionFlash}
         isRegenerating={isRegenerating}
