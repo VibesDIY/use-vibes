@@ -4,10 +4,11 @@ import { combineClasses, defaultClasses } from '../../utils/style-utils';
 import { ImageOverlay } from './overlays/ImageOverlay';
 
 // Detect test environment
-const isTestEnvironment = typeof window !== 'undefined' && 
-  (Object.prototype.hasOwnProperty.call(window, '__vitest__') || 
-   // @ts-expect-error - for test environment detection
-   typeof vi !== 'undefined');
+const isTestEnvironment =
+  typeof window !== 'undefined' &&
+  (Object.prototype.hasOwnProperty.call(window, '__vitest__') ||
+    // @ts-expect-error - for test environment detection
+    typeof vi !== 'undefined');
 
 // Component for loading/placeholder state
 export function ImgGenDisplayPlaceholder({
@@ -207,7 +208,7 @@ export function ImgGenDisplayPlaceholder({
           >
             {prompt}
           </div>
-          
+
           <div style={{ display: 'none' }}>
             <ImageOverlay
               promptText={prompt || ''}

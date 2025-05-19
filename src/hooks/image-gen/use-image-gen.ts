@@ -139,17 +139,19 @@ export function useImageGen({
 
   // Track the last request parameters to prevent duplicate requests
   const lastRequestRef = useRef<string>('');
-  
+
   // Helper to detect test environment
   const isTestEnvironment = () => {
     try {
       // Check for test environment markers
-      return typeof window !== 'undefined' && 
-        (Object.prototype.hasOwnProperty.call(window, '__vitest__') || 
-        // @ts-expect-error - for test environment detection
-        typeof vi !== 'undefined' || 
-        // @ts-expect-error - for test environment detection
-        (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test'));
+      return (
+        typeof window !== 'undefined' &&
+        (Object.prototype.hasOwnProperty.call(window, '__vitest__') ||
+          // @ts-expect-error - for test environment detection
+          typeof vi !== 'undefined' ||
+          // @ts-expect-error - for test environment detection
+          (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test'))
+      );
     } catch {
       return false;
     }
@@ -417,8 +419,23 @@ export function useImageGen({
           } else if (prompt) {
             // No document ID provided but we have a prompt - generate a new image
 
+            // Build generation options; if this is a regeneration request (generationId present)
+            // attach a unique _regenerationId to force a fresh network call and clear cached key.
+            let generationOptions = options;
+            if (generationId) {
+              generationOptions = {
+                ...options,
+                _regenerationId: Date.now(),
+              } as typeof options & { _regenerationId: number };
+
+              // Clear any cached promise for the original prompt+options so that
+              // imageGen will not re-use the previous response.
+              const requestKey = `${prompt}-${JSON.stringify(getRelevantOptions(options))}`;
+              cleanupRequestKey(requestKey);
+            }
+
             // Generate the image
-            data = await callImageGeneration(prompt, options);
+            data = await callImageGeneration(prompt, generationOptions);
 
             // Process the data response
             if (data?.data?.[0]?.b64_json) {
@@ -623,7 +640,7 @@ export function useImageGen({
     };
 
     let loadImageTimer: ReturnType<typeof setTimeout> | undefined;
-    
+
     // Skip delay in test environment
     if (isTestEnvironment()) {
       // In test environment, call immediately
