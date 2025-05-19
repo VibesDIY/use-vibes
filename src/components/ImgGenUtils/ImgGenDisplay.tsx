@@ -335,6 +335,7 @@ export function ImgGenDisplay({
         versionFlash={versionFlash}
         isRegenerating={isRegenerating}
         error={error}
+        document={document}
       />
     </div>
   );

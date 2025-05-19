@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { ImageOverlay } from './overlays/ImageOverlay';
 import { ImgGenError } from './ImgGenError';
 import { defaultClasses } from '../../utils/style-utils';
+import { ImageDocument } from '../../hooks/image-gen/types';
 
 export interface ImgGenModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ export interface ImgGenModalProps {
   alt?: string;
   promptText: string;
   editedPrompt: string | null;
+  document?: Partial<ImageDocument> & { _id?: string }; // Document containing image metadata
   // eslint-disable-next-line no-unused-vars
   setEditedPrompt: (_editedPrompt: string | null) => void;
   // eslint-disable-next-line no-unused-vars
@@ -44,6 +46,7 @@ export function ImgGenModal({
   alt,
   promptText,
   editedPrompt,
+  document,
   setEditedPrompt,
   handlePromptEdit,
   handleDeleteConfirm,
@@ -61,6 +64,7 @@ export function ImgGenModal({
   // Log when modal opens or changes content
   React.useEffect(() => {
     if (isOpen) {
+      // Log simple summary info
       console.log('[ImgGenModal] Modal opened or updated:', { 
         hasFile: !!currentFile, 
         fileName: currentFile?.name,
@@ -73,8 +77,13 @@ export function ImgGenModal({
         hasError: !!error,
         errorMessage: error?.message
       });
+      
+      // Log the plain old whole document as requested
+      if (document) {
+        console.log('[ImgGenModal] Full document:', document);
+      }
     }
-  }, [isOpen, currentFile, promptText, editedPrompt, versionIndex, error]);
+  }, [isOpen, currentFile, promptText, editedPrompt, versionIndex, error, document]);
   
   // ESC handling while modal is open
   React.useEffect(() => {
