@@ -6,9 +6,9 @@ import { ImgGenModal } from '../src/components/ImgGenUtils/ImgGenModal';
 
 // Mock ImgFile component
 vi.mock('use-fireproof', () => ({
-  ImgFile: ({ alt }: { alt: string, file: unknown, className?: string }) => (
+  ImgFile: ({ alt }: { alt: string; file: unknown; className?: string }) => (
     <img data-testid="mock-img-file" alt={alt} />
-  )
+  ),
 }));
 
 // Mock createPortal to render content directly without portal
@@ -49,7 +49,7 @@ describe('ImgGenModal Component', () => {
 
   it('should render modal when isOpen is true', () => {
     render(<ImgGenModal {...mockProps} />);
-    
+
     // Check that modal is rendered
     expect(screen.getByRole('presentation')).toBeInTheDocument();
     expect(screen.getByTestId('mock-img-file')).toBeInTheDocument();
@@ -58,81 +58,81 @@ describe('ImgGenModal Component', () => {
 
   it('should not render modal when isOpen is false', () => {
     const { container } = render(<ImgGenModal {...mockProps} isOpen={false} />);
-    
+
     // Check that modal is not rendered
     expect(container).toBeEmptyDOMElement();
   });
 
   it('should call onClose when backdrop is clicked', () => {
     render(<ImgGenModal {...mockProps} />);
-    
+
     // Click backdrop (container with presentation role)
     fireEvent.click(screen.getByRole('presentation'));
-    
+
     // Check that onClose was called
     expect(mockProps.onClose).toHaveBeenCalledTimes(1);
   });
 
   it('should not call onClose when figure is clicked (event should not propagate)', () => {
     render(<ImgGenModal {...mockProps} />);
-    
+
     // Click figure (wrapper that contains image and controls)
     fireEvent.click(screen.getByRole('figure'));
-    
+
     // Check that onClose was not called
     expect(mockProps.onClose).not.toHaveBeenCalled();
   });
 
   it('should include ImageOverlay with correct props', () => {
     render(<ImgGenModal {...mockProps} />);
-    
+
     // Check that prompt text is rendered (confirms ImageOverlay is included)
     expect(screen.getByText('Test prompt')).toBeInTheDocument();
-    
+
     // We can also verify that controls are present
     expect(screen.getByLabelText('Regenerate image')).toBeInTheDocument();
-    
+
     // Verify version navigation is present
     expect(screen.getByText('1 / 3')).toBeInTheDocument();
   });
 
   it('should call handleNextVersion when next button is clicked', () => {
     render(<ImgGenModal {...mockProps} />);
-    
+
     // Click next version button
     fireEvent.click(screen.getByLabelText('Next version'));
-    
+
     // Check that handleNextVersion was called
     expect(mockProps.handleNextVersion).toHaveBeenCalledTimes(1);
   });
 
   it('should call handlePrevVersion when previous button is clicked', () => {
     render(<ImgGenModal {...mockProps} versionIndex={1} />);
-    
+
     // Click previous version button
     fireEvent.click(screen.getByLabelText('Previous version'));
-    
+
     // Check that handlePrevVersion was called
     expect(mockProps.handlePrevVersion).toHaveBeenCalledTimes(1);
   });
 
   it('should call handleDeleteConfirm when delete button is clicked twice', () => {
     render(<ImgGenModal {...mockProps} />);
-    
+
     // First click shows confirmation
     fireEvent.click(screen.getByLabelText('Delete image'));
-    
-    // Second click should trigger handleDeleteConfirm 
+
+    // Second click should trigger handleDeleteConfirm
     // This is handled within the ControlsBar component
     // The actual call to handleDeleteConfirm happens in the ControlsBar
     // So this test needs to be updated to reflect the implementation in ControlsBar
-    
+
     // We should see the confirmation message after first click
     expect(screen.getByText(/Confirm delete, are you sure/i)).toBeInTheDocument();
-    
+
     // Second click confirms deletion
     fireEvent.click(screen.getByLabelText('Delete image'));
-    
+
     // Check that handleDeleteConfirm was called
     expect(mockProps.handleDeleteConfirm).toHaveBeenCalled();
   });

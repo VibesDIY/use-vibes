@@ -14,7 +14,7 @@ const mockImgFile = vi.hoisted(() =>
         style,
         'aria-label': alt,
         ...rest,
-        onClick: rest.onClick || (() => {})
+        onClick: rest.onClick || (() => {}),
       },
       'Image Content'
     );

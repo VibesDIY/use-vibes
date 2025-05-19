@@ -54,7 +54,7 @@ describe('ImageOverlay Component', () => {
       const { container } = render(<ImageOverlay {...defaultProps} />);
       const promptText = container.querySelector('.imggen-prompt-text');
       expect(promptText).toHaveClass('imggen-truncate');
-      expect(promptText).toHaveAttribute('title', 'Double-click to edit prompt');
+      expect(promptText).toHaveAttribute('title', 'Click to edit prompt');
     });
 
     it('wraps root container with imggen-overlay class', () => {
@@ -67,7 +67,6 @@ describe('ImageOverlay Component', () => {
   // B. Controls Visible Tests (showControls = true, default)
   //---------------------------------------------------------------
   describe('Controls Visible (default)', () => {
-
     it('shows regenerate button that triggers handleRegen when clicked', () => {
       render(<ImageOverlay {...defaultProps} />);
       const regenButton = screen.getByRole('button', { name: /regenerate image/i });
@@ -203,13 +202,23 @@ describe('ImageOverlay Component', () => {
       expect(mockHandlePromptEdit).not.toHaveBeenCalled();
     });
 
-    it('exits edit mode when input loses focus', () => {
-      render(<ImageOverlay {...defaultProps} editedPrompt="Edited prompt" />);
+    it('should not exit edit mode when input loses focus', () => {
+      // Given
+      const mockSetEditedPrompt = vi.fn();
+
+      render(
+        <ImageOverlay
+          {...defaultProps}
+          editedPrompt="test edit"
+          setEditedPrompt={mockSetEditedPrompt}
+        />
+      );
 
       const input = screen.getByRole('textbox');
       fireEvent.blur(input);
 
-      expect(mockSetEditedPrompt).toHaveBeenCalledWith(null);
+      // Verify setEditedPrompt was NOT called (we removed onBlur handler)
+      expect(mockSetEditedPrompt).not.toHaveBeenCalled();
     });
 
     it('updates edited prompt value as user types', () => {
@@ -233,7 +242,7 @@ describe('ImageOverlay Component', () => {
       expect(screen.getByRole('button', { name: 'Previous version' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Next version' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Regenerate image' })).toBeInTheDocument();
-      
+
       // Delete control (should be available when enableDelete is true)
       expect(screen.getByRole('button', { name: 'Delete image' })).toBeInTheDocument();
     });

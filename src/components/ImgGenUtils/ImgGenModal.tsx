@@ -73,7 +73,7 @@ export function ImgGenModal({
         }
       }
     };
-    
+
     if (isOpen) {
       window.addEventListener('keydown', handleEsc);
       return () => window.removeEventListener('keydown', handleEsc);
@@ -83,6 +83,11 @@ export function ImgGenModal({
   if (!isOpen || !currentFile) {
     return null;
   }
+
+  // Determine what prompt to show in the modal
+  // This looks redundant but it's added for the logging - removing this would
+  // make the debugging more difficult
+  const effectivePromptText = promptText;
 
   return createPortal(
     <div className="imggen-backdrop" onClick={onClose} role="presentation">
@@ -100,7 +105,7 @@ export function ImgGenModal({
         )}
         {/* Overlay as caption */}
         <ImageOverlay
-          promptText={promptText}
+          promptText={effectivePromptText}
           editedPrompt={editedPrompt}
           setEditedPrompt={setEditedPrompt}
           handlePromptEdit={handlePromptEdit}

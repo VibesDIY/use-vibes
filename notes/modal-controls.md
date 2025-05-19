@@ -9,6 +9,7 @@ This document outlines a cleaner, more focused architecture for the image genera
 The main container component that renders the image in its normal (non-modal) state.
 
 #### States:
+
 - **Empty**: When no image has been requested yet
 - **Generating**: During initial image generation
 - **Regenerating**: During image regeneration (happens only in modal, but state tracked here, if users closes modal during regeneration, this is important)
@@ -16,12 +17,14 @@ The main container component that renders the image in its normal (non-modal) st
 - **Complete**: When image is successfully generated
 
 #### UI Elements:
+
 - Image display with appropriate sizing
 - Expand button (round button in corner to open modal)
 - Generation progress indicator (only visible during Generating state)
 - Error message (only visible during Error state)
 
 #### Responsibilities:
+
 - Maintains the document/image state
 - Handles initial image generation requests
 - Renders appropriate UI based on current state
@@ -32,6 +35,7 @@ The main container component that renders the image in its normal (non-modal) st
 Fullscreen modal component that provides expanded image view and all controls.
 
 #### UI Elements:
+
 - Full-size image display
 - All controls below the image
 - PromptBar at top of controls (displays prompt text, allows editing on double-click)
@@ -39,6 +43,7 @@ Fullscreen modal component that provides expanded image view and all controls.
 - Progress indicator (shows inside ControlsBar when regenerating)
 
 #### Responsibilities:
+
 - Manages modal state (open/closed)
 - Provides image deletion functionality
 - Enables version navigation (prev/next)
@@ -50,10 +55,12 @@ Fullscreen modal component that provides expanded image view and all controls.
 Displays the prompt text and handles editing functionality.
 
 #### States:
+
 - **View**: Normal display of the prompt text
 - **Edit**: Editable input field for modifying the prompt
 
 #### Responsibilities:
+
 - Displays current prompt text
 - Toggles between view/edit modes on double-click
 - Provides edit/save functionality for the prompt
@@ -63,6 +70,7 @@ Displays the prompt text and handles editing functionality.
 Contains all the control buttons for the image.
 
 #### UI Elements:
+
 - Delete button (left side)
 - Version navigation controls (right side)
   - Previous version button
@@ -72,6 +80,7 @@ Contains all the control buttons for the image.
 - Progress indicator background (when regenerating)
 
 #### Responsibilities:
+
 - Triggers delete confirmation dialog
 - Handles version navigation
 - Initiates image regeneration
@@ -81,6 +90,7 @@ Contains all the control buttons for the image.
 Modal dialog for confirming image deletion. Replaces the ControlsBar content when active.
 
 #### Responsibilities:
+
 - Displays confirmation message
 - Provides confirm/cancel options
 - Handles deletion logic when confirmed
@@ -106,13 +116,13 @@ Modal dialog for confirming image deletion. Replaces the ControlsBar content whe
 
 ## Translation Guide from Old Code
 
-| New Component/Concept | Old Code Equivalents |
-|------------------------|----------------------|
-| ImgGenDisplay | ImgGenDisplay (but with less functionality) |
-| ImgGenModal | Fullscreen backdrop + ImageOverlay |
-| PromptBar | Part of ImageOverlay's top section |
-| ControlsBar | Part of ImageOverlay's bottom section |
-| DeleteConfirmation | DeleteConfirmationOverlay |
-| Image states | Implicit in ImgGenDisplay and ImgGenPlaceholder |
-| insideModal prop | Previously enableDelete (confusing name), neither are needed anymore |
-| Progress indicator | imggen-progress, appeared in multiple contexts |
+| New Component/Concept | Old Code Equivalents                                                 |
+| --------------------- | -------------------------------------------------------------------- |
+| ImgGenDisplay         | ImgGenDisplay (but with less functionality)                          |
+| ImgGenModal           | Fullscreen backdrop + ImageOverlay                                   |
+| PromptBar             | Part of ImageOverlay's top section                                   |
+| ControlsBar           | Part of ImageOverlay's bottom section                                |
+| DeleteConfirmation    | DeleteConfirmationOverlay                                            |
+| Image states          | Implicit in ImgGenDisplay and ImgGenPlaceholder                      |
+| insideModal prop      | Previously enableDelete (confusing name), neither are needed anymore |
+| Progress indicator    | imggen-progress, appeared in multiple contexts                       |

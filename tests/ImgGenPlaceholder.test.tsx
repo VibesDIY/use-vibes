@@ -14,9 +14,7 @@ vi.mock('../src/components/ImgGenUtils/overlays/ImageOverlay', () => ({
       className="imggen-overlay"
     >
       <div className="imggen-controls">
-        {showControls === false && (
-          <div className="imggen-status-text">Generating...</div>
-        )}
+        {showControls === false && <div className="imggen-status-text">Generating...</div>}
       </div>
     </div>
   )),

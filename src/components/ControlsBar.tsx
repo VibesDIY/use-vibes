@@ -47,17 +47,17 @@ export function ControlsBar({
   showDelete = true,
   isDeleteConfirmOpen = false,
   versionFlash = false,
-  isRegenerating = false
+  isRegenerating = false,
 }: ControlsBarProps) {
   // State for managing delete confirmation
   const [showConfirmation, setShowConfirmation] = React.useState(false);
-  
+
   // Timer ref for automatic cancellation
   const cancelTimerRef = React.useRef<number | null>(null);
-  
+
   // Use external state if provided
   const isConfirming = isDeleteConfirmOpen || showConfirmation;
-  
+
   // Handle delete click
   const onDeleteClick = () => {
     if (isConfirming) {
@@ -71,14 +71,14 @@ export function ControlsBar({
     } else {
       // Show confirmation
       setShowConfirmation(true);
-      
+
       // Set timer to auto-hide confirmation after 3 seconds
       cancelTimerRef.current = window.setTimeout(() => {
         setShowConfirmation(false);
       }, 3000);
     }
   };
-  
+
   // Clean up timer on unmount
   React.useEffect(() => {
     return () => {
@@ -87,12 +87,12 @@ export function ControlsBar({
       }
     };
   }, []);
-  
+
   return (
     <>
       {/* Progress bar for generation progress - explicitly positioned at the top */}
       {progress < 100 && (
-        <div 
+        <div
           className="imggen-progress"
           style={{
             width: `${progress}%`,
@@ -100,11 +100,11 @@ export function ControlsBar({
             top: 0,
             left: 0,
             height: 'var(--imggen-progress-height)',
-            zIndex: 20
+            zIndex: 20,
           }}
         />
       )}
-      
+
       {/* Bottom row with controls or status */}
       <div className={combineClasses('imggen-controls', classes.controls)}>
         {showControls ? (
@@ -118,23 +118,25 @@ export function ControlsBar({
                     onClick={onDeleteClick}
                     className={combineClasses('imggen-button imggen-delete-button', classes.button)}
                     style={{
-                      position: 'static', 
-                      width: 'var(--imggen-button-size)', 
+                      position: 'static',
+                      width: 'var(--imggen-button-size)',
                       height: 'var(--imggen-button-size)',
                       backgroundColor: isConfirming ? 'var(--imggen-error-border)' : undefined,
                       color: isConfirming ? 'white' : undefined,
-                      opacity: isConfirming ? 1 : undefined
+                      opacity: isConfirming ? 1 : undefined,
                     }}
                   >
                     ✕
                   </button>
                   {isConfirming && (
-                    <span style={{ 
-                      fontSize: 'var(--imggen-font-size)',
-                      fontWeight: 'bold',
-                      fontStyle: 'italic',
-                      whiteSpace: 'nowrap'
-                    }}>
+                    <span
+                      style={{
+                        fontSize: 'var(--imggen-font-size)',
+                        fontWeight: 'bold',
+                        fontStyle: 'italic',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       Confirm delete, are you sure?
                     </span>
                   )}
@@ -158,8 +160,8 @@ export function ControlsBar({
 
               {/* Version indicator - only display if we have versions */}
               {totalVersions > 1 && (
-                <span 
-                  className={`imggen-version-indicator version-indicator ${versionFlash ? 'imggen-version-flash' : ''}`} 
+                <span
+                  className={`imggen-version-indicator version-indicator ${versionFlash ? 'imggen-version-flash' : ''}`}
                   aria-live="polite"
                 >
                   {versionIndex + 1} / {totalVersions}
@@ -183,20 +185,19 @@ export function ControlsBar({
               <button
                 aria-label="Regenerate image"
                 onClick={() => {
-                  console.log('[ControlsBar] Regen button clicked');
                   handleRegen();
                 }}
                 disabled={isRegenerating}
                 className={combineClasses(
                   'imggen-button',
                   classes.button,
-                  editedPrompt !== null && editedPrompt.trim() !== promptText ? 'imggen-button-highlight' : '',
+                  editedPrompt !== null && editedPrompt.trim() !== promptText
+                    ? 'imggen-button-highlight'
+                    : '',
                   isRegenerating ? 'imggen-button-disabled' : ''
                 )}
               >
-                <span className={isRegenerating ? 'imggen-regen-spinning' : ''}>
-                  ⟳
-                </span>
+                <span className={isRegenerating ? 'imggen-regen-spinning' : ''}>⟳</span>
               </button>
             </div>
           </>

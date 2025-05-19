@@ -18,12 +18,12 @@ export function DeleteConfirmationOverlay({
     const timeoutId = setTimeout(() => {
       handleCancelDelete();
     }, 3000); // Auto-dismiss after 3 seconds
-    
+
     return () => clearTimeout(timeoutId);
   }, [handleCancelDelete]);
 
   return (
-    <div 
+    <div
       className={combineClasses('imggen-delete-message', classes.overlay)}
       style={{
         display: 'flex',
@@ -37,17 +37,19 @@ export function DeleteConfirmationOverlay({
         width: 'auto',
         boxSizing: 'border-box',
         border: '1px solid var(--imggen-error-border)',
-        cursor: 'pointer'
+        cursor: 'pointer',
       }}
       onClick={handleDeleteConfirm} // Click anywhere on the message to confirm delete
       aria-label="Confirm delete"
     >
-      <p style={{ 
-        color: '#ff3333', 
-        fontSize: '14px', 
-        margin: 0,
-        fontWeight: 'bold'
-      }}>
+      <p
+        style={{
+          color: '#ff3333',
+          fontSize: '14px',
+          margin: 0,
+          fontWeight: 'bold',
+        }}
+      >
         Confirm delete? This action cannot be undone.
       </p>
     </div>

@@ -14,7 +14,7 @@ const mockImgFile = vi.hoisted(() =>
         style,
         'aria-label': alt,
         ...rest,
-        onClick: rest.onClick || (() => {})
+        onClick: rest.onClick || (() => {}),
       },
       'Image Content'
     );
@@ -58,7 +58,7 @@ describe('ImageOverlay Component', () => {
       totalVersions: 3,
       showControls: true,
       showDelete: true,
-      progress: 100
+      progress: 100,
     };
 
     // Render the ImageOverlay component directly
@@ -72,29 +72,29 @@ describe('ImageOverlay Component', () => {
     expect(deleteButton).toBeInTheDocument();
     expect(deleteButton).toHaveClass('imggen-button');
     expect(deleteButton).toHaveClass('imggen-delete-button');
-    
+
     // In the actual implementation, the first click shows the confirmation, not triggers handleDeleteConfirm
     // The handleDeleteConfirm is only called when the button is clicked while confirmation is showing
     if (deleteButton) {
       // First click just shows confirmation message
       fireEvent.click(deleteButton);
-      
+
       // Clicking again while confirmation is showing should call handleDeleteConfirm
       // But we can't test this here as the internal state is managed by ControlsBar
       // This would be better tested in the ControlsBar test
     }
-    
+
     // Note: We would normally test the timeout functionality using vi.useFakeTimers()
 
     // Check for version navigation
     const prevButton = container.querySelector('[aria-label="Previous version"]');
     const nextButton = container.querySelector('[aria-label="Next version"]');
     const refreshButton = container.querySelector('[aria-label="Regenerate image"]');
-    
+
     expect(prevButton).toBeInTheDocument();
     expect(nextButton).toBeInTheDocument();
     expect(refreshButton).toBeInTheDocument();
-    
+
     // Check for version indicator
     const versionIndicator = container.querySelector('.version-indicator');
     expect(versionIndicator).toBeInTheDocument();
@@ -125,10 +125,10 @@ describe('ImageOverlay Component', () => {
     // The delete confirmation message should be visible
     const confirmationOverlay = container.querySelector('.imggen-delete-message');
     expect(confirmationOverlay).toBeInTheDocument();
-    
+
     // It should show the confirmation message
     expect(confirmationOverlay).toHaveTextContent('Confirm delete? This action cannot be undone.');
-    
+
     // Click on the message should confirm the delete action
     if (confirmationOverlay) {
       fireEvent.click(confirmationOverlay);
@@ -141,7 +141,7 @@ describe('ImageOverlay Component', () => {
     // Mock the delete callback function
     const mockDeleteConfirmFn = vi.fn();
     const mockCancelDeleteFn = vi.fn();
-    
+
     // Set up fake timers to test the auto-cancel timeout
     vi.useFakeTimers();
 
@@ -160,7 +160,7 @@ describe('ImageOverlay Component', () => {
     // Verify that the delete callback was called
     expect(mockDeleteConfirmFn).toHaveBeenCalled();
     expect(mockCancelDeleteFn).not.toHaveBeenCalled();
-    
+
     // Cleanup fake timers
     vi.useRealTimers();
   });
@@ -188,7 +188,7 @@ describe('ImageOverlay Component', () => {
     // Verify that the cancel callback was called after the timeout
     expect(mockCancelDeleteFn).toHaveBeenCalled();
     expect(mockDeleteConfirmFn).not.toHaveBeenCalled();
-    
+
     // Cleanup fake timers
     vi.useRealTimers();
   });

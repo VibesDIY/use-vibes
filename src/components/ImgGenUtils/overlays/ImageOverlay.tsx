@@ -58,7 +58,10 @@ export function ImageOverlay({
 }: ImageOverlayProps) {
   // Normal overlay content regardless of delete confirmation state
   return (
-    <div className={combineClasses('imggen-overlay', classes.overlay)} style={{ position: 'relative' }}>
+    <div
+      className={combineClasses('imggen-overlay', classes.overlay)}
+      style={{ position: 'relative' }}
+    >
       {isDeleteConfirmOpen && showDelete ? (
         <DeleteConfirmationOverlay
           handleDeleteConfirm={handleDeleteConfirm}

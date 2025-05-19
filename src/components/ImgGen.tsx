@@ -107,16 +107,16 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   }, [document, _id, prompt]);
 
   // Track the most recent edited prompt for regeneration UI
-  const [currentEditedPrompt, setCurrentEditedPrompt] = React.useState<string | undefined>(undefined);
-  
+  const [currentEditedPrompt, setCurrentEditedPrompt] = React.useState<string | undefined>(
+    undefined
+  );
+
   // Handle prompt editing
   const handlePromptEdit = React.useCallback(
     async (id: string, newPrompt: string) => {
-      console.log('[DEBUG handlePromptEdit] Called with:', { id, newPrompt });
-      
       // Update the tracked edited prompt
       setCurrentEditedPrompt(newPrompt);
-      
+
       try {
         // First, update the document in the database with the new prompt
         const docToUpdate = (await db.get(id)) as unknown as ImageDocument;
@@ -284,9 +284,9 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     // Otherwise, for initial load or error states, show the placeholder
     if (loading || !imageData || error) {
       // Use the edited prompt during regeneration if available
-      const displayPrompt = regenerateRef.current && currentEditedPrompt ? currentEditedPrompt : prompt;
-      console.log('[DEBUG renderContent] Using prompt for placeholder:', displayPrompt);
-      
+      const displayPrompt =
+        regenerateRef.current && currentEditedPrompt ? currentEditedPrompt : prompt;
+
       return (
         <ImgGenPlaceholder
           className={className}
