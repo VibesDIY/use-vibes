@@ -91,6 +91,7 @@ Double-click the prompt text in the overlay to edit it. Press Enter to submit ch
 ##### Image Regeneration
 
 When regenerating images, the component will:
+
 - Use the edited prompt if one has been provided (via `editedPrompt` prop, `onPromptEdit` callback, or direct editing in the UI)
 - Fall back to the original prompt from the document if no edits were made
 - Preserve versions under the same document ID to maintain history

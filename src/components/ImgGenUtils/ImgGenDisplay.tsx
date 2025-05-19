@@ -307,13 +307,23 @@ export function ImgGenDisplay({
   return (
     <div className={combineClasses('imggen-root', className, classes.root)} title={displayPrompt}>
       <div className="imggen-image-container" style={{ position: 'relative', width: '100%' }}>
-        <button 
-          className="imggen-expand-button" 
+        <button
+          className="imggen-expand-button"
           onClick={openFullscreen}
           title="Expand image"
           aria-label="Expand image"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            stroke="currentColor"
+            strokeWidth="2"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <polyline points="15,5 20,5 20,10" />
             <polyline points="9,19 4,19 4,14" />
             <line x1="20" y1="5" x2="14" y2="11" />
@@ -327,7 +337,7 @@ export function ImgGenDisplay({
           style={{ width: '100%' }}
         />
       </div>
-      
+
       {/* Use the new ImgGenModal component */}
       <ImgGenModal
         isOpen={isFullscreen}
