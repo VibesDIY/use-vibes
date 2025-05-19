@@ -1,6 +1,6 @@
 {
   "name": "use-vibes",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "type": "module",
   "description": "Transform any DOM element into an AI-powered micro-app",
   "main": "dist/index.js",
@@ -27,6 +27,7 @@
     "copy-css": "mkdir -p dist/components && cp src/components/ImgGen.css dist/components/",
     "build:watch": "tsc --watch",
     "dev:build": "tsc --watch",
+    "prepare": "pnpm build",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix --rule 'no-unused-vars: 1' --rule 'no-empty: 1' --rule '@typescript-eslint/no-unused-vars: 1'",
     "format": "prettier --write \"./**/*.{js,jsx,ts,tsx,json,md}\"",
