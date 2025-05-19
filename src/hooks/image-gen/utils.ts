@@ -252,3 +252,29 @@ export function getRelevantOptions(options?: ImageGenOptions): Record<string, un
 
   return relevantOptions;
 }
+
+/**
+ * Generate a safe filename based on prompt text and timestamp
+ * @param promptText - The prompt text to include in the filename
+ * @returns A formatted filename like "prompt-text-20250518-2117.png"
+ */
+export function generateSafeFilename(promptText: string): string {
+  // Limit prompt length to avoid extremely long filenames
+  const maxPromptChars = 40;
+  
+  // Clean the prompt by removing special characters and converting to lowercase
+  const cleanedPrompt = promptText
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Keep only alphanumeric, spaces, and hyphens
+    .replace(/\s+/g, '-')         // Replace spaces with hyphens
+    .substring(0, maxPromptChars) // Limit length
+    .replace(/-+$/g, '');         // Remove trailing hyphens
+  
+  // Generate date part in format YYYYMMDD-HHMM
+  const now = new Date();
+  const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const timePart = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+  
+  // Construct filename
+  return `${cleanedPrompt}-${datePart}-${timePart}.png`;
+}

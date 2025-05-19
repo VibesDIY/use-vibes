@@ -14,6 +14,7 @@ import {
   MODULE_STATE,
   cleanupRequestKey,
   getRelevantOptions,
+  generateSafeFilename,
 } from './utils';
 import { createImageGenerator } from './image-generator';
 
@@ -223,7 +224,9 @@ export function useImageGen({
 
                 if (data?.data?.[0]?.b64_json) {
                   // Create a File object from the base64 data
-                  const newImageFile = base64ToFile(data.data[0].b64_json, 'image.png');
+                  // Generate a filename based on the prompt text
+                  const filename = generateSafeFilename(currentPromptText);
+                  const newImageFile = base64ToFile(data.data[0].b64_json, filename);
 
                   // Ensure we preserve the original document ID
                   const originalDocId = _id;
@@ -345,7 +348,9 @@ export function useImageGen({
             // Process the data response
             if (data?.data?.[0]?.b64_json) {
               // Create a File object from the base64 data
-              const imageFile = base64ToFile(data.data[0].b64_json, 'image.png');
+              // Generate a filename based on the prompt text
+              const filename = generateSafeFilename(prompt);
+              const imageFile = base64ToFile(data.data[0].b64_json, filename);
 
               // Define a stable key for deduplication based on all relevant parameters.
               // Include _id (if present) and current time for regeneration requests
