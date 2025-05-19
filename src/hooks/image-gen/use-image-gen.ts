@@ -419,63 +419,71 @@ export function useImageGen({
             }
           } else if (prompt) {
             // No document ID provided but we have a prompt - generate a new image
-            
+
             // If we have a document in memory and a generationId, we should add a version
             // to the existing document instead of creating a new one
             if (document?._id && generationId) {
-              console.log('[loadOrGenerateImage] Using existing document for regeneration:', document._id);
-              
+              console.log(
+                '[loadOrGenerateImage] Using existing document for regeneration:',
+                document._id
+              );
+
               // If an edited prompt is provided, use that instead of the document prompt
               // This is the key change to handle edited prompts during regeneration
               let currentPromptText = '';
-              
+
               if (editedPrompt) {
                 // Use the edited prompt provided from the UI
-                console.log('[loadOrGenerateImage] Using edited prompt for regeneration:', editedPrompt);
+                console.log(
+                  '[loadOrGenerateImage] Using edited prompt for regeneration:',
+                  editedPrompt
+                );
                 currentPromptText = editedPrompt;
               } else {
                 // Otherwise extract the prompt from the document
                 const { prompts, currentPromptKey } = getPromptsFromDocument(document);
-                currentPromptText = 
+                currentPromptText =
                   (currentPromptKey && prompts[currentPromptKey]?.text) ||
-                  (document.prompt || '') ||
-                  prompt || ''; // Fall back to provided prompt if document has none, ensure string type
+                  document.prompt ||
+                  '' ||
+                  prompt ||
+                  ''; // Fall back to provided prompt if document has none, ensure string type
               }
-                
+
               // Create regeneration options with unique ID to force new API call
               const regenerationOptions = {
                 ...options,
                 _regenerationId: Date.now(),
               } as typeof options & { _regenerationId: number };
-              
+
               // Clear any cached promise for the original prompt+options
               const requestKey = `${currentPromptText}-${JSON.stringify(getRelevantOptions(options))}`;
               cleanupRequestKey(requestKey);
-              
+
               // Generate a new image
               data = await callImageGeneration(currentPromptText, regenerationOptions);
-              
+
               if (data?.data?.[0]?.b64_json) {
                 // Create a File object from the base64 data
                 const filename = generateSafeFilename(currentPromptText);
                 const newImageFile = base64ToFile(data.data[0].b64_json, filename);
-                
+
                 // Ensure we preserve the original document ID
                 const originalDocId = document._id;
-                
+
                 // Add the new version to the document
                 const updatedDoc = addNewVersion(document, newImageFile, currentPromptText);
-                
+
                 // Make sure the _id is preserved
                 updatedDoc._id = originalDocId;
-                
+
                 // Save the updated document
                 await db.put(updatedDoc);
-                
+
                 // Get the updated document with the new version
                 const refreshedDoc = await db.get(originalDocId);
                 setDocument(refreshedDoc as unknown as ImageDocument);
-                
+
                 // Set the image data from the new version
                 const reader = new FileReader();
                 reader.readAsDataURL(newImageFile);
@@ -487,14 +495,14 @@ export function useImageGen({
                     resolve();
                   };
                 });
-                
+
                 // Set progress to 100%
                 setProgress(100);
                 return;
               }
             } else {
               // Regular prompt-only generation (no document in memory)
-              
+
               // Build generation options; if this is a regeneration request (generationId present)
               // attach a unique _regenerationId to force a fresh network call and clear cached key.
               let generationOptions = options;

@@ -81,9 +81,11 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Calculate isPlaceholder as a pure expression instead of using useMemo
   // This is simple enough that React doesn't need to track dependencies or cache the result
   const isPlaceholder = !prompt && !_id;
-  
+
   // Track the edited prompt to pass to the image generator and show in UI
-  const [currentEditedPrompt, setCurrentEditedPrompt] = React.useState<string | undefined>(undefined);
+  const [currentEditedPrompt, setCurrentEditedPrompt] = React.useState<string | undefined>(
+    undefined
+  );
 
   // Use the custom hook for all the image generation logic
   const { imageData, loading, error, progress, document } = useImageGen({
