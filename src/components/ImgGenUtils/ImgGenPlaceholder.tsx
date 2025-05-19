@@ -128,7 +128,6 @@ export function ImgGenPlaceholder({
           totalVersions={1}
           classes={classes}
           showControls={false}
-          statusText="Generating..."
           showDelete={false}
         />
       )}

@@ -13,8 +13,6 @@ interface ControlsBarProps {
   classes?: ImgGenClasses;
   /** Show control buttons (defaults to true) */
   showControls?: boolean;
-  /** Optional status text to display (e.g. "Generating...") */
-  statusText?: string;
   /** Edited prompt for highlighting regenerate button */
   editedPrompt: string | null;
   /** Original prompt text for comparison */
@@ -43,7 +41,6 @@ export function ControlsBar({
   totalVersions,
   classes = defaultClasses,
   showControls = true,
-  statusText,
   editedPrompt,
   promptText,
   progress = 100,
@@ -203,9 +200,8 @@ export function ControlsBar({
               </button>
             </div>
           </>
-        ) : statusText ? (
-          // Status text centered when controls are hidden
-          <div className="imggen-status-text">{statusText}</div>
+        ) : progress < 100 ? (
+          <div className="imggen-status-text">Generating...</div>
         ) : null}
       </div>
     </>

@@ -148,9 +148,9 @@ describe('ControlsBar Component', () => {
     expect(spinningIcon).not.toBeInTheDocument();
   });
   
-  it('should display status text when showControls is false and statusText is provided', () => {
+  it('should display "Generating..." when showControls is false and progress is less than 100', () => {
     const { getByText } = render(
-      <ControlsBar {...defaultProps} showControls={false} statusText="Generating..." />
+      <ControlsBar {...defaultProps} showControls={false} progress={50} />
     );
     
     const statusElement = getByText('Generating...');

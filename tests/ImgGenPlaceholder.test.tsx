@@ -5,17 +5,16 @@ import '@testing-library/jest-dom';
 
 // Mock ImageOverlay component
 vi.mock('../src/components/ImgGenUtils/overlays/ImageOverlay', () => ({
-  ImageOverlay: vi.fn(({ promptText, showControls, statusText }) => (
+  ImageOverlay: vi.fn(({ promptText, showControls }) => (
     <div
       data-testid="mock-image-overlay"
       data-prompt={promptText}
       data-show-controls={showControls}
-      data-status={statusText}
       className="imggen-overlay"
     >
       <div className="imggen-controls">
-        {showControls === false && statusText && (
-          <div className="imggen-status-text">{statusText}</div>
+        {showControls === false && (
+          <div className="imggen-status-text">Generating...</div>
         )}
       </div>
     </div>

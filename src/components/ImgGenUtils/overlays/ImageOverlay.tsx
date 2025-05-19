@@ -26,8 +26,6 @@ interface ImageOverlayProps {
   classes?: ImgGenClasses;
   /** Show control buttons (defaults to true) */
   showControls?: boolean;
-  /** Optional status text to display (e.g. "Generating...") */
-  statusText?: string;
   /** Progress value for generation (0-100), shows progress bar when < 100 */
   progress?: number;
   /** Show delete button (defaults to true) */
@@ -53,7 +51,6 @@ export function ImageOverlay({
   totalVersions,
   classes = defaultClasses,
   showControls = true,
-  statusText,
   progress = 100,
   showDelete = true,
   versionFlash = false,
@@ -89,7 +86,6 @@ export function ImageOverlay({
             totalVersions={totalVersions}
             classes={classes}
             showControls={showControls}
-            statusText={statusText}
             showDelete={showDelete}
             editedPrompt={editedPrompt}
             promptText={promptText}

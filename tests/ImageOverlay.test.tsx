@@ -144,9 +144,9 @@ describe('ImageOverlay Component', () => {
   // C. Controls Hidden Tests (showControls = false)
   //---------------------------------------------------------------
   describe('Controls Hidden', () => {
-    it('shows status text when showControls=false and statusText provided', () => {
+    it('shows "Generating..." text when showControls=false', () => {
       const { container } = render(
-        <ImageOverlay {...defaultProps} showControls={false} statusText="Generating..." />
+        <ImageOverlay {...defaultProps} showControls={false} />
       );
 
       // Find the status text element directly
@@ -158,16 +158,7 @@ describe('ImageOverlay Component', () => {
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
-    it('renders nothing in controls area when showControls=false and statusText undefined', () => {
-      const { container } = render(
-        <ImageOverlay {...defaultProps} showControls={false} statusText={undefined} />
-      );
-
-      const controlsDiv = container.querySelector('.imggen-controls');
-      expect(controlsDiv).toBeInTheDocument();
-      // Controls div should be empty
-      expect(controlsDiv?.children.length).toBe(0);
-    });
+    // Test removed since we always show "Generating..." when controls are hidden
   });
 
   //---------------------------------------------------------------

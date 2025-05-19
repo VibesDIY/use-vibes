@@ -274,13 +274,6 @@ export function ImgGenDisplay({
   
   // Is regeneration in progress - either from loading state or pending state
   const isRegenerating = loading || pendingRegeneration;
-  
-  // Create a better status message during regeneration
-  const statusText = isRegenerating ? 
-    pendingRegeneration && simulatedProgress !== null ? 
-      `Reimagining... ${Math.round(simulatedProgress)}%` : 
-      'Processing image...' : 
-    undefined;
 
   if (!document._files || (!fileKey && !document._files.image)) {
     return <ImgGenError message="Missing image file" />;
@@ -315,7 +308,6 @@ export function ImgGenDisplay({
         versionIndex={versionIndex}
         totalVersions={totalVersions}
         progress={effectiveProgress}
-        statusText={statusText}
         classes={classes}
         versionFlash={versionFlash}
         isRegenerating={isRegenerating}

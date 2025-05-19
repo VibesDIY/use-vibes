@@ -24,7 +24,6 @@ export interface ImgGenModalProps {
   versionIndex: number;
   totalVersions: number;
   progress: number;
-  statusText?: string;
   /** Whether to show a flash effect on the version indicator - used when a new version is added */
   versionFlash?: boolean;
   isRegenerating?: boolean;
@@ -55,7 +54,6 @@ export function ImgGenModal({
   versionIndex,
   totalVersions,
   progress,
-  statusText,
   versionFlash = false,
   isRegenerating = false,
   classes = defaultClasses,
@@ -105,7 +103,6 @@ export function ImgGenModal({
           versionIndex={versionIndex}
           totalVersions={totalVersions}
           progress={progress}
-          statusText={statusText}
           versionFlash={versionFlash}
           isRegenerating={isRegenerating}
           classes={classes}
