@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { ImgGenPlaceholderProps } from './types';
 import { combineClasses, defaultClasses } from '../../utils/style-utils';
-import { ImageOverlay } from './overlays/ImageOverlay';
 
 // Component for loading/placeholder state
 export function ImgGenDisplayPlaceholder({
@@ -125,40 +124,60 @@ export function ImgGenDisplayPlaceholder({
       className={combineClasses('imggen-placeholder', className, classes.placeholder)}
       aria-label={alt || prompt || 'Image placeholder'}
       role="img"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        textAlign: 'center',
+        minHeight: '200px',
+        position: 'relative',
+        backgroundColor: '#222', // Ensure dark background
+        color: '#eee', // Light text color
+      }}
     >
       {/* Progress bar at the very top */}
       {prompt && (
         <div
           className={combineClasses('imggen-progress', classes.progress)}
-          style={{ width: `${visibleProgress}%` }}
+          style={{
+            width: `${visibleProgress}%`,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+          }}
           aria-hidden="true"
         />
       )}
-      <div style={{ textAlign: 'center', padding: '10px', width: '100%', wordWrap: 'break-word' }}>
-        {!prompt ? (
-          <div>Waiting for prompt</div>
-        ) : // When generating with a prompt, don't show anything here
-        // as we'll display the info in the overlay
-        null}
-      </div>
 
-      {/* When prompt exists and we have no error, show the overlay with the prompt */}
+      {/* Simple status text for 'waiting for prompt' state */}
+      {!prompt && (
+        <div
+          style={{
+            color: '#eee',
+            fontSize: 'var(--imggen-font-size)',
+            padding: '20px',
+          }}
+        >
+          Waiting for prompt
+        </div>
+      )}
+
+      {/* When prompt exists and we have no error, show only the prompt with bold text */}
       {prompt && !error && (
-        <ImageOverlay
-          promptText={prompt}
-          editedPrompt={null}
-          setEditedPrompt={() => {}}
-          handlePromptEdit={() => {}}
-          handleDeleteConfirm={() => {}}
-          handlePrevVersion={() => {}}
-          handleNextVersion={() => {}}
-          handleRegen={() => {}}
-          versionIndex={0}
-          totalVersions={1}
-          classes={classes}
-          showControls={false}
-          showDelete={false}
-        />
+        <div
+          style={{
+            color: '#eee',
+            fontSize: 'var(--imggen-font-size)',
+            padding: '20px',
+            maxWidth: '90%',
+            wordBreak: 'break-word',
+            fontWeight: 'bold',
+            textAlign: 'center'
+          }}
+        >
+          {prompt}
+        </div>
       )}
     </div>
   );

@@ -137,6 +137,9 @@ export function useImageGen({
     };
   }, [prompt, _id, memoizedOptions]); // Dependencies that require state reset
 
+  // Track the last request parameters to prevent duplicate requests
+  const lastRequestRef = useRef<string>('');
+
   // Generate the image when prompt or options change or load by ID
   useEffect(() => {
     let isMounted = true;
@@ -149,6 +152,28 @@ export function useImageGen({
       }
       return;
     }
+
+    // Create a request signature to deduplicate identical requests
+    const requestSignature = JSON.stringify({
+      prompt,
+      _id,
+      generationId,
+      options: shouldConsiderOptions ? getRelevantOptions(memoizedOptions) : undefined,
+    });
+
+    // Prevent duplicate requests with identical parameters
+    if (requestSignature === lastRequestRef.current && document) {
+      console.log('[useImageGen] Preventing duplicate request with same parameters:', {
+        prompt,
+        _id,
+        generationId: generationId ? 'present' : 'absent',
+        hasDocument: !!document,
+      });
+      return;
+    }
+
+    // Update the last request signature
+    lastRequestRef.current = requestSignature;
 
     // Check if only options have changed and we have an existing document
     const currentRelevantOptions = getRelevantOptions(memoizedOptions);
@@ -582,11 +607,18 @@ export function useImageGen({
       }
     };
 
-    // Always call the function since it handles both prompt-based generation and ID-based retrieval
-    loadOrGenerateImage();
+    // Add a delay to avoid multiple rapid calls
+    const loadImageTimer = setTimeout(() => {
+      // Only load/generate if we're still mounted
+      if (isMounted) {
+        // Always call the function since it handles both prompt-based generation and ID-based retrieval
+        loadOrGenerateImage();
+      }
+    }, 10); // Small delay to allow React to batch updates
 
     return () => {
       isMounted = false;
+      clearTimeout(loadImageTimer);
     };
   }, [prompt, _id, memoizedOptions, requestId, database, skip, generationId]); // Dependencies that trigger image loading/generation
 
