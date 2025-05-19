@@ -58,6 +58,24 @@ export function ImgGenModal({
   error = null,
   classes = defaultClasses,
 }: ImgGenModalProps) {
+  // Log when modal opens or changes content
+  React.useEffect(() => {
+    if (isOpen) {
+      console.log('[ImgGenModal] Modal opened or updated:', { 
+        hasFile: !!currentFile, 
+        fileName: currentFile?.name,
+        fileSize: currentFile?.size,
+        fileType: currentFile?.type,
+        promptText,
+        editedPrompt,
+        versionIndex,
+        totalVersions,
+        hasError: !!error,
+        errorMessage: error?.message
+      });
+    }
+  }, [isOpen, currentFile, promptText, editedPrompt, versionIndex, error]);
+  
   // ESC handling while modal is open
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {

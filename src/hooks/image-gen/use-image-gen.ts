@@ -77,6 +77,16 @@ export function useImageGen({
 
     // Detect when generationId changes - this indicates a request for regeneration
     const generationRequested = generationId !== previousGenerationIdRef.current;
+    
+    if (generationRequested) {
+      console.log('[useImageGen] Regeneration detected:', { 
+        generationId,
+        previousId: previousGenerationIdRef.current,
+        _id,
+        prompt,
+        currentDocument: document?._id
+      });
+    }
 
     // Update refs for next check
     previousIdRef.current = _id;
@@ -84,6 +94,13 @@ export function useImageGen({
 
     // Only proceed with state resets when needed
     if (idChanged || generationRequested) {
+      console.log('[useImageGen] State reset triggered:', { 
+        idChanged, 
+        generationRequested, 
+        _id,
+        document: document?._id
+      });
+      
       // Reset all state when inputs change
       setImageData(null);
       setError(null);
@@ -92,7 +109,10 @@ export function useImageGen({
       // Clear document state when ID changes
       // This ensures a clean start when navigating to a new document
       if (idChanged) {
+        console.log('[useImageGen] ID changed, clearing document state');
         setDocument(null);
+      } else {
+        console.log('[useImageGen] Preserving document during regeneration:', document?._id);
       }
     }
 
@@ -149,12 +169,26 @@ export function useImageGen({
         // Log the request for debugging
 
         try {
-          // If we have a document ID and not regenerating, load the existing document
-          // We're regenerating if a generationId is provided
-          const isLoadingExisting = _id && !generationId;
+          // FIXED: Always try to load the document if we have an _id, regardless of regeneration state
+          // We'll use the document for info even during regeneration
+          const hasDocumentId = !!_id;
+          const isRegenerating = !!generationId;
+          
+          console.log('[loadOrGenerateImage] Document loading decision:', { 
+            _id, 
+            generationId, 
+            hasDocumentId,
+            isRegenerating,
+            hasPrompt: !!prompt,
+            promptText: prompt
+          });
 
-          if (isLoadingExisting) {
-            const existingDoc = await db.get(_id).catch(() => null);
+          if (hasDocumentId) {
+            console.log(`[loadOrGenerateImage] Attempting to load document with ID: ${_id}`);
+            const existingDoc = await db.get(_id).catch((err) => {
+              console.error(`[loadOrGenerateImage] Failed to load document ${_id}:`, err);
+              return null;
+            });
 
             if (existingDoc && existingDoc._files) {
               // Document exists, set it
@@ -440,6 +474,12 @@ export function useImageGen({
               }
             }
           } else {
+            console.error('[loadOrGenerateImage] Document loading failed - requirements not met:', {
+              _id,
+              hasPrompt: !!prompt,
+              promptLength: prompt?.length,
+              generationId
+            });
             throw new Error('Document not found and no prompt provided for generation');
           }
         } catch (error) {
