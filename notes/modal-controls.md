@@ -123,6 +123,6 @@ Modal dialog for confirming image deletion. Replaces the ControlsBar content whe
 | PromptBar             | Part of ImageOverlay's top section                                   |
 | ControlsBar           | Part of ImageOverlay's bottom section                                |
 | DeleteConfirmation    | DeleteConfirmationOverlay                                            |
-| Image states          | Implicit in ImgGenDisplay and ImgGenPlaceholder                      |
+| Image states          | Implicit in ImgGenDisplay and ImgGenDisplayPlaceholder                      |
 | insideModal prop      | Previously enableDelete (confusing name), neither are needed anymore |
 | Progress indicator    | imggen-progress, appeared in multiple contexts                       |

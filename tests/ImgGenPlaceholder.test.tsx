@@ -20,10 +20,10 @@ vi.mock('../src/components/ImgGenUtils/overlays/ImageOverlay', () => ({
   )),
 }));
 
-import { ImgGenPlaceholder } from '../src/components/ImgGenUtils/ImgGenPlaceholder';
+import { ImgGenDisplayPlaceholder } from '../src/components/ImgGenUtils/ImgGenDisplayPlaceholder';
 import { defaultClasses } from '../src/utils/style-utils';
 
-describe('ImgGenPlaceholder Component', () => {
+describe('ImgGenDisplayPlaceholder Component', () => {
   // Reset mocks before each test
   beforeEach(() => {
     vi.clearAllMocks();
@@ -35,7 +35,7 @@ describe('ImgGenPlaceholder Component', () => {
   describe('Base Rendering', () => {
     it('renders basic placeholder container with appropriate role and aria-label', () => {
       const { container } = render(
-        <ImgGenPlaceholder
+        <ImgGenDisplayPlaceholder
           className="test-class"
           alt="Test alt text"
           prompt={undefined}
@@ -52,7 +52,7 @@ describe('ImgGenPlaceholder Component', () => {
 
     it('falls back to prompt text for aria-label when alt is not provided', () => {
       const { container } = render(
-        <ImgGenPlaceholder prompt="Test prompt" progress={0} error={undefined} />
+        <ImgGenDisplayPlaceholder prompt="Test prompt" progress={0} error={undefined} />
       );
 
       const placeholder = container.querySelector('.imggen-placeholder');
@@ -60,21 +60,21 @@ describe('ImgGenPlaceholder Component', () => {
     });
 
     it('uses default aria-label when neither prompt nor alt is provided', () => {
-      const { container } = render(<ImgGenPlaceholder progress={0} error={undefined} />);
+      const { container } = render(<ImgGenDisplayPlaceholder progress={0} error={undefined} />);
 
       const placeholder = container.querySelector('.imggen-placeholder');
       expect(placeholder).toHaveAttribute('aria-label', 'Image placeholder');
     });
 
     it('displays "Waiting for prompt" message when no prompt is provided', () => {
-      render(<ImgGenPlaceholder progress={0} error={undefined} />);
+      render(<ImgGenDisplayPlaceholder progress={0} error={undefined} />);
 
       expect(screen.getByText('Waiting for prompt')).toBeInTheDocument();
     });
 
     it('combines custom class with default classes', () => {
       const { container } = render(
-        <ImgGenPlaceholder className="test-class" progress={0} error={undefined} />
+        <ImgGenDisplayPlaceholder className="test-class" progress={0} error={undefined} />
       );
 
       const placeholder = container.querySelector('.imggen-placeholder');
@@ -89,7 +89,7 @@ describe('ImgGenPlaceholder Component', () => {
   describe('Error State', () => {
     it('displays error message when error is provided', () => {
       render(
-        <ImgGenPlaceholder
+        <ImgGenDisplayPlaceholder
           prompt="Test prompt"
           progress={0}
           error={new Error('Test error message')}
@@ -105,7 +105,7 @@ describe('ImgGenPlaceholder Component', () => {
         'Error: {"error": "Custom Error Title", "details": {"error": {"message": "Custom error details"}}}'
       );
 
-      render(<ImgGenPlaceholder prompt="Test prompt" progress={0} error={jsonError} />);
+      render(<ImgGenDisplayPlaceholder prompt="Test prompt" progress={0} error={jsonError} />);
 
       expect(screen.getByText('Custom Error Title')).toBeInTheDocument();
       expect(screen.getByText('Custom error details')).toBeInTheDocument();
@@ -114,7 +114,7 @@ describe('ImgGenPlaceholder Component', () => {
     it('handles moderation blocked errors with special formatting', () => {
       const moderationError = new Error('Error: {"code": "moderation_blocked"}');
 
-      render(<ImgGenPlaceholder prompt="Test prompt" progress={0} error={moderationError} />);
+      render(<ImgGenDisplayPlaceholder prompt="Test prompt" progress={0} error={moderationError} />);
 
       expect(screen.getByText('Failed to generate image')).toBeInTheDocument();
       expect(screen.getByText(/Your request was rejected/)).toBeInTheDocument();
@@ -132,7 +132,7 @@ describe('ImgGenPlaceholder Component', () => {
       const styleSpy = vi.spyOn(Element.prototype, 'setAttribute');
 
       render(
-        <ImgGenPlaceholder
+        <ImgGenDisplayPlaceholder
           prompt="Test prompt"
           progress={50}
           error={undefined}
@@ -153,7 +153,7 @@ describe('ImgGenPlaceholder Component', () => {
     });
 
     it('enforces minimum progress value with Math.max', () => {
-      // This test verifies the minimum progress logic found in ImgGenPlaceholder:
+      // This test verifies the minimum progress logic found in ImgGenDisplayPlaceholder:
       // setVisibleProgress(Math.max(5, progress));
 
       // Very simple test to assert that the Math.max logic behaves as expected
@@ -169,7 +169,7 @@ describe('ImgGenPlaceholder Component', () => {
       // Initial render
       await act(() => {
         const result = render(
-          <ImgGenPlaceholder prompt="Test prompt" progress={75} error={undefined} />
+          <ImgGenDisplayPlaceholder prompt="Test prompt" progress={75} error={undefined} />
         );
         container = result.container;
       });
@@ -190,7 +190,7 @@ describe('ImgGenPlaceholder Component', () => {
 
     it('does not show content message area when in generating state', () => {
       const { container } = render(
-        <ImgGenPlaceholder prompt="Test prompt" progress={50} error={undefined} />
+        <ImgGenDisplayPlaceholder prompt="Test prompt" progress={50} error={undefined} />
       );
 
       // Content area should be empty during generation
@@ -205,7 +205,7 @@ describe('ImgGenPlaceholder Component', () => {
   describe('Progress Bar Positioning', () => {
     it('positions progress bar at the top of the container', () => {
       const { container } = render(
-        <ImgGenPlaceholder prompt="Test prompt" progress={50} error={undefined} />
+        <ImgGenDisplayPlaceholder prompt="Test prompt" progress={50} error={undefined} />
       );
 
       // The progress bar should be the first child of the placeholder container

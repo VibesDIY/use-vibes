@@ -310,7 +310,7 @@
 /* Error container wrapper to ensure consistent dark background */
 .imggen-error-container {
   background-color: #222;
-  min-height: 300px;
+  aspect-ratio: 1 / 1; /* Maintain square aspect ratio like images */
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -367,6 +367,9 @@
   justify-content: center;
   padding: 2rem;
   box-sizing: border-box;
+  background-color: #222; /* Dark gray background */
+  /* aspect-ratio: 1 / 1; Maintain square aspect ratio like images */
+  border-radius: var(--imggen-border-radius);
 }
 
 /* Delete confirmation overlay */
@@ -463,4 +466,6 @@
 /* Wrapper ensures overlay width matches image intrinsic width */
 .imggen-full-wrapper {
   display: inline-block; /* shrink-wrap to content width */
+  width: min(90vw, 70vh); /* Size proportional to viewport, matching backdrop-image constraints */
+  aspect-ratio: 1 / 1; /* Maintain square aspect ratio like images */
 }

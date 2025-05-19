@@ -4,7 +4,7 @@ import { combineClasses, defaultClasses } from '../../utils/style-utils';
 import { ImageOverlay } from './overlays/ImageOverlay';
 
 // Component for loading/placeholder state
-export function ImgGenPlaceholder({
+export function ImgGenDisplayPlaceholder({
   className,
   alt,
   prompt,
@@ -87,6 +87,13 @@ export function ImgGenPlaceholder({
           className,
           classes.placeholder
         )}
+        style={{
+          backgroundColor: '#222',  // Dark gray background
+          width: '100%',
+          height: '100%',
+          minHeight: '512px',      // Standard image height
+          aspectRatio: '1 / 1',    // Square aspect ratio like images
+        }}
         aria-label={alt || 'Error display'}
         role="img"
       >
@@ -95,8 +102,8 @@ export function ImgGenPlaceholder({
             const { title, body } = parseErrorInfo(error);
             return (
               <>
-                <h3 className="imggen-error-title">{title}</h3>
-                <p className="imggen-error-message">{body}</p>
+                <h3 className="imggen-error-title" style={{ color: '#ff4d4d', margin: '0 0 0.75rem 0' }}>{title}</h3>
+                <p className="imggen-error-message" style={{ color: '#e0e0e0', margin: '0' }}>{body}</p>
               </>
             );
           })()}

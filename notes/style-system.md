@@ -5,7 +5,7 @@ This document outlines the styling architecture and implementation plan for the 
 ## Current Styling Pain Points
 
 - **Heavy use of large inline-style objects** – Many components contain extensive inline style objects with hardcoded colors (`#333`, `rgba(255,255,255,.5)`), font-weights, borders, etc.
-- **Repeated style snippets** across multiple files (`ImgGenDisplay`, `ImgGenPlaceholder`, `ImageOverlay`, etc.)
+- **Repeated style snippets** across multiple files (`ImgGenDisplay`, `ImgGenDisplayPlaceholder`, `ImageOverlay`, etc.)
 - **Lack of theme adaptability** – Inline colors override the parent page, making widgets look "foreign" if the host site uses a dark theme or a custom brand palette
 - **Limited style customization** – Only the outermost `<ImgGen>` exposes a generic `className`; descendants are not easily style-able without deep copying components
 

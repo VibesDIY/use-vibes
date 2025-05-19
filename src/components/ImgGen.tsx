@@ -4,7 +4,7 @@ import type { ImageGenOptions } from 'call-ai';
 import { useImageGen } from '../hooks/image-gen/use-image-gen';
 import { useFireproof, Database } from 'use-fireproof';
 import { ImageDocument } from '../hooks/image-gen/types';
-import { ImgGenPromptWaiting, ImgGenPlaceholder, ImgGenDisplay, ImgGenError } from './ImgGenUtils';
+import { ImgGenPromptWaiting, ImgGenDisplayPlaceholder, ImgGenDisplay, ImgGenError } from './ImgGenUtils';
 import { ImgGenClasses, defaultClasses, combineClasses } from '../utils/style-utils';
 import './ImgGen.css';
 
@@ -274,12 +274,12 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
       const displayPrompt = currentEditedPrompt || prompt;
 
       return (
-        <ImgGenPlaceholder
+        <ImgGenDisplayPlaceholder
           className={className}
           alt={alt}
           prompt={displayPrompt}
           progress={progress}
-          error={error}
+          error={null} // We've already handled errors above
           classes={classes}
         />
       );

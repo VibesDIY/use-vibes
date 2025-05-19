@@ -6,7 +6,7 @@ This plan outlines a step-by-step approach to refactor the current ImgGen compon
 
 ### 0. Inventory & Spike (½ day)
 
-1. List every file that currently references `ImageOverlay`, `ImgGenDisplay`, `ImgGenPlaceholder`, `DeleteConfirmationOverlay`, the progress bar, and the "enableDelete / insideModal" prop.
+1. List every file that currently references `ImageOverlay`, `ImgGenDisplay`, `ImgGenDisplayPlaceholder`, `DeleteConfirmationOverlay`, the progress bar, and the "enableDelete / insideModal" prop.
 2. Note which pieces are used **only** in modal, **only** in display, or in **both**.
 3. Write tiny spike components (`PromptBar`, `ControlsBar`, `ImgGenModal`) with stub JSX and existing CSS classes so you can hot-swap quickly.
 
@@ -101,7 +101,7 @@ Result: `ImageOverlay` shrinks and prompt code moves out of the way.
 
 - Create new files **alongside** old ones.
 - Flip feature flags (or temporary prop) so you can toggle between legacy overlay and new modal during QA.
-- Once new stack is verified, delete `ImageOverlay`, `ImgGenPlaceholder`, and related CSS.
+- Once new stack is verified, delete `ImageOverlay`, `ImgGenDisplayPlaceholder`, and related CSS.
 
 ## Effort Estimate
 
@@ -192,7 +192,7 @@ Commit slice.
 
 1. Replace overlay-based generating view with simple `<div class="imggen-placeholder">`.
 2. Re-use `<PromptBar>` for prompt + progress.
-3. Remove `ImgGenPlaceholder.tsx` entirely.
+3. Remove `ImgGenDisplayPlaceholder.tsx` entirely.
 4. Tests: generating state shows progress, no regressions.
 
 Commit slice.
