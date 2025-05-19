@@ -31,6 +31,7 @@ export function useImageGen({
   database = 'ImgGen',
   skip = false, // Skip processing flag
   generationId, // Unique ID that changes for each new generation request
+  editedPrompt, // Optional edited prompt that should override the document prompt on regeneration
 }: UseImageGenOptions): UseImageGenResult {
   // If both are provided, _id takes precedence
   // This silently prioritizes the document's internal prompt
@@ -424,12 +425,22 @@ export function useImageGen({
             if (document?._id && generationId) {
               console.log('[loadOrGenerateImage] Using existing document for regeneration:', document._id);
               
-              // Extract the prompt text from the document
-              const { prompts, currentPromptKey } = getPromptsFromDocument(document);
-              const currentPromptText = 
-                (currentPromptKey && prompts[currentPromptKey]?.text) ||
-                (document.prompt || '') ||
-                prompt || ''; // Fall back to provided prompt if document has none, ensure string type
+              // If an edited prompt is provided, use that instead of the document prompt
+              // This is the key change to handle edited prompts during regeneration
+              let currentPromptText = '';
+              
+              if (editedPrompt) {
+                // Use the edited prompt provided from the UI
+                console.log('[loadOrGenerateImage] Using edited prompt for regeneration:', editedPrompt);
+                currentPromptText = editedPrompt;
+              } else {
+                // Otherwise extract the prompt from the document
+                const { prompts, currentPromptKey } = getPromptsFromDocument(document);
+                currentPromptText = 
+                  (currentPromptKey && prompts[currentPromptKey]?.text) ||
+                  (document.prompt || '') ||
+                  prompt || ''; // Fall back to provided prompt if document has none, ensure string type
+              }
                 
               // Create regeneration options with unique ID to force new API call
               const regenerationOptions = {

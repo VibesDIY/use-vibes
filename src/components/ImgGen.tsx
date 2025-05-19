@@ -81,6 +81,9 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Calculate isPlaceholder as a pure expression instead of using useMemo
   // This is simple enough that React doesn't need to track dependencies or cache the result
   const isPlaceholder = !prompt && !_id;
+  
+  // Track the edited prompt to pass to the image generator and show in UI
+  const [currentEditedPrompt, setCurrentEditedPrompt] = React.useState<string | undefined>(undefined);
 
   // Use the custom hook for all the image generation logic
   const { imageData, loading, error, progress, document } = useImageGen({
@@ -91,6 +94,8 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     database,
     // Use the generationId to signal when we want a new image
     generationId,
+    // Pass the edited prompt if it exists, allowing it to override the document prompt
+    editedPrompt: currentEditedPrompt,
     // Skip processing if neither prompt nor _id is provided
     skip: isPlaceholder,
   });
@@ -117,11 +122,6 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
       console.warn('[ImgGen] Regeneration skipped - no document, ID, or prompt available');
     }
   }, [document, _id, prompt]);
-
-  // Track the most recent edited prompt for regeneration UI
-  const [currentEditedPrompt, setCurrentEditedPrompt] = React.useState<string | undefined>(
-    undefined
-  );
 
   // Handle prompt editing
   const handlePromptEdit = React.useCallback(

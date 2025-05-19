@@ -51,6 +51,12 @@ export interface UseImageGenOptions {
 
   /** Flag to skip processing when neither prompt nor _id is valid */
   skip?: boolean;
+  
+  /** 
+   * Edited prompt that should override the document prompt on regeneration 
+   * This is used when the user edits the prompt in the UI before regenerating
+   */
+  editedPrompt?: string;
 }
 
 export interface UseImageGenResult {
