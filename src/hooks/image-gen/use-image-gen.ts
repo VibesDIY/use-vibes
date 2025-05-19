@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useFireproof } from 'use-fireproof';
-import { ImageResponse, ImageGenOptions } from 'call-ai';
+import { ImageResponse } from 'call-ai';
 import { UseImageGenOptions, UseImageGenResult, ImageDocument } from './types';
 
 import {
@@ -57,7 +57,7 @@ export function useImageGen({
     }),
     [options?.size, options?.quality, options?.model, options?.style]
   );
-  
+
   // Store reference to previous options to detect changes
   const prevOptionsRef = useRef<ReturnType<typeof getRelevantOptions>>(getRelevantOptions({}));
 
@@ -67,13 +67,11 @@ export function useImageGen({
   // Create a unique request ID for loading by ID or new generation
   // For regeneration requests, we exclude options from the hash to prevent unwanted regeneration
   const requestId = useMemo(() => {
-    return hashInput(prompt || _id || 'unknown', shouldConsiderOptions ? memoizedOptions : undefined);
-  }, [
-    prompt,
-    _id,
-    shouldConsiderOptions,
-    memoizedOptions
-  ]);
+    return hashInput(
+      prompt || _id || 'unknown',
+      shouldConsiderOptions ? memoizedOptions : undefined
+    );
+  }, [prompt, _id, shouldConsiderOptions, memoizedOptions]);
 
   // Track ID and generation state changes
   const previousIdRef = useRef<string | undefined>(_id);
@@ -155,25 +153,29 @@ export function useImageGen({
     // Check if only options have changed and we have an existing document
     const currentRelevantOptions = getRelevantOptions(memoizedOptions);
     const previousRelevantOptions = prevOptionsRef.current;
-    const optionsChanged = JSON.stringify(currentRelevantOptions) !== JSON.stringify(previousRelevantOptions);
+    const optionsChanged =
+      JSON.stringify(currentRelevantOptions) !== JSON.stringify(previousRelevantOptions);
 
     // When only options change and we aren't explicitly regenerating,
     // skip regeneration for existing documents to prevent duplicate generations
     if (optionsChanged && !generationId && document?._id) {
-      console.log('[useImageGen] Options changed but skipping regeneration for existing document:', {
-        docId: document._id,
-        changes: {
-          previous: previousRelevantOptions,
-          current: currentRelevantOptions,
-        },
-      });
+      console.log(
+        '[useImageGen] Options changed but skipping regeneration for existing document:',
+        {
+          docId: document._id,
+          changes: {
+            previous: previousRelevantOptions,
+            current: currentRelevantOptions,
+          },
+        }
+      );
 
       // Update our reference without triggering regeneration
       prevOptionsRef.current = currentRelevantOptions;
       setLoading(false);
       return;
     }
-    
+
     // Track current options for future comparison
     prevOptionsRef.current = currentRelevantOptions;
 
