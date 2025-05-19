@@ -10,6 +10,7 @@ vi.mock('../src/components/ImgGenUtils/overlays/ImageOverlay', () => ({
       data-testid="mock-image-overlay"
       data-prompt={promptText}
       data-show-controls={showControls}
+      data-status="Generating..."
       className="imggen-overlay"
     >
       <div className="imggen-controls">

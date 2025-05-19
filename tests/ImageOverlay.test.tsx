@@ -144,9 +144,9 @@ describe('ImageOverlay Component', () => {
   // C. Controls Hidden Tests (showControls = false)
   //---------------------------------------------------------------
   describe('Controls Hidden', () => {
-    it('shows "Generating..." text when showControls=false', () => {
+    it('shows "Generating..." text when showControls=false and progress < 100', () => {
       const { container } = render(
-        <ImageOverlay {...defaultProps} showControls={false} />
+        <ImageOverlay {...defaultProps} showControls={false} progress={50} />
       );
 
       // Find the status text element directly
