@@ -76,6 +76,8 @@ export function ImgGenDisplay({
   const [simulatedProgress, setSimulatedProgress] = React.useState<number | null>(null);
   const progressTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
+
+
   // Derive the final version index - use user selection if available, otherwise use the document's current version
   const versionIndex = userSelectedIndex !== null ? userSelectedIndex : initialVersionIndex;
 
@@ -291,8 +293,11 @@ export function ImgGenDisplay({
     return <ImgGenError message="Missing image file" />;
   }
 
+  // Determine which prompt to display - use edited prompt when available and regenerating
+  const displayPrompt = editedPrompt !== null ? editedPrompt : promptText;
+
   return (
-    <div className={combineClasses('imggen-root', className, classes.root)} title={promptText}>
+    <div className={combineClasses('imggen-root', className, classes.root)} title={displayPrompt}>
       <ImgFile
         file={currentFile}
         className={combineClasses('imggen-image', classes.image)}
@@ -307,7 +312,7 @@ export function ImgGenDisplay({
         onClose={closeFullscreen}
         currentFile={currentFile}
         alt={alt}
-        promptText={promptText}
+        promptText={pendingRegeneration && editedPrompt !== null ? editedPrompt : promptText}
         editedPrompt={editedPrompt}
         setEditedPrompt={setEditedPrompt}
         handlePromptEdit={handlePromptEdit}
