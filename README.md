@@ -60,11 +60,8 @@ function MyComponent() {
 - `_id`: Document ID to load a specific image instead of generating a new one
 - `options` (object, optional): Configuration options for image generation
   - `model` (string, optional): Model to use for image generation, defaults to 'gpt-image-1'
-  - `apiKey` (string, optional): API key, defaults to 'VIBES_DIY'
-  - `images` (File[], optional): Array of File objects to edit, if provided uses the edit endpoint
   - `size` (string, optional): Size of the generated image (Must be one of 1024x1024, 1536x1024 (landscape), 1024x1536 (portrait), or 'auto' (default value) for gpt-image-1, and one of 256x256, 512x512, or 1024x1024 for dall-e-2.)
   - `quality` (string, optional): Quality of the generated image (high, medium and low are only supported for gpt-image-1. dall-e-2 only supports standard quality. Defaults to auto.)
-  - `style` (string, optional): Style of the generated image (e.g., 'vivid', 'natural') for dall-e-2 only.
   - `debug` (boolean, optional): Enable debug logging, defaults to false
 
 - `className`: CSS class name for the image element (optional)
