@@ -52,6 +52,46 @@
   height: 100%;
 }
 
+/* Image container with expand button */
+.imggen-image-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--imggen-border-radius);
+}
+
+/* Expand button in upper left corner */
+.imggen-expand-button {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 20;
+  background-color: var(--imggen-button-bg);
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity var(--imggen-transition-speed) ease, transform var(--imggen-transition-speed) ease;
+  padding: 0;
+  color: var(--imggen-text-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.imggen-expand-button:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.imggen-expand-button svg {
+  width: 20px;
+  height: 20px;
+}
+
 /* The image itself - limited styling since we can't change ImgFile */
 .imggen-image {
   width: 100%;

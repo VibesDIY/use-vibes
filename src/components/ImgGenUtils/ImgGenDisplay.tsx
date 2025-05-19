@@ -306,14 +306,25 @@ export function ImgGenDisplay({
 
   return (
     <div className={combineClasses('imggen-root', className, classes.root)} title={displayPrompt}>
-      <ImgFile
-        file={currentFile}
-        className={combineClasses('imggen-image', classes.image)}
-        alt={alt || 'Generated image'}
-        style={{ width: '100%', cursor: 'pointer' }}
-        onClick={openFullscreen}
-      />
-
+      <div className="imggen-image-container" style={{ position: 'relative', width: '100%' }}>
+        <button 
+          className="imggen-expand-button" 
+          onClick={openFullscreen}
+          title="Expand image"
+          aria-label="Expand image"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M15,3l2.3,2.3l-2.89,2.87l1.42,1.42L18.7,6.7L21,9V3H15z M3,9l2.3-2.3l2.87,2.89l1.42-1.42L6.7,5.3L9,3H3V9z M9,21 l-2.3-2.3l2.89-2.87l-1.42-1.42L5.3,17.3L3,15v6H9z M21,15l-2.3,2.3l-2.87-2.89l-1.42,1.42l2.89,2.87L15,21h6V15z"/>
+          </svg>
+        </button>
+        <ImgFile
+          file={currentFile}
+          className={combineClasses('imggen-image', classes.image)}
+          alt={alt || 'Generated image'}
+          style={{ width: '100%' }}
+        />
+      </div>
+      
       {/* Use the new ImgGenModal component */}
       <ImgGenModal
         isOpen={isFullscreen}
