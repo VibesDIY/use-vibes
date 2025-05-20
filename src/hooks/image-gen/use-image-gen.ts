@@ -357,6 +357,18 @@ export function useImageGen({
               ) {
                 // Use the document's prompt to generate an image
                 console.log(`Document ${_id} has no files but has prompt, generating image`);
+                
+                // Extended debug info
+                if (options?.debug) {
+                  console.log('[ImgGen Debug] Document found with prompt but no files:', {
+                    docId: existingDoc._id,
+                    docPrompt: existingDoc.prompt,
+                    settingLoading: true,
+                    settingDocument: true,
+                    loadingValue: loading
+                  });
+                }
+                
                 const docPrompt = existingDoc.prompt;
 
                 // Set loading state to true to show progress indicator

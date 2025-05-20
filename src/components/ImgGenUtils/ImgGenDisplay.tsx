@@ -17,6 +17,7 @@ export function ImgGenDisplay({
   classes = defaultClasses,
   loading,
   error,
+  debug, // Add debug flag to props interface
 }: ImgGenDisplayProps) {
   // Delete confirmation is now handled within ControlsBar
 
@@ -289,7 +290,32 @@ export function ImgGenDisplay({
   // Is regeneration in progress - either from loading state or pending state
   const isRegenerating = pendingRegeneration || documentLoading === true || loading === true;
 
+  // Debug logging for render conditions
+  if (debug) {
+    console.log('[ImgGenDisplay Debug] Render state:', {
+      documentId: document._id,
+      hasFiles: !!document._files,
+      fileKey,
+      versions,
+      versionIndex,
+      hasDefaultImage: !!document._files?.image,
+      isRegenerating,
+      loading,
+      error: error?.message,
+      totalVersions,
+      promptText
+    });
+  }
+  
   if (!document._files || (!fileKey && !document._files.image)) {
+    if (debug) {
+      console.log('[ImgGenDisplay Debug] Missing image file - showing error', {
+        hasFiles: !!document._files,
+        fileKey,
+        defaultImageExists: !!document._files?.image,
+        loading
+      });
+    }
     return <ImgGenError message="Missing image file" />;
   }
 

@@ -32,6 +32,8 @@ export interface ImgGenDisplayProps {
   loading?: boolean;
   /** Error if image generation failed */
   error?: Error | null;
+  /** Enable debug logging */
+  debug?: boolean;
 }
 
 // Props for the error component

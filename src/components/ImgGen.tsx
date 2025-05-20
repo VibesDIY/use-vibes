@@ -221,6 +221,24 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
 
   // Render function that determines what to show
   const renderContent = () => {
+    // Debug logging for component state
+    if (options?.debug) {
+      console.log('[ImgGen Debug] Render state:', {
+        isPlaceholder,
+        document: document ? { 
+          _id: document._id, 
+          _files: document._files ? Object.keys(document._files) : null,
+          hasPrompts: !!document.prompts,
+          currentPromptKey: document.currentPromptKey || null,
+          hasPrompt: !!document.prompt,
+          docType: document.type || null
+        } : null,
+        loading,
+        error: error?.message,
+        currentEditedPrompt: currentEditedPrompt || null,
+        imageData: !!imageData
+      });
+    }
     // If we don't have a prompt or ID, show the waiting component
     if (isPlaceholder) {
       return <ImgGenPromptWaiting className={className} classes={classes} />;
@@ -258,6 +276,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
             classes={classes}
             loading={loading}
             error={error}
+            debug={options?.debug}
           />
 
           {/* Show progress overlay during regeneration */}
