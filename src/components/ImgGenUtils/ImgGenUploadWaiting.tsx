@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { ImageDocument } from '../../hooks/image-gen/types';
+import type { Database } from 'use-fireproof';
 import { useFireproof } from 'use-fireproof';
 import { ImgGenFileDrop } from './ImgGenFileDrop';
 import { ImgGenClasses, combineClasses } from '../../utils/style-utils';
@@ -14,6 +15,8 @@ interface ImgGenUploadWaitingProps {
   classes?: ImgGenClasses;
   /** Enable debugging output */
   debug?: boolean;
+  /** Database name or instance to use for storing images */
+  database?: string | Database;
   /** Callback when new files are uploaded to this document */
   onFilesAdded?: () => void;
   /** Callback when prompt is set and generation should begin */
@@ -31,10 +34,11 @@ export function ImgGenUploadWaiting({
   className,
   classes,
   debug,
+  database,
   onFilesAdded,
   onPromptSubmit,
 }: ImgGenUploadWaitingProps): React.ReactElement {
-  const { database: db } = useFireproof();
+  const { database: db } = useFireproof(database || 'ImgGen');
   const [prompt, setPrompt] = React.useState('');
   const [inputFiles, setInputFiles] = React.useState<string[]>([]);
 

@@ -296,6 +296,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
             className={className}
             classes={classes}
             debug={debug}
+            database={database}
             onFilesAdded={() => {
               // Just log if new files were added to the same document
               if (debug) {
