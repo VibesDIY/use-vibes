@@ -41,7 +41,7 @@
 .imggen-root {
   position: relative;
   max-width: 100%;
-  border-radius: var(--imggen-border-radius);
+  /* No border-radius to allow downstream apps to set their own */
   overflow: hidden;
 }
 
@@ -57,7 +57,7 @@
   position: relative;
   width: 100%;
   overflow: hidden;
-  border-radius: var(--imggen-border-radius);
+  /* No border-radius to allow downstream apps to set their own */
 }
 
 /* Expand button in upper left corner */
@@ -109,7 +109,7 @@
   width: 100%;
   height: auto;
   display: block;
-  border-radius: var(--imggen-border-radius);
+  /* No border-radius to allow downstream apps to set their own */
 }
 
 /* ---- Overlays ---- */
