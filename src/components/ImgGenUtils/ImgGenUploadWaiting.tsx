@@ -3,6 +3,7 @@ import type { ImageDocument } from '../../hooks/image-gen/types';
 import { useFireproof } from 'use-fireproof';
 import { ImgGenFileDrop } from './ImgGenFileDrop';
 import { ImgGenClasses, combineClasses } from '../../utils/style-utils';
+import '../ImgGen.css';
 
 interface ImgGenUploadWaitingProps {
   /** Document with uploaded files */

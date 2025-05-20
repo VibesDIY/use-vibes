@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { combineClasses } from '../../utils/style-utils';
-import '../../styles/imggen-file-drop.css';
+import '../ImgGen.css';
 
 interface ImgGenFileDropProps {
   /** Callback when files are dropped or selected via browse */

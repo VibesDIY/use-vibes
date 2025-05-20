@@ -3,7 +3,6 @@ import '../ImgGen.css';
 import { combineClasses, defaultClasses, ImgGenClasses } from '../../utils/style-utils';
 import { ImgGenFileDrop } from './ImgGenFileDrop';
 import { useFireproof } from 'use-fireproof';
-import '../../styles/imggen-file-drop.css';
 
 interface ImgGenPromptWaitingProps {
   /** Classname(s) to apply to the container */
