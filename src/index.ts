@@ -8,3 +8,6 @@ export type { ImgGenProps } from './components/ImgGen';
 
 // Export style utilities
 export type { ImgGenClasses } from './utils/style-utils';
+
+// Export utility functions
+export { base64ToFile } from './utils/base64';

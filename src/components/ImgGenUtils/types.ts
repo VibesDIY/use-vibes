@@ -8,6 +8,8 @@ export interface ImgGenPlaceholderProps {
   alt?: string;
   prompt?: string;
   progress: number;
+  /** Whether the component is currently loading */
+  loading?: boolean;
   error?: Error | null;
   classes?: ImgGenClasses;
 }
@@ -30,6 +32,8 @@ export interface ImgGenDisplayProps {
   classes?: ImgGenClasses;
   /** Whether the component is currently loading */
   loading?: boolean;
+  /** Generation progress as a number between 0-100 */
+  progress?: number;
   /** Error if image generation failed */
   error?: Error | null;
   /** Enable debug logging */

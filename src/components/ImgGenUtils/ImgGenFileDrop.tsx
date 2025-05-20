@@ -1,8 +1,10 @@
 import * as React from 'react';
 import { combineClasses } from '../../utils/style-utils';
+import '../../styles/imggen-file-drop.css';
 
 interface ImgGenFileDropProps {
   /** Callback when files are dropped or selected via browse */
+  // eslint-disable-next-line no-unused-vars
   onFilesDropped: (files: File[]) => void;
   /** Classname(s) to apply to the container */
   className?: string;
@@ -115,9 +117,7 @@ export function ImgGenFileDrop({
         multiple
         style={{ display: 'none' }}
       />
-      <div className="imggen-file-drop-message">
-        {addFilesMessage}
-      </div>
+      <div className="imggen-file-drop-message">{addFilesMessage}</div>
     </div>
   );
 }

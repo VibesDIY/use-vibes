@@ -3,7 +3,6 @@ import type { ImageDocument } from '../../hooks/image-gen/types';
 import { useFireproof } from 'use-fireproof';
 import { ImgGenFileDrop } from './ImgGenFileDrop';
 import { ImgGenClasses, combineClasses } from '../../utils/style-utils';
-import type { DocFileMeta } from 'use-fireproof';
 
 interface ImgGenUploadWaitingProps {
   /** Document with uploaded files */
@@ -17,6 +16,7 @@ interface ImgGenUploadWaitingProps {
   /** Callback when new files are uploaded to this document */
   onFilesAdded?: () => void;
   /** Callback when prompt is set and generation should begin */
+  // eslint-disable-next-line no-unused-vars
   onPromptSubmit: (prompt: string) => void;
 }
 
@@ -36,36 +36,36 @@ export function ImgGenUploadWaiting({
   const { database: db } = useFireproof();
   const [prompt, setPrompt] = React.useState('');
   const [inputFiles, setInputFiles] = React.useState<string[]>([]);
-  
+
   // Get all input files from the document
   React.useEffect(() => {
     if (document?._files) {
       const inFiles = Object.keys(document._files)
-        .filter(key => key.startsWith('in'))
+        .filter((key) => key.startsWith('in'))
         .sort();
-      
+
       setInputFiles(inFiles);
-      
+
       if (debug) {
         console.log('[ImgGenUploadWaiting] Found input files:', inFiles);
       }
     }
   }, [document, debug]);
-  
+
   // Clean up any created object URLs when unmounting
   React.useEffect(() => {
     const objectUrls: string[] = [];
-    
+
     return () => {
       // Clean up any created object URLs
-      objectUrls.forEach(url => URL.revokeObjectURL(url));
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
 
   // Handle additional file uploads to the existing document
   const handleFilesUploaded = async (files: File[]) => {
     if (!document || !document._id || !files.length) return;
-    
+
     try {
       // Load existing document
       const doc = await db.get(document._id);
@@ -73,11 +73,11 @@ export function ImgGenUploadWaiting({
         console.error('[ImgGenUploadWaiting] Document not found:', document._id);
         return;
       }
-      
+
       // Find highest current input file number
       let maxInputNum = 0;
       if (doc._files) {
-        Object.keys(doc._files).forEach(key => {
+        Object.keys(doc._files).forEach((key) => {
           if (key.startsWith('in')) {
             const num = parseInt(key.substring(2), 10);
             if (!isNaN(num) && num > maxInputNum) {
@@ -86,30 +86,30 @@ export function ImgGenUploadWaiting({
           }
         });
       }
-      
+
       // Add new files with incremented keys
       const updatedDoc = { ...doc };
       if (!updatedDoc._files) updatedDoc._files = {};
-      
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const fileKey = `in${maxInputNum + i + 1}`;
-        
+
         // Add file to document
         updatedDoc._files[fileKey] = file;
-        
+
         if (debug) {
           console.log(`[ImgGenUploadWaiting] Adding file to document: ${fileKey}`, file.name);
         }
       }
-      
+
       // Save updated document
       await db.put(updatedDoc);
-      
+
       if (debug) {
         console.log('[ImgGenUploadWaiting] Document updated with new files:', updatedDoc._id);
       }
-      
+
       // Notify parent about files added
       if (onFilesAdded) {
         onFilesAdded();
@@ -128,28 +128,37 @@ export function ImgGenUploadWaiting({
   };
 
   // Helper function to safely create object URLs from file-like objects
-  const getImageUrl = React.useCallback((fileLike: unknown): string | null => {
-    // Check if it's a File object (directly usable with URL.createObjectURL)
-    if (fileLike instanceof File) {
-      const url = URL.createObjectURL(fileLike);
-      return url;
-    }
-    
-    // For DocFileMeta (stored file metadata), we need more complex handling
-    // In a real implementation, this would load the file data from Fireproof
-    if (typeof fileLike === 'object' && fileLike !== null) {
-      if (debug) {
-        console.log('[ImgGenUploadWaiting] Cannot display DocFileMeta directly:', fileLike);
+  const getImageUrl = React.useCallback(
+    (fileLike: unknown): string | null => {
+      // Check if it's a File object (directly usable with URL.createObjectURL)
+      if (fileLike instanceof File) {
+        const url = URL.createObjectURL(fileLike);
+        return url;
       }
-      // Return placeholder or null
+
+      // For DocFileMeta (stored file metadata), we need more complex handling
+      // In a real implementation, this would load the file data from Fireproof
+      if (typeof fileLike === 'object' && fileLike !== null) {
+        if (debug) {
+          console.log('[ImgGenUploadWaiting] Cannot display DocFileMeta directly:', fileLike);
+        }
+        // Return placeholder or null
+        return null;
+      }
+
       return null;
-    }
-    
-    return null;
-  }, [debug]);
+    },
+    [debug]
+  );
 
   return (
-    <div className={combineClasses('imggen-upload-waiting', className || '', classes?.uploadWaiting || '')}>
+    <div
+      className={combineClasses(
+        'imggen-upload-waiting',
+        className || '',
+        classes?.uploadWaiting || ''
+      )}
+    >
       {/* Display thumbnails of uploaded files */}
       <div className="imggen-uploaded-previews">
         {inputFiles.length > 0 ? (
@@ -158,7 +167,7 @@ export function ImgGenUploadWaiting({
               {inputFiles.length} {inputFiles.length === 1 ? 'image' : 'images'} uploaded
             </div>
             <div className="imggen-thumbnails">
-              {inputFiles.slice(0, 4).map(fileKey => (
+              {inputFiles.slice(0, 4).map((fileKey) => (
                 <div key={fileKey} className="imggen-thumbnail">
                   {document._files && document._files[fileKey] && (
                     <>
@@ -169,9 +178,7 @@ export function ImgGenUploadWaiting({
                           className="imggen-thumbnail-img"
                         />
                       ) : (
-                        <div className="imggen-thumbnail-placeholder">
-                          Image
-                        </div>
+                        <div className="imggen-thumbnail-placeholder">Image</div>
                       )}
                     </>
                   )}
@@ -206,11 +213,7 @@ export function ImgGenUploadWaiting({
           placeholder="Enter a prompt to generate with these images..."
           className="imggen-prompt-input"
         />
-        <button 
-          type="submit" 
-          disabled={!prompt.trim()}
-          className="imggen-prompt-submit"
-        >
+        <button type="submit" disabled={!prompt.trim()} className="imggen-prompt-submit">
           Generate
         </button>
       </form>
