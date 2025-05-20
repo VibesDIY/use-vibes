@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { ImageDocument } from '../../hooks/image-gen/types';
 import type { Database } from 'use-fireproof';
-import { useFireproof } from 'use-fireproof';
+import { useFireproof, ImgFile } from 'use-fireproof';
 import { ImgGenFileDrop } from './ImgGenFileDrop';
 import { ImgGenClasses, combineClasses } from '../../utils/style-utils';
 import '../ImgGen.css';
@@ -109,10 +109,25 @@ export function ImgGenUploadWaiting({
       }
 
       // Save updated document
-      await db.put(updatedDoc);
+      const result = await db.put(updatedDoc);
 
       if (debug) {
-        console.log('[ImgGenUploadWaiting] Document updated with new files:', updatedDoc._id);
+        console.log('[ImgGenUploadWaiting] Document updated with new files:', result.id);
+      }
+
+      // Refresh the document to get the latest version with new files
+      const refreshedDoc = await db.get(result.id);
+      if (refreshedDoc) {
+        // Update input files state with the new files
+        const inFiles = Object.keys(refreshedDoc._files || {})
+          .filter((key) => key.startsWith('in'))
+          .sort();
+        
+        setInputFiles(inFiles);
+        
+        if (debug) {
+          console.log('[ImgGenUploadWaiting] Refreshed input files:', inFiles);
+        }
       }
 
       // Notify parent about files added
@@ -132,29 +147,8 @@ export function ImgGenUploadWaiting({
     }
   };
 
-  // Helper function to safely create object URLs from file-like objects
-  const getImageUrl = React.useCallback(
-    (fileLike: unknown): string | null => {
-      // Check if it's a File object (directly usable with URL.createObjectURL)
-      if (fileLike instanceof File) {
-        const url = URL.createObjectURL(fileLike);
-        return url;
-      }
-
-      // For DocFileMeta (stored file metadata), we need more complex handling
-      // In a real implementation, this would load the file data from Fireproof
-      if (typeof fileLike === 'object' && fileLike !== null) {
-        if (debug) {
-          console.log('[ImgGenUploadWaiting] Cannot display DocFileMeta directly:', fileLike);
-        }
-        // Return placeholder or null
-        return null;
-      }
-
-      return null;
-    },
-    [debug]
-  );
+  // We no longer need this function since we're using ImgFile component
+  // which handles all the file display logic for us
 
   return (
     <div
@@ -175,17 +169,11 @@ export function ImgGenUploadWaiting({
               {inputFiles.slice(0, 4).map((fileKey) => (
                 <div key={fileKey} className="imggen-thumbnail">
                   {document._files && document._files[fileKey] && (
-                    <>
-                      {getImageUrl(document._files[fileKey]) ? (
-                        <img
-                          src={getImageUrl(document._files[fileKey]) || ''}
-                          alt={`Upload ${fileKey}`}
-                          className="imggen-thumbnail-img"
-                        />
-                      ) : (
-                        <div className="imggen-thumbnail-placeholder">Image</div>
-                      )}
-                    </>
+                    <ImgFile
+                      file={document._files[fileKey]}
+                      alt={`Upload ${fileKey}`}
+                      className="imggen-thumbnail-img"
+                    />
                   )}
                 </div>
               ))}
