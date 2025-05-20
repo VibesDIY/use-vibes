@@ -335,7 +335,10 @@ export function ImgGenDisplay({
       <div className="imggen-image-container" style={{ position: 'relative', width: '100%' }}>
         <button
           className="imggen-expand-button"
-          onClick={openFullscreen}
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent click from propagating to parent elements
+            openFullscreen();
+          }}
           title="Expand image"
           aria-label="Expand image"
         >
