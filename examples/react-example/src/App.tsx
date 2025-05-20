@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useRef } from 'react';
 import { ImgGen } from 'use-vibes';
 import { useFireproof } from 'use-fireproof';
 import type { DocBase, DocFileMeta } from 'use-fireproof';
@@ -18,6 +18,9 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedImageId, setSelectedImageId] = useState<string | undefined>();
   const [quality, setQuality] = useState<'low' | 'medium' | 'high' | 'auto'>('low');
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use Fireproof to query all images
   const { useLiveQuery } = useFireproof('ImgGen');
@@ -55,6 +58,28 @@ function App() {
   const handleImageError = (error: Error) => {
     console.error('Image generation failed:', error);
     setIsGenerating(false);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setUploadedImage(file);
+
+      // Create preview URL for the uploaded image
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImagePreview(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleClearImage = () => {
+    setUploadedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   // Get all documents with type: 'image'
@@ -118,16 +143,55 @@ function App() {
           className="generate-button"
           disabled={isGenerating || !inputPrompt.trim()}
         >
-          {isGenerating ? 'Generating...' : 'Generate Image'}
+          {isGenerating ? 'Generating...' : uploadedImage ? 'Edit Image' : 'Generate Image'}
         </button>
       </form>
+
+      <div className="image-upload-container" style={{ marginTop: '20px', marginBottom: '20px' }}>
+        <h3>Upload an image to edit</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            ref={fileInputRef}
+            style={{ flexGrow: 1 }}
+          />
+          {uploadedImage && (
+            <button
+              onClick={handleClearImage}
+              style={{
+                padding: '5px 10px',
+                backgroundColor: '#f44336',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        {imagePreview && (
+          <div style={{ marginTop: '10px', maxWidth: '300px' }}>
+            <img
+              src={imagePreview}
+              alt="Preview"
+              style={{ width: '100%', borderRadius: '8px', border: '2px solid #ddd' }}
+            />
+          </div>
+        )}
+      </div>
 
       <div className="img-wrapper">
         <ImgGen
           prompt={activePrompt}
           _id={selectedImageId}
+          images={uploadedImage ? [uploadedImage] : undefined}
           options={{
-            quality: quality,
+            debug: true,
+            quality,
             imgUrl: 'https://vibecode.garden',
             size: '1024x1024',
           }}
