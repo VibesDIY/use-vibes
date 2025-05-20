@@ -23,7 +23,7 @@ Add a CSS link tag to your HTML:
 Or for ESM/CDN environments like importmap scenarios:
 
 ```html
-<link rel="stylesheet" href="https://esm.sh/use-vibes@0.4.11/dist/components/ImgGen.css" />
+<link rel="stylesheet" href="https://esm.sh/use-vibes@latest/dist/components/ImgGen.css" />
 ```
 
 #### Option B: Automatic CSS loading (convenient for prototyping)
@@ -206,4 +206,4 @@ This library is compatible with all modern browsers that support React 18+ and E
 
 ## License
 
-MIT
+MIT+Apache
