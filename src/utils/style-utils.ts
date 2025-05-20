@@ -66,6 +66,10 @@ export interface ImgGenClasses {
   prompt?: string;
   /** Delete confirmation overlay class */
   deleteOverlay?: string;
+  /** Drop zone class for file uploads */
+  dropZone?: string;
+  /** Upload waiting container class */
+  uploadWaiting?: string;
 }
 
 /**

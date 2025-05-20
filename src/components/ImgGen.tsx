@@ -3,13 +3,15 @@ import { v4 as uuid } from 'uuid';
 import type { ImageGenOptions } from 'call-ai';
 import { useImageGen } from '../hooks/image-gen/use-image-gen';
 import { useFireproof, Database } from 'use-fireproof';
-import { ImageDocument } from '../hooks/image-gen/types';
+import type { ImageDocument } from '../hooks/image-gen/types';
 import {
   ImgGenPromptWaiting,
   ImgGenDisplayPlaceholder,
   ImgGenDisplay,
   ImgGenError,
+  ImgGenUploadWaiting,
 } from './ImgGenUtils';
+import { getImgGenMode, ImgGenMode } from './ImgGenUtils/ImgGenModeUtils';
 import { ImgGenClasses, defaultClasses, combineClasses } from '../utils/style-utils';
 import './ImgGen.css';
 
@@ -78,14 +80,33 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // This provides a clearer signal when regeneration is needed
   const [generationId, setGenerationId] = React.useState<string | undefined>(undefined);
 
-  // Calculate isPlaceholder as a pure expression instead of using useMemo
-  // This is simple enough that React doesn't need to track dependencies or cache the result
-  const isPlaceholder = !prompt && !_id;
+  // Determine the current display mode based on document state
+  const mode = React.useMemo(() => {
+    return getImgGenMode({
+      document,
+      prompt,
+      loading,
+      error,
+      debug: options?.debug
+    });
+  }, [document, prompt, loading, error, options?.debug]);
+  
+  if (options?.debug) {
+    console.log('[ImgGenCore] Current mode:', mode, {
+      document: !!document,
+      prompt: !!prompt,
+      loading,
+      error: !!error
+    });
+  }
 
   // Track the edited prompt to pass to the image generator and show in UI
   const [currentEditedPrompt, setCurrentEditedPrompt] = React.useState<string | undefined>(
     undefined
   );
+  
+  // Check if we should skip image generation based on whether we have prompt or id
+  const shouldSkipGeneration = !prompt && !_id;
 
   // Use the custom hook for all the image generation logic
   const { imageData, loading, error, progress, document } = useImageGen({
@@ -99,8 +120,29 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     // Pass the edited prompt if it exists, allowing it to override the document prompt
     editedPrompt: currentEditedPrompt,
     // Skip processing if neither prompt nor _id is provided
-    skip: isPlaceholder,
+    skip: shouldSkipGeneration,
   });
+  
+  // Determine the current display mode based on document state
+  const mode = React.useMemo(() => {
+    return getImgGenMode({
+      document,
+      prompt,
+      loading,
+      error: error || undefined,
+      debug: options?.debug
+    });
+  }, [document, prompt, loading, error, options?.debug]);
+  
+  if (options?.debug) {
+    console.log('[ImgGenCore] Current mode:', mode, {
+      document: !!document,
+      documentId: document?._id,
+      prompt: !!prompt,
+      loading,
+      error: !!error
+    });
+  }
 
   // When document is generated, use its ID for subsequent operations
   // This is done through the parent component's remounting logic with uuid()
