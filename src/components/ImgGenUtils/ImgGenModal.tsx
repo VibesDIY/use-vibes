@@ -80,13 +80,14 @@ export function ImgGenModal({
   const effectivePromptText = promptText;
 
   return createPortal(
-    <div 
-      className="imggen-backdrop" 
+    <div
+      className="imggen-backdrop"
       onClick={(e) => {
         e.stopPropagation(); // Prevent click from propagating beyond
         onClose();
-      }} 
-      role="presentation">
+      }}
+      role="presentation"
+    >
       <figure className="imggen-full-wrapper" onClick={(e) => e.stopPropagation()}>
         {error ? (
           <div className="imggen-backdrop-error">
