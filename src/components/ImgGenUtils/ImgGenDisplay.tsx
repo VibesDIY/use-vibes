@@ -303,17 +303,17 @@ export function ImgGenDisplay({
       loading,
       error: error?.message,
       totalVersions,
-      promptText
+      promptText,
     });
   }
-  
+
   if (!document._files || (!fileKey && !document._files.image)) {
     if (debug) {
       console.log('[ImgGenDisplay Debug] Missing image file - showing error', {
         hasFiles: !!document._files,
         fileKey,
         defaultImageExists: !!document._files?.image,
-        loading
+        loading,
       });
     }
     return <ImgGenError message="Missing image file" />;
