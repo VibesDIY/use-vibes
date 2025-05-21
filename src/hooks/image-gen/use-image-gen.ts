@@ -183,7 +183,7 @@ export function useImageGen({
         // This is just for visual feedback and doesn't reflect actual progress
         const timer = setInterval(() => {
           setProgress((prev: number) => {
-            const next = prev + (100 - prev) * 0.05;
+            const next = prev + (100 - prev) * 0.04;
             return next > 99 ? 99 : next;
           });
         }, 1000);

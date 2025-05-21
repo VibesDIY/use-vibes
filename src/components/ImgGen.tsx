@@ -317,34 +317,46 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
         }
 
         return (
-          <ImgGenUploadWaiting
-            document={document}
-            className={className}
-            classes={classes}
-            debug={debug}
-            database={database}
-            onFilesAdded={() => {
-              // Just log if new files were added to the same document
-              if (debug) {
-                console.log('[ImgGenCore] Files added to existing document:', document._id);
-              }
-            }}
-            onPromptSubmit={(newPrompt: string, docId?: string) => {
-              // Use the docId that's passed from the component if available,
-              // otherwise fall back to the current document._id
-              const targetDocId = docId || (document && document._id);
+          <>
+            <ImgGenUploadWaiting
+              document={document}
+              className={className}
+              classes={classes}
+              debug={debug}
+              database={database}
+              onFilesAdded={() => {
+                // Just log if new files were added to the same document
+                if (debug) {
+                  console.log('[ImgGenCore] Files added to existing document:', document._id);
+                }
+              }}
+              onPromptSubmit={(newPrompt: string, docId?: string) => {
+                // Use the docId that's passed from the component if available,
+                // otherwise fall back to the current document._id
+                const targetDocId = docId || (document && document._id);
 
-              if (debug) {
-                console.log('[ImgGenCore] Prompt submitted for existing uploads:', newPrompt);
-                console.log('[ImgGenCore] Using document ID:', targetDocId);
-              }
+                if (debug) {
+                  console.log('[ImgGenCore] Prompt submitted for existing uploads:', newPrompt);
+                  console.log('[ImgGenCore] Using document ID:', targetDocId);
+                }
 
-              if (targetDocId) {
-                // Use the document ID to ensure we're using the correct document with the uploaded images
-                handlePromptEdit(targetDocId, newPrompt);
-              }
-            }}
-          />
+                if (targetDocId) {
+                  // Use the document ID to ensure we're using the correct document with the uploaded images
+                  handlePromptEdit(targetDocId, newPrompt);
+                }
+              }}
+            />
+
+            {/* Show progress overlay if loading has started */}
+            {loading && (
+              <div className="imggen-progress-container">
+                <div
+                  className="imggen-progress-bar"
+                  style={{ width: `${Math.round(progress * 100)}%` }}
+                />
+              </div>
+            )}
+          </>
         );
       }
 
@@ -354,14 +366,26 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
         const displayPrompt = currentEditedPrompt || prompt;
 
         return (
-          <ImgGenDisplayPlaceholder
-            prompt={displayPrompt || ''}
-            loading={loading}
-            progress={progress}
-            error={error}
-            className={className}
-            classes={classes}
-          />
+          <>
+            <ImgGenDisplayPlaceholder
+              prompt={displayPrompt || ''}
+              loading={loading}
+              progress={progress}
+              error={error}
+              className={className}
+              classes={classes}
+            />
+
+            {/* Show progress overlay during generation */}
+            {loading && (
+              <div className="imggen-progress-container">
+                <div
+                  className="imggen-progress-bar"
+                  style={{ width: `${Math.round(progress * 100)}%` }}
+                />
+              </div>
+            )}
+          </>
         );
       }
 
@@ -387,8 +411,8 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
               error={error}
             />
 
-            {/* Show progress overlay during regeneration */}
-            {loading && generationId && (
+            {/* Show progress overlay during any loading state */}
+            {loading && (
               <div className="imggen-progress-container">
                 {/* Progress bar */}
                 <div

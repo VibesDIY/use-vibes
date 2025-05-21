@@ -24,8 +24,9 @@ export function ImgGenDisplayPlaceholder({
 
     // Smoothly animate to the actual progress (or minimum 5%)
     const timer = setTimeout(() => {
+      console.log('Animating progress to', progress);
       setVisibleProgress(Math.max(5, progress));
-    }, 20); // Smaller delay for smoother transitions
+    }, 100); // Smaller delay for smoother transitions
 
     return () => clearTimeout(timer);
   }, [progress]);
