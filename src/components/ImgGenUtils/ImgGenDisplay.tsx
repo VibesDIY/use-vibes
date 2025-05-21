@@ -16,6 +16,7 @@ export function ImgGenDisplay({
   onPromptEdit,
   classes = defaultClasses,
   loading,
+  progress,
   error,
   debug, // Add debug flag to props interface
 }: ImgGenDisplayProps) {
@@ -78,9 +79,7 @@ export function ImgGenDisplay({
   // Keep track of pending regeneration requests
   const pendingRegenerationRef = React.useRef<boolean>(false);
 
-  // Track simulated progress for regeneration
-  const [simulatedProgress, setSimulatedProgress] = React.useState<number | null>(null);
-  const progressTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  // We now use progress directly from props
 
   // Derive the final version index - use user selection if available, otherwise use the document's current version
   const versionIndex = userSelectedIndex !== null ? userSelectedIndex : initialVersionIndex;
@@ -138,27 +137,6 @@ export function ImgGenDisplay({
     // Set pending regeneration flag
     setPendingRegeneration(true);
     pendingRegenerationRef.current = true;
-
-    // Reset and start simulated progress
-    setSimulatedProgress(0);
-
-    // Clear any existing timer
-    if (progressTimerRef.current) {
-      clearInterval(progressTimerRef.current);
-      progressTimerRef.current = null;
-    }
-
-    // Create a new progress timer that simulates progress from 0 to 99
-    const timer = setInterval(() => {
-      setSimulatedProgress((prev) => {
-        const current = prev ?? 0;
-        // Asymptotically approach 99%
-        const next = current + (99 - current) * 0.05;
-        return next > 99 ? 99 : next;
-      });
-    }, 500); // Update twice per second for smoother animation
-
-    progressTimerRef.current = timer;
 
     // const { currentPrompt } = getPromptInfo(document, versionIndex);
 
@@ -225,20 +203,9 @@ export function ImgGenDisplay({
     if (!documentLoading && pendingRegenerationRef.current) {
       pendingRegenerationRef.current = false;
       setPendingRegeneration(false);
-
-      // Clear the simulated progress timer
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-        progressTimerRef.current = null;
-      }
-
-      // Set simulated progress to 100% to complete the progress bar
-      setSimulatedProgress(100);
-
-      // Then clear it after a short delay to hide the progress bar
+      
+      // Clear the generating prompt after completion
       setTimeout(() => {
-        setSimulatedProgress(null);
-        // Also clear the generating prompt
         setGeneratingPrompt(null);
       }, 500);
     }
@@ -253,20 +220,6 @@ export function ImgGenDisplay({
     if (versions?.length > versionsLengthRef.current) {
       pendingRegenerationRef.current = false;
       setPendingRegeneration(false);
-
-      // Clear the simulated progress timer
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-        progressTimerRef.current = null;
-      }
-
-      // Set simulated progress to 100% to complete the progress bar
-      setSimulatedProgress(100);
-
-      // Then clear it after a short delay to hide the progress bar
-      setTimeout(() => {
-        setSimulatedProgress(null);
-      }, 500);
     }
 
     // Update refs
@@ -274,18 +227,10 @@ export function ImgGenDisplay({
     documentIdRef.current = document?._id;
   }, [document?._id, versions?.length]);
 
-  // Clean up timer on unmount
-  React.useEffect(() => {
-    return () => {
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-        progressTimerRef.current = null;
-      }
-    };
-  }, []);
+  // Cleanup no longer needed as we're using real progress
 
-  // Calculate the effective progress - use simulated progress during regeneration if available
-  const effectiveProgress = simulatedProgress ?? 100;
+  // Calculate the effective progress - use real progress during loading, otherwise 100%
+  const effectiveProgress = loading ? progress : 100;
 
   // Is regeneration in progress - either from loading state or pending state
   const isRegenerating = pendingRegeneration || documentLoading === true || loading === true;
@@ -382,7 +327,7 @@ export function ImgGenDisplay({
             }}
           >
             <div
-              className={combineClasses('imggen-progress-bar', classes.progress)}
+              className={combineClasses('imggen-progress', classes.progress)}
               style={{
                 width: `${effectiveProgress}%`,
                 height: '100%',

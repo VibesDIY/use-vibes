@@ -153,7 +153,7 @@ export function ImgGenDisplayPlaceholder({
           }}
         >
           <div
-            className={combineClasses('imggen-progress-bar', classes.progress)}
+            className={combineClasses('imggen-progress', classes.progress)}
             style={{
               width: `${visibleProgress}%`,
               height: '100%',

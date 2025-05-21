@@ -13,7 +13,7 @@ import {
 // Import from direct file since the main index.ts might not be updated yet
 import { ImgGenUploadWaiting } from './ImgGenUtils/ImgGenUploadWaiting';
 import { getImgGenMode } from './ImgGenUtils/ImgGenModeUtils';
-import { ImgGenClasses, defaultClasses, combineClasses } from '../utils/style-utils';
+import { ImgGenClasses, defaultClasses } from '../utils/style-utils';
 import './ImgGen.css';
 
 export interface ImgGenProps {
@@ -347,33 +347,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
               }}
             />
 
-            {/* Show progress overlay if loading has started */}
-            {loading && (
-              <div
-                className="imggen-progress-container"
-                style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  left: 0, 
-                  width: '100%',
-                  height: '6px',
-                  overflow: 'hidden',
-                  backgroundColor: 'rgba(0, 0, 0, 0.1)',
-                  zIndex: 10,
-                }}
-              >
-                <div
-                  className="imggen-progress-bar"
-                  style={{ 
-                    width: `${Math.round(progress * 100)}%`,
-                    height: '100%',
-                    backgroundColor: 'var(--imggen-accent-color, #0074d9)',
-                    transition: 'width 0.5s ease-out',
-                  }}
-                  aria-hidden="true"
-                />
-              </div>
-            )}
+            {/* ImgGenUploadWaiting has its own placeholder render with progress */}
           </>
         );
       }
@@ -384,45 +358,14 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
         const displayPrompt = currentEditedPrompt || prompt;
 
         return (
-          <div className="imggen-container" style={{ position: 'relative' }}>
-            <ImgGenDisplayPlaceholder
-              prompt={displayPrompt || ''}
-              loading={loading}
-              progress={progress}
-              error={error}
-              className={className}
-              classes={classes}
-            />
-
-            {/* Show global progress overlay during generation - this ensures it's visible */}
-            {loading && (
-              <div
-                className="imggen-progress-container"
-                style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  left: 0, 
-                  width: '100%',
-                  height: '6px',
-                  overflow: 'hidden',
-                  backgroundColor: 'rgba(0, 0, 0, 0.1)',
-                  zIndex: 10,
-                }}
-              >
-                {/* Main progress bar that shows on top of everything */}
-                <div
-                  className={combineClasses('imggen-progress-bar', classes.progress)}
-                  style={{
-                    width: `${Math.round(progress * 100)}%`,
-                    height: '100%',
-                    backgroundColor: 'var(--imggen-accent-color, #0074d9)',
-                    transition: 'width 0.5s ease-out',
-                  }}
-                  aria-hidden="true"
-                />
-              </div>
-            )}
-          </div>
+          <ImgGenDisplayPlaceholder
+            prompt={displayPrompt || ''}
+            loading={loading}
+            progress={progress}
+            error={error}
+            className={className}
+            classes={classes}
+          />
         );
       }
 
@@ -448,34 +391,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
               error={error}
             />
 
-            {/* Show progress overlay during regeneration */}
-            {loading && generationId && (
-              <div
-                className="imggen-progress-container"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '6px',
-                  overflow: 'hidden',
-                  backgroundColor: 'rgba(0, 0, 0, 0.1)',
-                  zIndex: 10,
-                }}
-              >
-                {/* Progress bar */}
-                <div
-                  className="imggen-progress-bar"
-                  style={{
-                    width: `${Math.round(progress * 100)}%`,
-                    height: '100%',
-                    backgroundColor: 'var(--imggen-accent-color, #0074d9)',
-                    transition: 'width 0.5s ease-out',
-                  }}
-                  aria-hidden="true"
-                />
-              </div>
-            )}
+            {/* ImgGenDisplay handles the progress bar internally */}
           </>
         );
       }
