@@ -133,6 +133,10 @@ export function useImageGen({
       }
       return;
     }
+    
+    // Track whether this is a case where both prompt prop and _id are provided
+    // This helps us avoid the race condition where we might generate two images
+    const hasBothPromptAndId = !!prompt && !!_id;
 
     // Create a request signature to deduplicate identical requests
     const requestSignature = JSON.stringify({
@@ -198,6 +202,8 @@ export function useImageGen({
           // We'll use the document for info even during regeneration
           const hasDocumentId = !!_id;
 
+          // When both prompt and _id are provided, we want the document for its files and metadata,
+          // but use the provided prompt for generation to avoid a race condition
           if (hasDocumentId) {
             const existingDoc = await db.get(_id).catch((err) => {
               console.error(`[loadOrGenerateImage] Failed to load document ${_id}:`, err);
@@ -449,8 +455,9 @@ export function useImageGen({
                 throw new Error(`Document exists but has no files: ${_id}`);
               }
             }
-          } else if (prompt) {
+          } else if (prompt && !hasBothPromptAndId) {
             // No document ID provided but we have a prompt - generate a new image
+            // Skip this section if we have both prompt and ID - in that case we use the document path above
 
             // If we have a document in memory and a generationId, we should add a version
             // to the existing document instead of creating a new one
