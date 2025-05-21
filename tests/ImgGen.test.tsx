@@ -125,7 +125,10 @@ describe('ImgGen Component', () => {
 
     // Check that the placeholder is rendered
     // The placeholder could be showing either 'Generating image...' or an error state
-    const placeholder = container.querySelector('.imggen-placeholder');
+    // We need to look for both old and new class names after refactoring
+    const placeholder = container.querySelector(
+      '.imggen-placeholder, .imggen-upload-waiting, .imggen-display-progress'
+    );
     expect(placeholder).toBeInTheDocument();
   });
 
@@ -221,7 +224,10 @@ describe('ImgGen Component', () => {
       expect(mockImageGen).toHaveBeenCalledWith('error prompt', expect.anything());
 
       // Check for the presence of any placeholder/error element
-      const placeholder = container.querySelector('.imggen-placeholder');
+      // Look for multiple possible class names after component refactoring
+      const placeholder = container.querySelector(
+        '.imggen-placeholder, .imggen-upload-waiting, .imggen-error-container, .imggen-display-progress'
+      );
       expect(placeholder).toBeInTheDocument();
     } finally {
       // Restore console error
