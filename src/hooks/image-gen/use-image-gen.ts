@@ -210,7 +210,11 @@ export function useImageGen({
 
               // Extract prompt information from the document
               const { prompts, currentPromptKey } = getPromptsFromDocument(existingDoc);
+
+              // Determine which prompt to use - prioritize passed prompt prop over document prompt
+              // If prompt prop is provided, use it instead of document's prompt
               const currentPromptText =
+                prompt ||
                 (currentPromptKey && prompts[currentPromptKey]?.text) ||
                 (existingDoc as unknown as ImageDocument).prompt ||
                 '';
@@ -259,6 +263,7 @@ export function useImageGen({
 
               // If generationId is provided, we're creating a new version
               // Only attempt if we have a document with a prompt
+              // Note: currentPromptText already prioritizes the prop prompt over the document prompt
               if (generationId && currentPromptText) {
                 // Create a completely unique key for the regeneration request to avoid deduplication
                 const timestamp = Date.now();
