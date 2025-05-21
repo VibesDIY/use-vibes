@@ -17,7 +17,7 @@ import 'use-vibes/style-loader'; // Quick setup for CSS
 function MyComponent() {
   // You can use ImgGen without any props - it includes its own form UI
   return <ImgGen />;
-  
+
   // Or provide a prompt directly (bypasses the form UI completely)
   // return <ImgGen prompt="A futuristic cityscape with flying cars" />;
 }
@@ -39,15 +39,19 @@ const imageFile = base64ToFile(imageResponse.data[0].b64_json, 'my-image.png');
 - **Zero-config Implementation**: Add AI image generation to any React app without any configuration
 
   ```jsx
-  {/* Includes a built-in form UI for prompt entry and image upload */}
-  <ImgGen />
+  {
+    /* Includes a built-in form UI for prompt entry and image upload */
+  }
+  <ImgGen />;
   ```
 
 - **One-line Implementation**: Directly specify a prompt for immediate generation (bypasses the form UI)
 
   ```jsx
-  {/* Starts generating immediately, no form shown to the user */}
-  <ImgGen prompt="A sunset over mountains" />
+  {
+    /* Starts generating immediately, no form shown to the user */
+  }
+  <ImgGen prompt="A sunset over mountains" />;
   ```
 
 - **Automatic Database Integration**: All images are automatically stored in Fireproof database with version history

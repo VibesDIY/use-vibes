@@ -97,7 +97,9 @@ export async function imageGen(prompt: string, options?: ImageGenOptions): Promi
         if (enhancedOptions.debug) {
           console.log('[ImgGen Debug] Extracted images from document:', {
             count: imageFiles.length,
-            keys: Object.keys(enhancedOptions.document._files).filter((k) => k.startsWith('in') || k === 'original'),
+            keys: Object.keys(enhancedOptions.document._files).filter(
+              (k) => k.startsWith('in') || k === 'original'
+            ),
           });
         }
       }
