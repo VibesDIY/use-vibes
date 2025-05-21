@@ -40,9 +40,22 @@ function MyComponent() {
 }
 ```
 
-Images and prompts are tracked in a Fireproof database with a `type` of `image`. If a database is not provided, it uses `"ImgGen"` as the database name.
+4. **With an _id prop** - Loads a specific image from the database (no form shown):
+
+If there is no image generated for the document yet, but it has a `prompt` field, it will generate a new image with the prompt. If there an images is stored, at doc._files.original, it will use that as the base image.
+
+```jsx
+import { ImgGen } from 'use-vibes';
+
+function MyComponent() {
+  return <ImgGen _id="my-image-id" />; // Loads specific image by ID
+}
+```
+
 
 ## List by ID
+
+Images and prompts are tracked in a Fireproof database with a `type` of `image`. If a database is not provided, it uses `"ImgGen"` as the database name.
 
 Display stored images by their ID. Ensure you do this, so users can find the images they created.
 
@@ -59,14 +72,14 @@ function MyComponent() {
 
   return (
     <div>
-      <ImgGen prompt="A sunset over mountains" database={database} />
+      <ImgGen database={database} />
       {imageDocuments.length > 0 && (
         <div className="history">
           <h3>Previously Generated Images</h3>
           <ul className="image-list">
             {imageDocuments.map((doc) => (
               <li key={doc._id} className="image-item">
-                <ImgGen _id={doc._id} />
+                <ImgGen _id={doc._id} database={database} />
               </li>
             ))}
           </ul>

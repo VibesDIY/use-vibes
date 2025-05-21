@@ -69,9 +69,9 @@ export async function imageGen(prompt: string, options?: ImageGenOptions): Promi
     if (!enhancedOptions.images && enhancedOptions.document && enhancedOptions.document._files) {
       const imageFiles: File[] = [];
 
-      // Look for files with keys starting with 'in' (input files)
+      // Look for files with keys starting with 'in' (input files) or the 'original' file
       for (const key of Object.keys(enhancedOptions.document._files)) {
-        if (key.startsWith('in')) {
+        if (key.startsWith('in') || key === 'original') {
           const file = enhancedOptions.document._files[key];
           if (file) {
             // Handle both direct File objects and Fireproof's DocFileMeta
@@ -97,7 +97,7 @@ export async function imageGen(prompt: string, options?: ImageGenOptions): Promi
         if (enhancedOptions.debug) {
           console.log('[ImgGen Debug] Extracted images from document:', {
             count: imageFiles.length,
-            keys: Object.keys(enhancedOptions.document._files).filter((k) => k.startsWith('in')),
+            keys: Object.keys(enhancedOptions.document._files).filter((k) => k.startsWith('in') || k === 'original'),
           });
         }
       }
