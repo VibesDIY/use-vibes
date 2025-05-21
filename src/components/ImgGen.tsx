@@ -316,6 +316,21 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
           return <ImgGenPromptWaiting className={className} classes={classes} />;
         }
 
+        // If loading has started, switch to generating view to show progress
+        if (loading) {
+          const displayPrompt = currentEditedPrompt || prompt;
+          return (
+            <ImgGenDisplayPlaceholder
+              prompt={displayPrompt || ''}
+              loading={loading}
+              progress={progress}
+              error={error}
+              className={className}
+              classes={classes}
+            />
+          );
+        }
+
         return (
           <>
             <ImgGenUploadWaiting
@@ -346,8 +361,6 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
                 }
               }}
             />
-
-            {/* ImgGenUploadWaiting has its own placeholder render with progress */}
           </>
         );
       }
