@@ -31,9 +31,9 @@ export interface ImgGenDisplayProps {
   /** Custom CSS classes for styling component parts */
   classes?: ImgGenClasses;
   /** Whether the component is currently loading */
-  loading?: boolean;
+  loading: boolean;
   /** Generation progress as a number between 0-100 */
-  progress?: number;
+  progress: number;
   /** Error if image generation failed */
   error?: Error | null;
   /** Enable debug logging */

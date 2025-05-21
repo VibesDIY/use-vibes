@@ -382,7 +382,7 @@ export function ImgGenDisplay({
             }}
           >
             <div
-              className={combineClasses('imggen-progress', classes.progress)}
+              className={combineClasses('imggen-progress-bar', classes.progress)}
               style={{
                 width: `${effectiveProgress}%`,
                 height: '100%',

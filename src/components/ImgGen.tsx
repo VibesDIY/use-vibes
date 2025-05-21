@@ -349,10 +349,28 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
 
             {/* Show progress overlay if loading has started */}
             {loading && (
-              <div className="imggen-progress-container">
+              <div
+                className="imggen-progress-container"
+                style={{ 
+                  position: 'absolute', 
+                  top: 0, 
+                  left: 0, 
+                  width: '100%',
+                  height: '6px',
+                  overflow: 'hidden',
+                  backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                  zIndex: 10,
+                }}
+              >
                 <div
                   className="imggen-progress-bar"
-                  style={{ width: `${Math.round(progress * 100)}%` }}
+                  style={{ 
+                    width: `${Math.round(progress * 100)}%`,
+                    height: '100%',
+                    backgroundColor: 'var(--imggen-accent-color, #0074d9)',
+                    transition: 'width 0.5s ease-out',
+                  }}
+                  aria-hidden="true"
                 />
               </div>
             )}
@@ -380,16 +398,25 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
             {loading && (
               <div
                 className="imggen-progress-container"
-                style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50 }}
+                style={{ 
+                  position: 'absolute', 
+                  top: 0, 
+                  left: 0, 
+                  width: '100%',
+                  height: '6px',
+                  overflow: 'hidden',
+                  backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                  zIndex: 10,
+                }}
               >
                 {/* Main progress bar that shows on top of everything */}
                 <div
-                  className={combineClasses('imggen-progress', classes.progress)}
+                  className={combineClasses('imggen-progress-bar', classes.progress)}
                   style={{
                     width: `${Math.round(progress * 100)}%`,
-                    height: 'var(--imggen-progress-height, 8px)',
-                    backgroundColor: 'var(--imggen-accent, #0074d9)',
-                    transition: 'width 0.3s ease-in-out',
+                    height: '100%',
+                    backgroundColor: 'var(--imggen-accent-color, #0074d9)',
+                    transition: 'width 0.5s ease-out',
                   }}
                   aria-hidden="true"
                 />
@@ -421,13 +448,31 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
               error={error}
             />
 
-            {/* Show progress overlay during any loading state */}
-            {loading && (
-              <div className="imggen-progress-container">
+            {/* Show progress overlay during regeneration */}
+            {loading && generationId && (
+              <div
+                className="imggen-progress-container"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '6px',
+                  overflow: 'hidden',
+                  backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                  zIndex: 10,
+                }}
+              >
                 {/* Progress bar */}
                 <div
                   className="imggen-progress-bar"
-                  style={{ width: `${Math.round(progress * 100)}%` }}
+                  style={{
+                    width: `${Math.round(progress * 100)}%`,
+                    height: '100%',
+                    backgroundColor: 'var(--imggen-accent-color, #0074d9)',
+                    transition: 'width 0.5s ease-out',
+                  }}
+                  aria-hidden="true"
                 />
               </div>
             )}

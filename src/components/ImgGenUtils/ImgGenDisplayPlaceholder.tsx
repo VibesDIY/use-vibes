@@ -24,9 +24,8 @@ export function ImgGenDisplayPlaceholder({
 
     // Smoothly animate to the actual progress (or minimum 5%)
     const timer = setTimeout(() => {
-      console.log('Animating progress to', progress);
       setVisibleProgress(Math.max(5, progress));
-    }, 100); // Smaller delay for smoother transitions
+    }, 20); // Smaller delay for smoother transitions
 
     return () => clearTimeout(timer);
   }, [progress]);
@@ -141,15 +140,29 @@ export function ImgGenDisplayPlaceholder({
       {/* Progress bar at the very top */}
       {prompt && (
         <div
-          className={combineClasses('imggen-progress', classes.progress)}
+          className="imggen-progress-container"
           style={{
-            width: `${visibleProgress}%`,
             position: 'absolute',
             top: 0,
             left: 0,
+            width: '100%',
+            height: '6px',
+            overflow: 'hidden',
+            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+            zIndex: 10,
           }}
-          aria-hidden="true"
-        />
+        >
+          <div
+            className={combineClasses('imggen-progress-bar', classes.progress)}
+            style={{
+              width: `${visibleProgress}%`,
+              height: '100%',
+              backgroundColor: 'var(--imggen-accent-color, #0074d9)',
+              transition: 'width 0.5s ease-out',
+            }}
+            aria-hidden="true"
+          />
+        </div>
       )}
 
       {/* Simple status text for 'waiting for prompt' state */}
