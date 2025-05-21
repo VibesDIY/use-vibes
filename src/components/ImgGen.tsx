@@ -384,8 +384,23 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
 
       case 'generating': {
         // Document with prompt, waiting for generation to complete
-        // Use the edited prompt during generation if available
-        const displayPrompt = currentEditedPrompt || prompt;
+        // Use the edited prompt during generation if available, or fall back to document prompt
+        // Look in three places: 1) edited prompt 2) direct prop 3) document's prompt
+        let displayPrompt = currentEditedPrompt || prompt;
+        
+        // If we still don't have a prompt but have a document with a prompt, use that
+        if (!displayPrompt && document && 'prompt' in document && typeof document.prompt === 'string') {
+          displayPrompt = document.prompt;
+        }
+
+        if (debug) {
+          console.log('[ImgGen Debug] Generating state prompt sources:', {
+            currentEditedPrompt: currentEditedPrompt || null,
+            propPrompt: prompt || null,
+            documentPrompt: document?.prompt || null,
+            finalDisplayPrompt: displayPrompt || null,
+          });
+        }
 
         return (
           <ImgGenDisplayPlaceholder
