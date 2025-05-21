@@ -215,6 +215,48 @@ export function useImageGen({
                 (existingDoc as unknown as ImageDocument).prompt ||
                 '';
 
+              // Check if we have a document with only an original file but no output files
+              // This happens when someone uploads an image but it hasn't been processed yet
+              const { versions } = getVersionsFromDocument(existingDoc);
+              const hasOutputFiles =
+                versions.length > 0 && versions.some((v) => existingDoc._files?.[v.id]);
+              const hasOnlyOriginalFile = !hasOutputFiles && existingDoc._files?.original;
+
+              // If we have a prompt and only an original file, generate an image
+              if (hasOnlyOriginalFile && currentPromptText && !generationId) {
+                console.log(
+                  `Document ${_id} has only original file and prompt, generating edited image`
+                );
+                setLoading(true);
+
+                // Create options that include the document for access to the original file
+                const editOptions = {
+                  ...options,
+                  document: existingDoc,
+                  _regenerationId: Date.now(), // Ensure unique generation
+                };
+
+                // Generate a new image using the document's prompt and original file
+                data = await callImageGeneration(currentPromptText, editOptions);
+
+                if (data?.data?.[0]?.b64_json) {
+                  // Handle the generated image
+                  const filename = generateSafeFilename(currentPromptText);
+                  const newImageFile = base64ToFile(data.data[0].b64_json, filename);
+
+                  // Add as a new version to the document
+                  const updatedDoc = addNewVersion(existingDoc, newImageFile, currentPromptText);
+                  await db.put(updatedDoc);
+
+                  // Update component state
+                  const refreshedDoc = await db.get(_id);
+                  setDocument(refreshedDoc as unknown as ImageDocument);
+                  setImageData(data.data[0].b64_json);
+                  setProgress(100);
+                  return;
+                }
+              }
+
               // If generationId is provided, we're creating a new version
               // Only attempt if we have a document with a prompt
               if (generationId && currentPromptText) {
