@@ -13,7 +13,7 @@ import {
 // Import from direct file since the main index.ts might not be updated yet
 import { ImgGenUploadWaiting } from './ImgGenUtils/ImgGenUploadWaiting';
 import { getImgGenMode } from './ImgGenUtils/ImgGenModeUtils';
-import { ImgGenClasses, defaultClasses } from '../utils/style-utils';
+import { ImgGenClasses, defaultClasses, combineClasses } from '../utils/style-utils';
 import './ImgGen.css';
 
 export interface ImgGenProps {
@@ -366,7 +366,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
         const displayPrompt = currentEditedPrompt || prompt;
 
         return (
-          <>
+          <div className="imggen-container" style={{ position: 'relative' }}>
             <ImgGenDisplayPlaceholder
               prompt={displayPrompt || ''}
               loading={loading}
@@ -376,16 +376,26 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
               classes={classes}
             />
 
-            {/* Show progress overlay during generation */}
+            {/* Show global progress overlay during generation - this ensures it's visible */}
             {loading && (
-              <div className="imggen-progress-container">
+              <div
+                className="imggen-progress-container"
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50 }}
+              >
+                {/* Main progress bar that shows on top of everything */}
                 <div
-                  className="imggen-progress-bar"
-                  style={{ width: `${Math.round(progress * 100)}%` }}
+                  className={combineClasses('imggen-progress', classes.progress)}
+                  style={{
+                    width: `${Math.round(progress * 100)}%`,
+                    height: 'var(--imggen-progress-height, 8px)',
+                    backgroundColor: 'var(--imggen-accent, #0074d9)',
+                    transition: 'width 0.3s ease-in-out',
+                  }}
+                  aria-hidden="true"
                 />
               </div>
             )}
-          </>
+          </div>
         );
       }
 

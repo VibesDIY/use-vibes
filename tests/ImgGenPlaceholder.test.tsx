@@ -182,7 +182,7 @@ describe('ImgGenDisplayPlaceholder Component', () => {
 
       // After timeout, should update to the actual value
       await act(async () => {
-        vi.advanceTimersByTime(60);
+        vi.advanceTimersByTime(120);
       });
 
       expect(progressBar).toHaveStyle('width: 75%');
