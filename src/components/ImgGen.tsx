@@ -102,19 +102,23 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Track the document for image generation - use ImageDocument type or Record
   const [imageGenDocument, setImageGenDocument] = React.useState<ImageDocument | null>(null);
 
-  // Check if we should skip image generation based on whether we have prompt or id
-  const shouldSkipGeneration = !prompt && !_id;
-
   // Merge options with images into a single options object for the hook
   const mergedOptions = React.useMemo(
     () => (images ? { ...options, images } : options),
     [options, images]
   );
 
+  // Determine the effective prompt to use - either from form submission or props
+  const effectivePrompt = currentEditedPrompt || prompt || '';
+  
+  // Check if we should skip image generation based on whether we have prompt or id
+  // Use effectivePrompt instead of just props.prompt
+  const shouldSkipGeneration = !effectivePrompt && !_id;
+  
   // Use the custom hook for all the image generation logic
   const { imageData, loading, error, progress, document } = useImageGen({
-    // Always provide prompt when available, even with _id (helps with fallback generation)
-    prompt: prompt || '',
+    // Use the effective prompt that prioritizes form submission
+    prompt: effectivePrompt,
     _id: _id,
     options: {
       ...mergedOptions,
@@ -124,8 +128,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     database,
     // Use the generationId to signal when we want a new image
     generationId,
-    // Pass the edited prompt if it exists, allowing it to override the document prompt
-    editedPrompt: currentEditedPrompt,
+    // We no longer need editedPrompt since we're using effectivePrompt as the main prompt
     // Skip processing if neither prompt nor _id is provided
     skip: shouldSkipGeneration,
   });
@@ -134,12 +137,12 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   const mode = React.useMemo(() => {
     return getImgGenMode({
       document,
-      prompt,
+      prompt: effectivePrompt, // Use effectivePrompt instead of just props.prompt
       loading,
       error: error || undefined,
       debug,
     });
-  }, [document, prompt, loading, error, debug]);
+  }, [document, effectivePrompt, loading, error, debug]); // Update dependency array
 
   if (debug) {
     console.log('[ImgGenCore] Current mode:', mode, {
@@ -314,8 +317,10 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
               if (debug) {
                 console.log('[ImgGenCore] Prompt submitted from initial view:', newPrompt);
               }
-              // Update the edited prompt state to trigger generation
+              
+              // Update the edited prompt and generate a new generationId to trigger generation
               setCurrentEditedPrompt(newPrompt);
+              setGenerationId(uuid());
             }}
           />
         );
