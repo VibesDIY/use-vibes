@@ -214,7 +214,7 @@ describe('ImgGenDisplayPlaceholder Component', () => {
       const placeholder = container.querySelector('.imggen-placeholder');
       const firstChild = placeholder?.firstElementChild;
 
-      expect(firstChild).toHaveClass('imggen-progress');
+      expect(firstChild).toHaveClass('imggen-progress-container');
     });
   });
 });

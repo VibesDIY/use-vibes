@@ -282,7 +282,7 @@ describe('ImgGen Component', () => {
     const { container } = renderResult;
 
     // Check if the container content includes our message (more flexible than exact text match)
-    expect(container.textContent).toContain('upload an image');
+    expect(container.textContent).toContain('click to upload');
 
     // Verify imageGen is not called when prompt is empty
     expect(mockImageGen).not.toHaveBeenCalled();
