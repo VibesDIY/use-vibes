@@ -365,6 +365,34 @@ export function ImgGenDisplay({
           alt={alt || 'Generated image'}
           style={{ width: '100%' }}
         />
+        
+        {/* Show progress overlay on the image during regeneration */}
+        {isRegenerating && (
+          <div 
+            className="imggen-progress-container" 
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '6px',
+              overflow: 'hidden',
+              backgroundColor: 'rgba(0, 0, 0, 0.1)',
+              zIndex: 10
+            }}
+          >
+            <div
+              className={combineClasses('imggen-progress', classes.progress)}
+              style={{ 
+                width: `${effectiveProgress}%`,
+                height: '100%',
+                backgroundColor: 'var(--imggen-accent-color, #0074d9)',
+                transition: 'width 0.5s ease-out'
+              }}
+              aria-hidden="true"
+            />
+          </div>
+        )}
       </div>
 
       {/* Use the new ImgGenModal component */}
