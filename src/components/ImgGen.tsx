@@ -300,11 +300,23 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     switch (mode) {
       case 'placeholder': {
         // Initial state - no document, no prompt
+        // Use the same ImgGenUploadWaiting component that's used in uploadWaiting mode
+        // but without a document (this creates a consistent UI for both entry points)
         return (
-          <ImgGenPromptWaiting
+          <ImgGenUploadWaiting
             className={className}
             classes={classes}
-            onFilesUploaded={handleDocCreated}
+            debug={debug}
+            database={database}
+            onDocumentCreated={handleDocCreated}
+            onPromptSubmit={(newPrompt: string) => {
+              // When a user enters a prompt directly in the initial state
+              if (debug) {
+                console.log('[ImgGenCore] Prompt submitted from initial view:', newPrompt);
+              }
+              // Update the edited prompt state to trigger generation
+              setCurrentEditedPrompt(newPrompt);
+            }}
           />
         );
       }
