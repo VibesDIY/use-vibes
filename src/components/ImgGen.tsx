@@ -110,11 +110,11 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
 
   // Determine the effective prompt to use - either from form submission or props
   const effectivePrompt = currentEditedPrompt || prompt || '';
-  
+
   // Check if we should skip image generation based on whether we have prompt or id
   // Use effectivePrompt instead of just props.prompt
   const shouldSkipGeneration = !effectivePrompt && !_id;
-  
+
   // Use the custom hook for all the image generation logic
   const { imageData, loading, error, progress, document } = useImageGen({
     // Use the effective prompt that prioritizes form submission
@@ -317,7 +317,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
               if (debug) {
                 console.log('[ImgGenCore] Prompt submitted from initial view:', newPrompt);
               }
-              
+
               // Update the edited prompt and generate a new generationId to trigger generation
               setCurrentEditedPrompt(newPrompt);
               setGenerationId(uuid());
