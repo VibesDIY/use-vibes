@@ -31,7 +31,7 @@ export function getImgGenMode({
     if (debug) console.log('[ImgGenModeUtils] Error present - error mode');
     return 'error';
   }
-  
+
   // Special case: When we have a prompt and loading, always show generating
   // This helps during initial generation before document is created
   if (loading && prompt) {

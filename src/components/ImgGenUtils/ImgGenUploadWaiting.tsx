@@ -73,17 +73,17 @@ export function ImgGenUploadWaiting({
   // Handle files being uploaded - two paths: add to existing doc or create new doc
   const handleFilesUploaded = async (files: File[]) => {
     if (!files.length) return;
-    
+
     // If we already have a document, add files to it
     if (document && document._id) {
       await addFilesToExistingDocument(files);
-    } 
+    }
     // Otherwise create a new document
     else {
       await createNewDocumentWithFiles(files);
     }
   };
-  
+
   // Create a new document with the uploaded files
   const createNewDocumentWithFiles = async (files: File[]) => {
     try {
@@ -116,7 +116,7 @@ export function ImgGenUploadWaiting({
       console.error('[ImgGenUploadWaiting] Error creating document for uploads:', error);
     }
   };
-  
+
   // Add files to an existing document
   const addFilesToExistingDocument = async (files: File[]) => {
     if (!document || !document._id) return;
@@ -221,31 +221,27 @@ export function ImgGenUploadWaiting({
       )}
     >
       {/* Page title and description */}
-      <div
-        className="imggen-placeholder-content"
-        style={{ marginBottom: '1rem', textAlign: 'center' }}
-      >
-        <h3 style={{ margin: '0 0 0.5rem 0', color: '#333' }}>Generate an Image</h3>
-        <p style={{ margin: '0', color: '#666' }}>Enter a prompt or upload an image to edit</p>
+      <div className="imggen-placeholder-content" style={{ textAlign: 'center' }}>
+        <h3 style={{ margin: '0 0 0.5rem 0', color: '#333' }}>Image Generator</h3>
       </div>
-      
+
       {/* Prompt input form */}
       <form onSubmit={handleSubmit} className="imggen-prompt-form">
         <input
           type="text"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Enter a prompt to generate or edit an image..."
+          placeholder="Enter a prompt..."
           className="imggen-prompt-input"
         />
         <button type="submit" disabled={!prompt.trim()} className="imggen-prompt-submit">
           Generate
         </button>
       </form>
-      
+
       {/* Display thumbnails of uploaded files - only if we have files */}
       {inputFiles.length > 0 && (
-        <div className="imggen-uploaded-previews" style={{ marginTop: '1rem' }}>
+        <div className="imggen-uploaded-previews">
           <div className="imggen-upload-count">
             {inputFiles.length} {inputFiles.length === 1 ? 'image' : 'images'} uploaded
           </div>
@@ -275,7 +271,7 @@ export function ImgGenUploadWaiting({
         isActive={true}
         maxFiles={10}
         debug={debug}
-        addFilesMessage="Drop images here to upload (or click to browse)"
+        addFilesMessage="Drop images or click to upload (optional)"
       />
     </div>
   );

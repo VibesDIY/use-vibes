@@ -203,7 +203,7 @@ export function ImgGenDisplay({
     if (!documentLoading && pendingRegenerationRef.current) {
       pendingRegenerationRef.current = false;
       setPendingRegeneration(false);
-      
+
       // Clear the generating prompt after completion
       setTimeout(() => {
         setGeneratingPrompt(null);
