@@ -99,6 +99,9 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     undefined
   );
 
+  // Track the document for image generation - use ImageDocument type or Record
+  const [imageGenDocument, setImageGenDocument] = React.useState<ImageDocument | null>(null);
+
   // Check if we should skip image generation based on whether we have prompt or id
   const shouldSkipGeneration = !prompt && !_id;
 
@@ -113,7 +116,11 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
     // Always provide prompt when available, even with _id (helps with fallback generation)
     prompt: prompt || '',
     _id: _id,
-    options: mergedOptions,
+    options: {
+      ...mergedOptions,
+      // Include the document with uploaded files for image generation
+      ...(imageGenDocument ? { document: imageGenDocument } : {}),
+    },
     database,
     // Use the generationId to signal when we want a new image
     generationId,
@@ -205,6 +212,25 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
         // Notify parent component
         if (onPromptEdit) {
           onPromptEdit(id, newPrompt);
+        }
+
+        // Store the document to be used for generation
+        // This ensures that when the regeneration happens, we have access to the document with uploaded images
+        const refreshedDoc = await db.get(id);
+
+        // Set the document in options before triggering regeneration
+        if (refreshedDoc) {
+          // Set a local state variable for the document to be used during regeneration
+          setImageGenDocument(refreshedDoc);
+
+          if (debug) {
+            console.log(
+              '[ImgGen] Setting document for image generation:',
+              refreshedDoc._id,
+              'with files:',
+              Object.keys(refreshedDoc._files || {}).filter((key) => key.startsWith('in'))
+            );
+          }
         }
 
         // Now trigger regeneration with the updated prompt
@@ -303,12 +329,19 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
                 console.log('[ImgGenCore] Files added to existing document:', document._id);
               }
             }}
-            onPromptSubmit={(newPrompt: string) => {
+            onPromptSubmit={(newPrompt: string, docId?: string) => {
+              // Use the docId that's passed from the component if available,
+              // otherwise fall back to the current document._id
+              const targetDocId = docId || (document && document._id);
+
               if (debug) {
                 console.log('[ImgGenCore] Prompt submitted for existing uploads:', newPrompt);
+                console.log('[ImgGenCore] Using document ID:', targetDocId);
               }
-              if (document._id) {
-                handlePromptEdit(document._id, newPrompt);
+
+              if (targetDocId) {
+                // Use the document ID to ensure we're using the correct document with the uploaded images
+                handlePromptEdit(targetDocId, newPrompt);
               }
             }}
           />

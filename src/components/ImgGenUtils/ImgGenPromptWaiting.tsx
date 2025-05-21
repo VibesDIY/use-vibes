@@ -2,7 +2,7 @@ import * as React from 'react';
 import '../ImgGen.css';
 import { combineClasses, defaultClasses, ImgGenClasses } from '../../utils/style-utils';
 import { ImgGenFileDrop } from './ImgGenFileDrop';
-import { useFireproof, ImgFile } from 'use-fireproof';
+import { useFireproof } from 'use-fireproof';
 
 interface ImgGenPromptWaitingProps {
   /** Classname(s) to apply to the container */
@@ -71,8 +71,17 @@ export function ImgGenPromptWaiting({
   );
 
   return (
-    <div className={combineClasses('imggen-upload-waiting', className || '', classes?.uploadWaiting || '')}>
-      <div className="imggen-placeholder-content" style={{ marginBottom: '1rem', textAlign: 'center' }}>
+    <div
+      className={combineClasses(
+        'imggen-upload-waiting',
+        className || '',
+        classes?.uploadWaiting || ''
+      )}
+    >
+      <div
+        className="imggen-placeholder-content"
+        style={{ marginBottom: '1rem', textAlign: 'center' }}
+      >
         <h3 style={{ margin: '0 0 0.5rem 0', color: '#333' }}>Generate an Image</h3>
         <p style={{ margin: '0', color: '#666' }}>Enter a prompt or upload an image to edit</p>
       </div>

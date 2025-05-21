@@ -5,16 +5,22 @@ import {
 } from 'call-ai';
 import { MODULE_STATE, getRelevantOptions } from './utils';
 
-// Extend the ImageGenOptions type to include our regeneration ID
+// Import ImageDocument type
+import { ImageDocument } from './types';
+
+// Extend the ImageGenOptions type to include our regeneration ID and other properties
 interface ImageGenOptions extends BaseImageGenOptions {
   _regenerationId?: number;
+  images?: File[];
+  document?: Partial<ImageDocument>;
+  debug?: boolean;
 }
 
 /**
  * Wrapper for imageGen that prevents duplicate calls
  * This function maintains a module-level cache to prevent duplicate API calls
  */
-export function imageGen(prompt: string, options?: ImageGenOptions): Promise<ImageResponse> {
+export async function imageGen(prompt: string, options?: ImageGenOptions): Promise<ImageResponse> {
   // Get the relevant options to form a stable key
   const relevantOptions = getRelevantOptions(options);
 
@@ -43,11 +49,62 @@ export function imageGen(prompt: string, options?: ImageGenOptions): Promise<Ima
   MODULE_STATE.processingRequests.add(stableKey);
   MODULE_STATE.requestTimestamps.set(stableKey, Date.now());
 
+  // Log complete request details if debug is true
+  if (options?.debug) {
+    console.log(`[ImgGen Debug] Generating image with prompt: "${prompt}"`, {
+      requestId,
+      options,
+      hasImages: options.images ? options.images.length + ' files' : 'No',
+      stableKey,
+    });
+  }
+
   let promise: Promise<ImageResponse>;
 
   try {
+    // Check if we need to extract images from document
+    const enhancedOptions = { ...options };
+
+    // Extract input files from document._files if present
+    if (!enhancedOptions.images && enhancedOptions.document && enhancedOptions.document._files) {
+      const imageFiles: File[] = [];
+
+      // Look for files with keys starting with 'in' (input files)
+      for (const key of Object.keys(enhancedOptions.document._files)) {
+        if (key.startsWith('in')) {
+          const file = enhancedOptions.document._files[key];
+          if (file) {
+            // Handle both direct File objects and Fireproof's DocFileMeta
+            if (file instanceof File) {
+              imageFiles.push(file);
+            } else if (typeof file.file === 'function') {
+              try {
+                // For DocFileMeta objects, we need to call the file() method
+                const fileObj = await file.file();
+                imageFiles.push(fileObj);
+              } catch (e) {
+                console.error(`Error getting file from DocFileMeta for key ${key}:`, e);
+              }
+            }
+          }
+        }
+      }
+
+      // If we found image files, add them to the images option
+      if (imageFiles.length > 0) {
+        enhancedOptions.images = imageFiles;
+
+        if (enhancedOptions.debug) {
+          console.log('[ImgGen Debug] Extracted images from document:', {
+            count: imageFiles.length,
+            keys: Object.keys(enhancedOptions.document._files).filter((k) => k.startsWith('in')),
+          });
+        }
+      }
+    }
+
     // Direct import from call-ai - this works consistently with test mocks
-    promise = originalImageGen(prompt, options);
+    promise = originalImageGen(prompt, enhancedOptions);
   } catch (e) {
     console.error(`[ImgGen Debug] Error with imageGen for request #${requestId}:`, e);
     promise = Promise.reject(e);
@@ -85,13 +142,69 @@ export function createImageGenerator(requestHash: string) {
     // Options key no longer used for logging
     JSON.stringify(getRelevantOptions(genOptions)); // Still generate to maintain behavior
 
-    // Log detailed information about this request - including request hash and options
+    // Check if the document has input files that should be included
+    const debug = genOptions?.debug;
+
+    // Look for input files in the document
+    if (genOptions && 'document' in genOptions && genOptions.document) {
+      const document = genOptions.document;
+      const imageFiles: File[] = [];
+
+      // Extract input files from document._files
+      if (document._files) {
+        // Find files with keys starting with 'in' (input files)
+        for (const key of Object.keys(document._files)) {
+          if (key.startsWith('in')) {
+            const file = document._files[key];
+            if (file) {
+              // Handle both direct File objects and Fireproof's DocFileMeta
+              if (file instanceof File) {
+                imageFiles.push(file);
+              } else if (typeof file.file === 'function') {
+                try {
+                  // For DocFileMeta objects, we need to call the file() method
+                  const fileObj = await file.file();
+                  imageFiles.push(fileObj);
+                } catch (e) {
+                  console.error(`Error getting file from DocFileMeta for key ${key}:`, e);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // If we found image files, add them to options
+      if (imageFiles.length > 0) {
+        if (debug) {
+          console.log('[imageGenerator] Found images to include:', {
+            count: imageFiles.length,
+            fileTypes: imageFiles.map((f) => f.type),
+          });
+        }
+
+        // Update options with images array
+        genOptions = {
+          ...genOptions,
+          images: imageFiles,
+        };
+      }
+    }
 
     try {
-      const response = await imageGen(promptText, genOptions);
-      // Time tracking no longer used
-      // Previously: const duration = Date.now() - startTime;
+      // Log a debug message if debug is enabled
+      if (debug) {
+        console.log(
+          `[imageGenerator] Generating image with prompt: "${promptText.slice(0, 30)}...", options:`,
+          {
+            ...genOptions,
+            hasImages: genOptions?.images ? 'Yes' : 'No',
+            imageCount: genOptions?.images ? genOptions.images.length : 0,
+          }
+        );
+      }
 
+      const response = await imageGen(promptText, genOptions);
       return response;
     } catch (error) {
       console.error(`[ImgGen Debug] Failed request [ID:${requestHash}]: ${error}`);

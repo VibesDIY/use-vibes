@@ -21,7 +21,7 @@ interface ImgGenUploadWaitingProps {
   onFilesAdded?: () => void;
   /** Callback when prompt is set and generation should begin */
   // eslint-disable-next-line no-unused-vars
-  onPromptSubmit: (prompt: string) => void;
+  onPromptSubmit: (prompt: string, documentId?: string) => void;
 }
 
 /**
@@ -122,9 +122,9 @@ export function ImgGenUploadWaiting({
         const inFiles = Object.keys(refreshedDoc._files || {})
           .filter((key) => key.startsWith('in'))
           .sort();
-        
+
         setInputFiles(inFiles);
-        
+
         if (debug) {
           console.log('[ImgGenUploadWaiting] Refreshed input files:', inFiles);
         }
@@ -143,7 +143,16 @@ export function ImgGenUploadWaiting({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim()) {
-      onPromptSubmit(prompt.trim());
+      // Pass both the prompt and document ID to the parent component
+      if (document && document._id) {
+        if (debug) {
+          console.log('[ImgGenUploadWaiting] Submitting prompt with document ID:', document._id);
+        }
+        onPromptSubmit(prompt.trim(), document._id);
+      } else {
+        // Fallback if no document is available
+        onPromptSubmit(prompt.trim());
+      }
     }
   };
 

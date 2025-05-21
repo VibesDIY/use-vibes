@@ -59,45 +59,45 @@ function MyComponent() {
 Configure image generation with the `options` prop:
 
 ```jsx
-<ImgGen 
-  prompt="A detailed cityscape" 
+<ImgGen
+  prompt="A detailed cityscape"
   options={{
     model: 'gpt-image-1',
     quality: 'high',
     size: '1024x1024',
-    debug: false
-  }} 
+    debug: false,
+  }}
 />
 ```
 
 ### Available Props
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `prompt` | string | Text prompt for image generation (required unless `_id` is provided) |
-| `_id` | string | Document ID to load a specific image instead of generating a new one |
-| `className` | string | CSS class name for the image element |
-| `alt` | string | Alt text for the image (defaults to prompt) |
-| `images` | File[] | Array of images to edit or combine with AI |
-| `options` | object | Configuration options (see table below) |
-| `database` | string \| Database | Database name or instance to use for storing images |
-| `onComplete` | function | Callback when image load completes successfully |
-| `onError` | function | Callback when image load fails, receives the error as parameter |
-| `onDelete` | function | Callback when an image is deleted, receives the document ID |
-| `onPromptEdit` | function | Callback when the prompt is edited, receives document ID and new prompt |
-| `onDocumentCreated` | function | Callback when a new document is created via drop or file picker |
-| `overlay` | boolean | Whether to show overlay controls and info button (default: `true`) |
-| `classes` | object | Custom CSS classes for styling component parts |
-| `debug` | boolean | Enable debug logging |
+| Prop                | Type               | Description                                                             |
+| ------------------- | ------------------ | ----------------------------------------------------------------------- |
+| `prompt`            | string             | Text prompt for image generation (required unless `_id` is provided)    |
+| `_id`               | string             | Document ID to load a specific image instead of generating a new one    |
+| `className`         | string             | CSS class name for the image element                                    |
+| `alt`               | string             | Alt text for the image (defaults to prompt)                             |
+| `images`            | File[]             | Array of images to edit or combine with AI                              |
+| `options`           | object             | Configuration options (see table below)                                 |
+| `database`          | string \| Database | Database name or instance to use for storing images                     |
+| `onComplete`        | function           | Callback when image load completes successfully                         |
+| `onError`           | function           | Callback when image load fails, receives the error as parameter         |
+| `onDelete`          | function           | Callback when an image is deleted, receives the document ID             |
+| `onPromptEdit`      | function           | Callback when the prompt is edited, receives document ID and new prompt |
+| `onDocumentCreated` | function           | Callback when a new document is created via drop or file picker         |
+| `overlay`           | boolean            | Whether to show overlay controls and info button (default: `true`)      |
+| `classes`           | object             | Custom CSS classes for styling component parts                          |
+| `debug`             | boolean            | Enable debug logging                                                    |
 
 ### Options Object Properties
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `model` | string | Model to use for image generation, defaults to 'gpt-image-1' |
-| `size` | string | Size of the generated image (1024x1024, 1536x1024, 1024x1536, or 'auto') |
-| `quality` | string | Quality of the generated image (high, medium, low, or auto) |
-| `debug` | boolean | Enable debug logging, defaults to false |
+| Property  | Type    | Description                                                              |
+| --------- | ------- | ------------------------------------------------------------------------ |
+| `model`   | string  | Model to use for image generation, defaults to 'gpt-image-1'             |
+| `size`    | string  | Size of the generated image (1024x1024, 1536x1024, 1024x1536, or 'auto') |
+| `quality` | string  | Quality of the generated image (high, medium, low, or auto)              |
+| `debug`   | boolean | Enable debug logging, defaults to false                                  |
 
 ## Advanced Features
 
@@ -187,6 +187,7 @@ Toggle the information overlay and controls:
 ```
 
 The overlay includes:
+
 - Prompt text (editable)
 - Version navigation controls
 - Regenerate/refresh button
