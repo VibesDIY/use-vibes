@@ -60,7 +60,11 @@ export function ControlsBar({
   const onDeleteClick = () => {
     if (isConfirming) {
       // User clicked delete while confirmation is showing - confirm the delete
+      console.log('ControlsBar: Delete confirmed, calling handleDeleteConfirm');
+      // Ensure we call handleDeleteConfirm with no arguments, it will handle the document ID
       handleDeleteConfirm();
+
+      // Reset confirmation state
       setShowConfirmation(false);
       if (cancelTimerRef.current) {
         window.clearTimeout(cancelTimerRef.current);
@@ -68,6 +72,7 @@ export function ControlsBar({
       }
     } else {
       // Show confirmation
+      console.log('ControlsBar: Showing delete confirmation');
       setShowConfirmation(true);
 
       // Set timer to auto-hide confirmation after 3 seconds
@@ -127,16 +132,22 @@ export function ControlsBar({
                     ✕
                   </button>
                   {isConfirming && (
-                    <span
+                    <button
+                      onClick={onDeleteClick}
                       style={{
                         fontSize: 'var(--imggen-font-size)',
                         fontWeight: 'bold',
                         fontStyle: 'italic',
                         whiteSpace: 'nowrap',
+                        border: 'none',
+                        background: 'none',
+                        color: 'var(--imggen-error-border, #ff3333)',
+                        cursor: 'pointer',
+                        padding: '0 8px',
                       }}
                     >
                       Confirm delete, are you sure?
-                    </span>
+                    </button>
                   )}
                 </div>
               )}

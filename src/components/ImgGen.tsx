@@ -248,6 +248,9 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Handle document deletion
   const handleDelete = React.useCallback(
     async (id: string) => {
+      if (debug) {
+        console.log('[ImgGen] Attempting to delete document:', id);
+      }
       try {
         // First, attempt to get the document
         const doc = await db.get(id);
@@ -256,19 +259,35 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
           return;
         }
 
+        if (debug) {
+          console.log('[ImgGen] Found document to delete:', doc);
+        }
+
         // Mark document as deleted (Fireproof uses _deleted flag)
         const deleteDoc = { ...doc, _deleted: true };
-        await db.put(deleteDoc);
+        if (debug) {
+          console.log('[ImgGen] Marking document as deleted:', deleteDoc);
+        }
+
+        // Use await to ensure the operation completes
+        const result = await db.put(deleteDoc);
+
+        if (debug) {
+          console.log('[ImgGen] Document deletion result:', result);
+        }
 
         // Notify parent component about deletion
         if (onDelete) {
+          if (debug) {
+            console.log('[ImgGen] Calling onDelete callback with id:', id);
+          }
           onDelete(id);
         }
       } catch (error) {
         console.error('Error deleting document:', error);
       }
     },
-    [db, onDelete]
+    [db, onDelete, debug]
   );
 
   // Handle document creation from file uploads

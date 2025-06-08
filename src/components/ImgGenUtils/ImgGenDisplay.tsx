@@ -127,8 +127,23 @@ export function ImgGenDisplay({
 
   // Handle delete confirmation
   function handleDeleteConfirm() {
-    if (onDelete) {
+    if (debug) {
+      console.log('[ImgGenDisplay] handleDeleteConfirm called, document ID:', document._id);
+    }
+
+    if (onDelete && document && document._id) {
+      if (debug) {
+        console.log('[ImgGenDisplay] Calling onDelete with ID:', document._id);
+      }
       onDelete(document._id);
+    } else {
+      console.error('[ImgGenDisplay] Cannot delete - missing onDelete handler or document ID');
+      if (debug) {
+        console.log('[ImgGenDisplay] Delete details:', {
+          hasOnDelete: !!onDelete,
+          documentId: document?._id,
+        });
+      }
     }
   }
 
