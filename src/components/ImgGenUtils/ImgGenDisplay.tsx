@@ -5,6 +5,7 @@ import { ImgGenDisplayProps } from './types';
 import { combineClasses, defaultClasses } from '../../utils/style-utils';
 import { getCurrentFileKey, getPromptInfo, getVersionInfo } from './ImgGenDisplayUtils';
 import { ImgGenModal } from './ImgGenModal';
+import { logDebug } from '../../utils/debug';
 
 // Component for displaying the generated image
 export function ImgGenDisplay({
@@ -128,18 +129,18 @@ export function ImgGenDisplay({
   // Handle delete confirmation
   function handleDeleteConfirm() {
     if (debug) {
-      console.log('[ImgGenDisplay] handleDeleteConfirm called, document ID:', document._id);
+      logDebug('[ImgGenDisplay] handleDeleteConfirm called, document ID:', document._id);
     }
 
     if (onDelete && document && document._id) {
       if (debug) {
-        console.log('[ImgGenDisplay] Calling onDelete with ID:', document._id);
+        logDebug('[ImgGenDisplay] Calling onDelete with ID:', document._id);
       }
       onDelete(document._id);
     } else {
       console.error('[ImgGenDisplay] Cannot delete - missing onDelete handler or document ID');
       if (debug) {
-        console.log('[ImgGenDisplay] Delete details:', {
+        logDebug('[ImgGenDisplay] Delete details:', {
           hasOnDelete: !!onDelete,
           documentId: document?._id,
         });
@@ -252,7 +253,7 @@ export function ImgGenDisplay({
 
   // Debug logging for render conditions
   if (debug) {
-    console.log('[ImgGenDisplay Debug] Render state:', {
+    logDebug('[ImgGenDisplay Debug] Render state:', {
       documentId: document._id,
       hasFiles: !!document._files,
       fileKey,
@@ -269,7 +270,7 @@ export function ImgGenDisplay({
 
   if (!document._files || (!fileKey && !document._files.image)) {
     if (debug) {
-      console.log('[ImgGenDisplay Debug] Missing image file - showing error', {
+      logDebug('[ImgGenDisplay Debug] Missing image file - showing error', {
         hasFiles: !!document._files,
         fileKey,
         defaultImageExists: !!document._files?.image,

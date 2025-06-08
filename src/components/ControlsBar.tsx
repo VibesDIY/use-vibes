@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { combineClasses, defaultClasses, ImgGenClasses } from '../utils/style-utils';
+import { logDebug } from '../utils/debug';
 
 interface ControlsBarProps {
   /** Handle delete confirmation */
@@ -60,7 +61,7 @@ export function ControlsBar({
   const onDeleteClick = () => {
     if (isConfirming) {
       // User clicked delete while confirmation is showing - confirm the delete
-      console.log('ControlsBar: Delete confirmed, calling handleDeleteConfirm');
+      logDebug('ControlsBar: Delete confirmed, calling handleDeleteConfirm');
       // Ensure we call handleDeleteConfirm with no arguments, it will handle the document ID
       handleDeleteConfirm();
 
@@ -72,7 +73,7 @@ export function ControlsBar({
       }
     } else {
       // Show confirmation
-      console.log('ControlsBar: Showing delete confirmation');
+      logDebug('ControlsBar: Showing delete confirmation');
       setShowConfirmation(true);
 
       // Set timer to auto-hide confirmation after 3 seconds
@@ -132,22 +133,46 @@ export function ControlsBar({
                     ✕
                   </button>
                   {isConfirming && (
-                    <button
-                      onClick={onDeleteClick}
-                      style={{
-                        fontSize: 'var(--imggen-font-size)',
-                        fontWeight: 'bold',
-                        fontStyle: 'italic',
-                        whiteSpace: 'nowrap',
-                        border: 'none',
-                        background: 'none',
-                        color: 'var(--imggen-error-border, #ff3333)',
-                        cursor: 'pointer',
-                        padding: '0 8px',
-                      }}
-                    >
-                      Confirm delete, are you sure?
-                    </button>
+                    <>
+                      <button
+                        onClick={onDeleteClick}
+                        aria-label="Confirm delete image"
+                        style={{
+                          fontSize: 'var(--imggen-font-size)',
+                          fontWeight: 'bold',
+                          fontStyle: 'italic',
+                          whiteSpace: 'nowrap',
+                          border: 'none',
+                          background: 'none',
+                          color: 'var(--imggen-error-border, #ff3333)',
+                          cursor: 'pointer',
+                          padding: '0 8px',
+                        }}
+                      >
+                        Confirm delete, are you sure?
+                      </button>
+                      <button
+                        onClick={() => {
+                          logDebug('ControlsBar: Delete canceled');
+                          setShowConfirmation(false);
+                          if (cancelTimerRef.current) {
+                            window.clearTimeout(cancelTimerRef.current);
+                          }
+                        }}
+                        aria-label="Cancel delete"
+                        style={{
+                          fontSize: 'var(--imggen-font-size)',
+                          whiteSpace: 'nowrap',
+                          border: 'none',
+                          background: 'none',
+                          color: 'var(--imggen-font-color)',
+                          cursor: 'pointer',
+                          padding: '0 4px',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
                   )}
                 </div>
               )}
