@@ -14,6 +14,7 @@ import {
 import { ImgGenUploadWaiting } from './ImgGenUtils/ImgGenUploadWaiting';
 import { getImgGenMode } from './ImgGenUtils/ImgGenModeUtils';
 import { ImgGenClasses, defaultClasses } from '../utils/style-utils';
+import { logDebug } from '../utils/debug';
 import './ImgGen.css';
 
 export interface ImgGenProps {
@@ -145,7 +146,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   }, [document, effectivePrompt, loading, error, debug]); // Update dependency array
 
   if (debug) {
-    console.log('[ImgGenCore] Current mode:', mode, {
+    logDebug('[ImgGenCore] Current mode:', mode, {
       document: !!document,
       documentId: document?._id,
       prompt: !!prompt,
@@ -188,7 +189,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
         // First, update the document in the database with the new prompt
         const doc = await db.get(id);
         if (!doc) {
-          console.error('Document not found:', id);
+          logDebug('Document not found:', id);
           return;
         }
 
@@ -227,7 +228,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
           setImageGenDocument(refreshedDoc);
 
           if (debug) {
-            console.log(
+            logDebug(
               '[ImgGen] Setting document for image generation:',
               refreshedDoc._id,
               'with files:',
@@ -239,7 +240,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
         // Now trigger regeneration with the updated prompt
         handleRegen();
       } catch (error) {
-        console.error('Error updating prompt:', error);
+        logDebug('Error updating prompt:', error);
       }
     },
     [db, handleRegen, onPromptEdit]
@@ -248,34 +249,34 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Handle document deletion
   const handleDelete = React.useCallback(
     async (id: string) => {
+      logDebug('[ImgGen] Attempting to delete document:', id);
       try {
-        // First, attempt to get the document
-        const doc = await db.get(id);
-        if (!doc) {
-          console.error('Document not found for deletion:', id);
-          return;
-        }
+        // Use await to ensure the operation completes
+        const result = await db.del(id);
 
-        // Mark document as deleted (Fireproof uses _deleted flag)
-        const deleteDoc = { ...doc, _deleted: true };
-        await db.put(deleteDoc);
+        if (debug) {
+          logDebug('[ImgGen] Document deletion result:', result);
+        }
 
         // Notify parent component about deletion
         if (onDelete) {
+          if (debug) {
+            logDebug('[ImgGen] Calling onDelete callback with id:', id);
+          }
           onDelete(id);
         }
       } catch (error) {
-        console.error('Error deleting document:', error);
+        logDebug('Error deleting document:', error);
       }
     },
-    [db, onDelete]
+    [db, onDelete, debug]
   );
 
   // Handle document creation from file uploads
   const handleDocCreated = React.useCallback(
     (docId: string) => {
       if (debug) {
-        console.log('[ImgGenCore] Document created:', docId);
+        logDebug('[ImgGenCore] Document created:', docId);
       }
 
       // Call user's callback if provided
@@ -289,7 +290,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Render function that determines what to show based on current mode
   function renderContent() {
     if (debug) {
-      console.log('[ImgGen Debug] Render state:', {
+      logDebug('[ImgGen Debug] Render state:', {
         mode,
         document: document?._id,
         loading,
@@ -315,7 +316,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
             onPromptSubmit={(newPrompt: string) => {
               // When a user enters a prompt directly in the initial state
               if (debug) {
-                console.log('[ImgGenCore] Prompt submitted from initial view:', newPrompt);
+                logDebug('[ImgGenCore] Prompt submitted from initial view:', newPrompt);
               }
 
               // Update the edited prompt and generate a new generationId to trigger generation
@@ -359,7 +360,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
               onFilesAdded={() => {
                 // Just log if new files were added to the same document
                 if (debug) {
-                  console.log('[ImgGenCore] Files added to existing document:', document._id);
+                  logDebug('[ImgGenCore] Files added to existing document:', document._id);
                 }
               }}
               onPromptSubmit={(newPrompt: string, docId?: string) => {
@@ -368,8 +369,8 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
                 const targetDocId = docId || (document && document._id);
 
                 if (debug) {
-                  console.log('[ImgGenCore] Prompt submitted for existing uploads:', newPrompt);
-                  console.log('[ImgGenCore] Using document ID:', targetDocId);
+                  logDebug('[ImgGenCore] Prompt submitted for existing uploads:', newPrompt);
+                  logDebug('[ImgGenCore] Using document ID:', targetDocId);
                 }
 
                 if (targetDocId) {
@@ -399,7 +400,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
         }
 
         if (debug) {
-          console.log('[ImgGen Debug] Generating state prompt sources:', {
+          logDebug('[ImgGen Debug] Generating state prompt sources:', {
             currentEditedPrompt: currentEditedPrompt || null,
             propPrompt: prompt || null,
             documentPrompt: document?.prompt || null,
@@ -483,14 +484,14 @@ export function ImgGen(props: ImgGenProps): React.ReactElement {
   // Handle document creation callback - combines user callback with internal state
   const handleDocCreated = React.useCallback(
     (docId: string) => {
-      if (debug) console.log('[ImgGen] Document created:', docId);
+      if (debug) logDebug('[ImgGen] Document created:', docId);
 
       // Update internal state to trigger remount
       setUploadedDocId(docId);
 
       // Call user's callback if provided
       if (onDocumentCreated) {
-        if (debug) console.log('[ImgGen] Calling onDocumentCreated callback');
+        if (debug) logDebug('[ImgGen] Calling onDocumentCreated callback');
         onDocumentCreated(docId);
       }
     },
@@ -513,7 +514,7 @@ export function ImgGen(props: ImgGenProps): React.ReactElement {
     // or if we got a new document ID from uploads
     if (idChanged || (!_id && promptChanged) || uploadedDocIdChanged) {
       if (debug) {
-        console.log('[ImgGen] Identity change detected, generating new mountKey:', {
+        logDebug('[ImgGen] Identity change detected, generating new mountKey:', {
           idChanged,
           _id,
           prevId: prevIdRef.current,

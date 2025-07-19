@@ -133,7 +133,7 @@ export function useImageGen({
       }
       return;
     }
-    
+
     // Track whether this is a case where both prompt prop and _id are provided
     // This helps us avoid the race condition where we might generate two images
     const hasBothPromptAndId = !!prompt && !!_id;
