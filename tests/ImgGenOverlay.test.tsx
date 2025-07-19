@@ -115,7 +115,7 @@ describe('ImageOverlay Component', () => {
     };
 
     // Render the ControlsBar component directly
-    const { container, getByText } = render(<ControlsBar {...mockProps} />);
+    const { container, getByText, getByLabelText } = render(<ControlsBar {...mockProps} />);
 
     // Check for the delete button
     const deleteButton = container.querySelector('[aria-label="Delete image"]');
@@ -126,11 +126,12 @@ describe('ImageOverlay Component', () => {
       fireEvent.click(deleteButton);
 
       // Confirmation text should now be visible
-      const confirmText = getByText(/Confirm delete, are you sure\?/i);
+      const confirmText = getByText('Delete image?');
       expect(confirmText).toBeInTheDocument();
 
-      // Click again to confirm deletion
-      fireEvent.click(deleteButton);
+      // Click the confirm delete button
+      const confirmButton = getByLabelText('Confirm delete');
+      fireEvent.click(confirmButton);
       expect(mockProps.handleDeleteConfirm).toHaveBeenCalled();
     }
   });

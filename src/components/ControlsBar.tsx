@@ -76,10 +76,10 @@ export function ControlsBar({
       logDebug('ControlsBar: Showing delete confirmation');
       setShowConfirmation(true);
 
-      // Set timer to auto-hide confirmation after 3 seconds
+      // Set timer to auto-hide confirmation after 6.5 seconds (allows 0.5s for fade)
       cancelTimerRef.current = window.setTimeout(() => {
         setShowConfirmation(false);
-      }, 3000);
+      }, 6500);
     }
   };
 
@@ -133,23 +133,26 @@ export function ControlsBar({
                     ✕
                   </button>
                   {isConfirming && (
-                    <>
+                    <div className="fade-transition" style={{ animationDelay: '6s' }}>
                       <button
-                        onClick={onDeleteClick}
-                        aria-label="Confirm delete image"
+                        onClick={() => {
+                          handleDeleteConfirm();
+                          setShowConfirmation(false);
+                        }}
+                        aria-label="Confirm delete"
                         style={{
                           fontSize: 'var(--imggen-font-size)',
                           fontWeight: 'bold',
-                          fontStyle: 'italic',
                           whiteSpace: 'nowrap',
-                          border: 'none',
-                          background: 'none',
-                          color: 'var(--imggen-error-border, #ff3333)',
+                          border: '1px solid var(--imggen-error-border, #ff3333)',
+                          background: 'var(--imggen-error-border, #ff3333)',
+                          color: 'white',
+                          borderRadius: '4px',
                           cursor: 'pointer',
-                          padding: '0 8px',
+                          padding: '2px 8px',
                         }}
                       >
-                        Confirm delete, are you sure?
+                        Delete image?
                       </button>
                       <button
                         onClick={() => {
@@ -172,7 +175,7 @@ export function ControlsBar({
                       >
                         Cancel
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
               )}

@@ -30,6 +30,7 @@ vi.mock('use-fireproof', () => {
       database: {
         get: vi.fn().mockRejectedValue(new Error('Not found')),
         put: vi.fn().mockResolvedValue({ ok: true }),
+        del: vi.fn().mockResolvedValue({ ok: true }),
       },
     }),
     ImgFile: ({ alt }: { alt?: string }) => <div data-testid="mock-img">{alt}</div>,

@@ -211,6 +211,7 @@ function App() {
                   <ImgGen
                     _id={doc._id}
                     className="thumbnail-img"
+                    debug={true}
                     options={{
                       quality: quality,
                       imgUrl: 'https://vibecode.garden',

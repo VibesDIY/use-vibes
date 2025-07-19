@@ -249,29 +249,10 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
   // Handle document deletion
   const handleDelete = React.useCallback(
     async (id: string) => {
-      if (debug) {
-        logDebug('[ImgGen] Attempting to delete document:', id);
-      }
+      logDebug('[ImgGen] Attempting to delete document:', id);
       try {
-        // First, attempt to get the document
-        const doc = await db.get(id);
-        if (!doc) {
-          logDebug('Document not found for deletion:', id);
-          return;
-        }
-
-        if (debug) {
-          logDebug('[ImgGen] Found document to delete:', doc);
-        }
-
-        // Mark document as deleted (Fireproof uses _deleted flag)
-        const deleteDoc = { ...doc, _deleted: true };
-        if (debug) {
-          logDebug('[ImgGen] Marking document as deleted:', deleteDoc);
-        }
-
         // Use await to ensure the operation completes
-        const result = await db.put(deleteDoc);
+        const result = await db.del(id);
 
         if (debug) {
           logDebug('[ImgGen] Document deletion result:', result);

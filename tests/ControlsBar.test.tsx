@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react';
+import { render, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ControlsBar } from '../src/components/ControlsBar';
 
@@ -20,7 +20,7 @@ describe('ControlsBar Component', () => {
     vi.clearAllMocks();
   });
 
-  it('should display delete button when showDelete is true', () => {
+  it('should display delete button when showDelete is true', async () => {
     const { getByLabelText } = render(<ControlsBar {...defaultProps} showDelete={true} />);
 
     const deleteButton = getByLabelText('Delete image');
@@ -28,11 +28,17 @@ describe('ControlsBar Component', () => {
     expect(deleteButton).toHaveClass('imggen-button');
     expect(deleteButton).toHaveClass('imggen-delete-button');
 
-    // First click shows confirmation, not immediately calls handleDeleteConfirm
-    fireEvent.click(deleteButton);
+    // First click shows confirmation dialog
+    await act(async () => {
+      fireEvent.click(deleteButton);
+    });
 
-    // We can click again to confirm the delete action
-    fireEvent.click(deleteButton);
+    // Look for the confirm delete button and click it
+    const confirmButton = getByLabelText('Confirm delete');
+    expect(confirmButton).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(confirmButton);
+    });
     expect(defaultProps.handleDeleteConfirm).toHaveBeenCalled();
   });
 

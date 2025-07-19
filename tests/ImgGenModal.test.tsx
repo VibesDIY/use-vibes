@@ -122,16 +122,12 @@ describe('ImgGenModal Component', () => {
     // First click shows confirmation
     fireEvent.click(screen.getByLabelText('Delete image'));
 
-    // Second click should trigger handleDeleteConfirm
-    // This is handled within the ControlsBar component
-    // The actual call to handleDeleteConfirm happens in the ControlsBar
-    // So this test needs to be updated to reflect the implementation in ControlsBar
+    // We should see the confirmation button after first click
+    expect(screen.getByLabelText('Confirm delete')).toBeInTheDocument();
+    expect(screen.getByText('Delete image?')).toBeInTheDocument();
 
-    // We should see the confirmation message after first click
-    expect(screen.getByText(/Confirm delete, are you sure/i)).toBeInTheDocument();
-
-    // Second click confirms deletion
-    fireEvent.click(screen.getByLabelText('Delete image'));
+    // Click the confirm delete button
+    fireEvent.click(screen.getByLabelText('Confirm delete'));
 
     // Check that handleDeleteConfirm was called
     expect(mockProps.handleDeleteConfirm).toHaveBeenCalled();
