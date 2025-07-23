@@ -6,9 +6,9 @@ import { ControlsBar } from '../../../components/ControlsBar';
 interface ImageOverlayProps {
   promptText: string;
   editedPrompt: string | null; // null means not in edit mode
-  // eslint-disable-next-line no-unused-vars
+
   setEditedPrompt: (prompt: string | null) => void; // Set to null to exit edit mode
-  // eslint-disable-next-line no-unused-vars
+
   handlePromptEdit: (prompt: string) => void;
   /** Function to handle deletion confirmation */
   handleDeleteConfirm: () => void;

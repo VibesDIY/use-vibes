@@ -12,9 +12,9 @@ export interface ImgGenModalProps {
   alt?: string;
   promptText: string;
   editedPrompt: string | null;
-  // eslint-disable-next-line no-unused-vars
+
   setEditedPrompt: (_editedPrompt: string | null) => void;
-  // eslint-disable-next-line no-unused-vars
+
   handlePromptEdit: (_newPrompt: string) => void;
   handleDeleteConfirm: () => void;
   handlePrevVersion: () => void;

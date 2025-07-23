@@ -31,6 +31,7 @@ export function bootstrapUseVibesStyles(): boolean {
     // Create link element
     const link = document.createElement('link');
     link.rel = 'stylesheet';
+    // eslint-disable-next-line no-restricted-globals
     link.href = new URL(cssPath, import.meta.url).toString();
     link.setAttribute('data-use-vibes-css', 'true');
 

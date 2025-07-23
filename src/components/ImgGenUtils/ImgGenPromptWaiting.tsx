@@ -14,7 +14,7 @@ interface ImgGenPromptWaitingProps {
   /** Enable debugging output */
   debug?: boolean;
   /** Callback when files are uploaded via drag-drop or file picker */
-  // eslint-disable-next-line no-unused-vars
+
   onFilesUploaded?: (docId: string) => void;
 }
 

@@ -25,10 +25,10 @@ export interface EnhancedVersionInfo {
   prompt?: string;
 }
 
-type VersionInfoResult = {
+interface VersionInfoResult {
   versions: EnhancedVersionInfo[];
   currentVersion: number;
-};
+}
 
 /**
  * Get version information from document or create defaults

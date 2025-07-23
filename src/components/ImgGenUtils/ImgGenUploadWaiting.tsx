@@ -19,10 +19,10 @@ interface ImgGenUploadWaitingProps {
   /** Callback when new files are uploaded to this document */
   onFilesAdded?: () => void;
   /** Callback when document is created from file uploads */
-  // eslint-disable-next-line no-unused-vars
+
   onDocumentCreated?: (docId: string) => void;
   /** Callback when prompt is set and generation should begin */
-  // eslint-disable-next-line no-unused-vars
+
   onPromptSubmit: (prompt: string, documentId?: string) => void;
 }
 
@@ -66,6 +66,7 @@ export function ImgGenUploadWaiting({
 
     return () => {
       // Clean up any created object URLs
+      // eslint-disable-next-line no-restricted-globals
       objectUrls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);

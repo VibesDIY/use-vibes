@@ -4,9 +4,9 @@ import { combineClasses, defaultClasses, ImgGenClasses } from '../utils/style-ut
 interface PromptBarProps {
   promptText: string;
   editedPrompt: string | null; // null means not in edit mode
-  // eslint-disable-next-line no-unused-vars
+
   setEditedPrompt: (prompt: string | null) => void; // Set to null to exit edit mode
-  // eslint-disable-next-line no-unused-vars
+
   handlePromptEdit: (prompt: string) => void;
   /** Custom CSS classes for styling component parts */
   classes?: ImgGenClasses;

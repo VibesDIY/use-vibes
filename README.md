@@ -67,7 +67,6 @@ const imageFile = base64ToFile(imageResponse.data[0].b64_json, 'my-image.png');
 ### Prompt Management
 
 - **Prompt Versioning**: Tracks the history of different prompts used to generate an image
-
   - Uses a structured `prompts` object with timestamp-based keys
   - Maintains `currentPromptKey` to reference the active prompt
 
@@ -87,7 +86,6 @@ const imageFile = base64ToFile(imageResponse.data[0].b64_json, 'my-image.png');
 ### Image Control & Manipulation
 
 - **Image Regeneration**: One-click regeneration with the same or edited prompt
-
   - Preserves document history and adds new versions
   - Uses a unique `generationId` to trigger regeneration while maintaining context
 
@@ -111,7 +109,6 @@ const imageFile = base64ToFile(imageResponse.data[0].b64_json, 'my-image.png');
 ### User Interface Components
 
 - **Interactive Overlay**: Toggle-able information and controls overlay
-
   - Shows prompt text (editable)
   - Version navigation controls
   - Regenerate/refresh button
@@ -123,7 +120,6 @@ const imageFile = base64ToFile(imageResponse.data[0].b64_json, 'my-image.png');
   ```
 
 - **Progress Visualization**: Shows generation progress with visual indicators
-
   - Progress bar updates in real-time
   - Automatic placeholder display during generation
 
@@ -140,7 +136,6 @@ const imageFile = base64ToFile(imageResponse.data[0].b64_json, 'my-image.png');
 ### File Management
 
 - **File Upload Interface**: Built-in support for image uploads
-
   - Drag-and-drop capabilities
   - File selection dialog
   - Preview of uploaded content
@@ -172,7 +167,6 @@ const imageFile = base64ToFile(imageResponse.data[0].b64_json, 'my-image.png');
 ### State Management
 
 - **Loading States**: Component handles all loading states internally
-
   - Initial waiting state
   - Generation in progress state
   - Upload waiting state
@@ -186,7 +180,6 @@ const imageFile = base64ToFile(imageResponse.data[0].b64_json, 'my-image.png');
 ### UI Customization
 
 - **Extensive Styling Options**: Multiple ways to customize appearance
-
   - CSS Variables for global styling
 
   ```css

@@ -4,7 +4,7 @@ import '../ImgGen.css';
 
 interface ImgGenFileDropProps {
   /** Callback when files are dropped or selected via browse */
-  // eslint-disable-next-line no-unused-vars
+
   onFilesDropped: (files: File[]) => void;
   /** Classname(s) to apply to the container */
   className?: string;

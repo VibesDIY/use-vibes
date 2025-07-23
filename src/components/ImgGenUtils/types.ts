@@ -20,13 +20,13 @@ export interface ImgGenDisplayProps {
   className?: string;
   alt?: string;
   /** Callback when delete is confirmed - receives document ID */
-  // eslint-disable-next-line no-unused-vars
+
   onDelete?: (id: string) => void;
   /** Callback when regeneration is requested - receives document ID */
-  // eslint-disable-next-line no-unused-vars
+
   onRegen?: (id: string) => void;
   /** Callback when prompt is edited - receives document ID and new prompt */
-  // eslint-disable-next-line no-unused-vars
+
   onPromptEdit?: (id: string, newPrompt: string) => void;
   /** Custom CSS classes for styling component parts */
   classes?: ImgGenClasses;

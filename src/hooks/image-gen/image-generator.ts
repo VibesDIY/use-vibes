@@ -40,7 +40,7 @@ export async function imageGen(prompt: string, options?: ImageGenOptions): Promi
   if (MODULE_STATE.pendingPrompts.has(stableKey)) {
     // Return the existing promise for this prompt+options combination
     if (MODULE_STATE.pendingImageGenCalls.has(stableKey)) {
-      return MODULE_STATE.pendingImageGenCalls.get(stableKey)!;
+      return MODULE_STATE.pendingImageGenCalls.get(stableKey) as Promise<ImageResponse>;
     }
   }
 

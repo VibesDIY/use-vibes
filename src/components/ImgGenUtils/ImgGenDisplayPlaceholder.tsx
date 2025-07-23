@@ -71,7 +71,9 @@ export function ImgGenDisplayPlaceholder({
         } else if (jsonObj.error?.details?.error?.message) {
           body = jsonObj.error.details.error.message;
         }
-      } catch {}
+      } catch {
+        /* */
+      }
     }
 
     return { title, body, code };
@@ -200,12 +202,24 @@ export function ImgGenDisplayPlaceholder({
             <ImageOverlay
               promptText={prompt || ''}
               editedPrompt={null}
-              setEditedPrompt={() => {}}
-              handlePromptEdit={() => {}}
-              handleDeleteConfirm={() => {}}
-              handlePrevVersion={() => {}}
-              handleNextVersion={() => {}}
-              handleRegen={() => {}}
+              setEditedPrompt={() => {
+                /* noop */
+              }}
+              handlePromptEdit={() => {
+                /* noop */
+              }}
+              handleDeleteConfirm={() => {
+                /* noop */
+              }}
+              handlePrevVersion={() => {
+                /* noop */
+              }}
+              handleNextVersion={() => {
+                /* noop */
+              }}
+              handleRegen={() => {
+                /* noop */
+              }}
               versionIndex={0}
               totalVersions={1}
               classes={classes}

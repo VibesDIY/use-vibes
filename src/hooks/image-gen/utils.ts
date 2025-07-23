@@ -105,7 +105,7 @@ export function generateVersionId(versionNumber: number): string {
  * @returns Array of version info objects
  */
 export function getVersionsFromDocument(document: Partial<ImageDocument>): {
-  versions: Array<VersionInfo>;
+  versions: VersionInfo[];
   currentVersion: number;
 } {
   // Check if document has proper version structure

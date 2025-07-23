@@ -7,13 +7,11 @@ Restore the progress bar functionality during image generation to match previous
 ## Key Issues Addressed
 
 1. **Progress Bar Display**
-
    - Progress bar needs to be visible during both initial image generation and regeneration
    - CSS class naming consistency between components (`imggen-progress` vs `imggen-progress-bar`)
    - Structure and styling of progress indicators
 
 2. **Implementation Locations**
-
    - `ImgGen.tsx`: Main component with progress display during both generating and regenerating states
    - `ImgGenDisplayPlaceholder.tsx`: Handles progress display during initial generation
    - `ImgGenDisplay.tsx`: Handles progress display during regeneration

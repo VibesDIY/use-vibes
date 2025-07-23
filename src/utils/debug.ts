@@ -4,7 +4,6 @@ export const isDebug = (): boolean =>
 
 export function logDebug(...args: unknown[]) {
   if (isDebug()) {
-    // eslint-disable-next-line no-console
     console.log(...args);
   }
 }
