@@ -8,6 +8,6 @@ export {
   ImgGenError,
   ImgGenDisplayPlaceholder,
   ImgGenDisplay,
-} from './ImgGenUtils/index';
+} from './ImgGenUtils/index.js';
 
-export * from './ImgGenUtils/types';
+export * from './ImgGenUtils/types.js';

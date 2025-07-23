@@ -1,34 +1,34 @@
 import * as React from 'react';
-import { combineClasses, defaultClasses, ImgGenClasses } from '../../../utils/style-utils';
-import { PromptBar } from '../../../components/PromptBar';
-import { ControlsBar } from '../../../components/ControlsBar';
+import { combineClasses, defaultClasses, ImgGenClasses } from '../../../utils/style-utils.js';
+import { PromptBar } from '../../../components/PromptBar.js';
+import { ControlsBar } from '../../../components/ControlsBar.js';
 
 interface ImageOverlayProps {
-  promptText: string;
-  editedPrompt: string | null; // null means not in edit mode
+  readonly promptText: string;
+  readonly editedPrompt: string | null; // null means not in edit mode
 
-  setEditedPrompt: (prompt: string | null) => void; // Set to null to exit edit mode
+  readonly setEditedPrompt: (prompt: string | null) => void; // Set to null to exit edit mode
 
-  handlePromptEdit: (prompt: string) => void;
+  readonly handlePromptEdit: (prompt: string) => void;
   /** Function to handle deletion confirmation */
-  handleDeleteConfirm: () => void;
-  handlePrevVersion: () => void;
-  handleNextVersion: () => void;
-  handleRegen: () => void;
-  versionIndex: number;
-  totalVersions: number;
+  readonly handleDeleteConfirm: () => void;
+  readonly handlePrevVersion: () => void;
+  readonly handleNextVersion: () => void;
+  readonly handleRegen: () => void;
+  readonly versionIndex: number;
+  readonly totalVersions: number;
   /** Custom CSS classes for styling component parts */
-  classes?: ImgGenClasses;
+  readonly classes?: Partial<ImgGenClasses>;
   /** Show control buttons (defaults to true) */
-  showControls?: boolean;
+  readonly showControls?: boolean;
   /** Progress value for generation (0-100), shows progress bar when < 100 */
-  progress?: number;
+  readonly progress?: number;
   /** Show delete button (defaults to true) */
-  showDelete?: boolean;
+  readonly showDelete?: boolean;
   /** Whether to show a flash effect on the version indicator - used when a new version is added */
-  versionFlash?: boolean;
+  readonly versionFlash?: boolean;
   /** Whether regeneration is currently in progress */
-  isRegenerating?: boolean;
+  readonly isRegenerating?: boolean;
 }
 
 export function ImageOverlay({

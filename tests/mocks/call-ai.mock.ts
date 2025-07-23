@@ -43,21 +43,21 @@ export const callAI = vi.fn().mockImplementation((prompt) => {
 });
 
 // Export all other types and interfaces from the original module
-export type ImageGenOptions = {
+export interface ImageGenOptions {
   size?: string;
   style?: string;
   model?: string;
   n?: number;
   quality?: string;
   [key: string]: string | number | boolean | undefined;
-};
+}
 
-export type ImageResponse = {
+export interface ImageResponse {
   created: number;
-  data: Array<{
+  data: {
     b64_json?: string;
     url?: string | null;
     revised_prompt?: string;
-  }>;
+  }[];
   error?: string;
-};
+}

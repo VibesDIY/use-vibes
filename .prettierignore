@@ -1,0 +1,9 @@
+**/pnpm-lock.yaml
+test/fixtures/openai-weather-response.json
+test/fixtures/openai-stream-response.json
+scripts/
+**/notes/**
+**/.cache/**
+**/.esm-cache/**
+**/dist/**
+**/coverage/**

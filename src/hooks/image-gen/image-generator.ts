@@ -3,10 +3,10 @@ import {
   ImageResponse,
   imageGen as originalImageGen,
 } from 'call-ai';
-import { MODULE_STATE, getRelevantOptions } from './utils';
+import { MODULE_STATE, getRelevantOptions } from './utils.js';
 
 // Import ImageDocument type
-import { ImageDocument } from './types';
+import { ImageDocument } from './types.js';
 
 // Extend the ImageGenOptions type to include our regeneration ID and other properties
 interface ImageGenOptions extends BaseImageGenOptions {

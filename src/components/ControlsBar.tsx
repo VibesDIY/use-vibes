@@ -1,32 +1,32 @@
 import * as React from 'react';
-import { combineClasses, defaultClasses, ImgGenClasses } from '../utils/style-utils';
-import { logDebug } from '../utils/debug';
+import { combineClasses, defaultClasses, ImgGenClasses } from '../utils/style-utils.js';
+import { logDebug } from '../utils/debug.js';
 
 interface ControlsBarProps {
   /** Handle delete confirmation */
-  handleDeleteConfirm: () => void;
-  handlePrevVersion: () => void;
-  handleNextVersion: () => void;
-  handleRegen: () => void;
-  versionIndex: number;
-  totalVersions: number;
+  readonly handleDeleteConfirm: () => void;
+  readonly handlePrevVersion: () => void;
+  readonly handleNextVersion: () => void;
+  readonly handleRegen: () => void;
+  readonly versionIndex: number;
+  readonly totalVersions: number;
   /** Custom CSS classes for styling component parts */
-  classes?: ImgGenClasses;
+  readonly classes?: Partial<ImgGenClasses>;
   /** Show control buttons (defaults to true) */
-  showControls?: boolean;
+  readonly showControls?: boolean;
   /** Edited prompt for highlighting regenerate button */
-  editedPrompt: string | null;
+  readonly editedPrompt: string | null;
   /** Original prompt text for comparison */
-  promptText: string;
+  readonly promptText: string;
   /** Progress value for generation (0-100), shows progress bar when < 100 */
-  progress?: number;
+  readonly progress?: number;
   /** Show delete button (defaults to true) */
-  showDelete?: boolean;
+  readonly showDelete?: boolean;
 
   /** Whether to flash the version indicator when a new version is added */
-  versionFlash?: boolean;
+  readonly versionFlash?: boolean;
   /** Whether the regeneration is currently in progress */
-  isRegenerating?: boolean;
+  readonly isRegenerating?: boolean;
 }
 
 /**

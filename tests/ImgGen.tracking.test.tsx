@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, act, waitFor } from '@testing-library/react';
-import { ImgGen } from '../src/components/ImgGen';
+import { ImgGen } from 'use-vibes';
 
 // Mock document that will be returned when ImgGen is used with a prompt
 const mockDocument = {
@@ -13,7 +13,7 @@ const mockDocument = {
 };
 
 // Keep track of hook calls for validation
-const mockCalls: Array<{ prompt?: string; _id?: string; regenerate?: boolean }> = [];
+const mockCalls: { prompt?: string; _id?: string; regenerate?: boolean }[] = [];
 
 // Mock for the useImageGen hook
 vi.mock('../src/hooks/image-gen/use-image-gen', () => {
@@ -71,11 +71,11 @@ vi.mock('../src/hooks/image-gen/use-image-gen', () => {
 // Mock Fireproof to avoid actual database operations
 vi.mock('use-fireproof', () => ({
   useFireproof: () => ({ database: {} }),
+  // eslint-disable-next-line @typescript-eslint/no-extraneous-class
   Database: class MockDatabase {},
 }));
 
 // Expose the mocked useImageGen for assertions
-import { useImageGen } from '../src/hooks/image-gen/use-image-gen';
 
 describe('ImgGen Document ID Tracking', () => {
   beforeEach(() => {

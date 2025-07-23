@@ -1,11 +1,11 @@
 import * as React from 'react';
 import { ImgFile } from 'use-fireproof';
-import { ImgGenError } from './ImgGenError';
-import { ImgGenDisplayProps } from './types';
-import { combineClasses, defaultClasses } from '../../utils/style-utils';
-import { getCurrentFileKey, getPromptInfo, getVersionInfo } from './ImgGenDisplayUtils';
-import { ImgGenModal } from './ImgGenModal';
-import { logDebug } from '../../utils/debug';
+import { ImgGenError } from './ImgGenError.js';
+import { ImgGenDisplayProps } from './types.js';
+import { combineClasses, defaultClasses } from '../../utils/style-utils.js';
+import { getCurrentFileKey, getPromptInfo, getVersionInfo } from './ImgGenDisplayUtils.js';
+import { ImgGenModal } from './ImgGenModal.js';
+import { logDebug } from '../../utils/debug.js';
 
 // Component for displaying the generated image
 export function ImgGenDisplay({
@@ -20,7 +20,7 @@ export function ImgGenDisplay({
   progress,
   error,
   debug, // Add debug flag to props interface
-}: ImgGenDisplayProps) {
+}: Partial<ImgGenDisplayProps>) {
   // Delete confirmation is now handled within ControlsBar
 
   // Use null to indicate not editing, or string for edit mode
@@ -116,9 +116,9 @@ export function ImgGenDisplay({
 
   // Determine which file to use - either the versioned file or the legacy 'image' file
   const currentFile: File | undefined =
-    fileKey && document._files
+    fileKey && document?._files
       ? (document._files[fileKey] as File)
-      : (document._files?.image as File);
+      : (document?._files?.image as File);
 
   // Get prompt text early (moved before portal)
   const promptInfo = getPromptInfo(document, versionIndex);
@@ -129,7 +129,7 @@ export function ImgGenDisplay({
   // Handle delete confirmation
   function handleDeleteConfirm() {
     if (debug) {
-      logDebug('[ImgGenDisplay] handleDeleteConfirm called, document ID:', document._id);
+      logDebug('[ImgGenDisplay] handleDeleteConfirm called, document ID:', document?._id);
     }
 
     if (onDelete && document && document._id) {
@@ -156,20 +156,22 @@ export function ImgGenDisplay({
 
     // const { currentPrompt } = getPromptInfo(document, versionIndex);
 
-    if (editedPrompt !== null) {
-      // User has edited the prompt - always use the edited version
-      // even if it happens to be the same as the current prompt
-      const newPrompt = editedPrompt.trim();
-      if (newPrompt) {
-        // Always submit the edited prompt as a new prompt
-        onPromptEdit?.(document._id, newPrompt);
+    if (document) {
+      if (editedPrompt !== null) {
+        // User has edited the prompt - always use the edited version
+        // even if it happens to be the same as the current prompt
+        const newPrompt = editedPrompt.trim();
+        if (newPrompt) {
+          // Always submit the edited prompt as a new prompt
+          onPromptEdit?.(document._id, newPrompt);
+        } else {
+          // Empty prompt, just regenerate with existing prompt
+          onRegen?.(document._id);
+        }
       } else {
-        // Empty prompt, just regenerate with existing prompt
+        // Not in edit mode → regenerate current prompt
         onRegen?.(document._id);
       }
-    } else {
-      // Not in edit mode → regenerate current prompt
-      onRegen?.(document._id);
     }
 
     // Reset user selection when generating a new version
@@ -246,7 +248,7 @@ export function ImgGenDisplay({
   // Cleanup no longer needed as we're using real progress
 
   // Calculate the effective progress - use real progress during loading, otherwise 100%
-  const effectiveProgress = loading ? progress : 100;
+  const effectiveProgress = loading ? progress || 0 : 100;
 
   // Is regeneration in progress - either from loading state or pending state
   const isRegenerating = pendingRegeneration || documentLoading === true || loading === true;
@@ -254,12 +256,12 @@ export function ImgGenDisplay({
   // Debug logging for render conditions
   if (debug) {
     logDebug('[ImgGenDisplay Debug] Render state:', {
-      documentId: document._id,
-      hasFiles: !!document._files,
+      documentId: document?._id,
+      hasFiles: !!document?._files,
       fileKey,
       versions,
       versionIndex,
-      hasDefaultImage: !!document._files?.image,
+      hasDefaultImage: !!document?._files?.image,
       isRegenerating,
       loading,
       error: error?.message,
@@ -268,12 +270,12 @@ export function ImgGenDisplay({
     });
   }
 
-  if (!document._files || (!fileKey && !document._files.image)) {
+  if (!document?._files || (!fileKey && !document._files.image)) {
     if (debug) {
       logDebug('[ImgGenDisplay Debug] Missing image file - showing error', {
-        hasFiles: !!document._files,
+        hasFiles: !!document?._files,
         fileKey,
-        defaultImageExists: !!document._files?.image,
+        defaultImageExists: !!document?._files?.image,
         loading,
       });
     }

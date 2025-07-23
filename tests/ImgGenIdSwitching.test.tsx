@@ -1,10 +1,19 @@
 // IMPORTANT: All mock calls must be at the top since vi.mock calls are hoisted by Vitest
+import React from 'react';
+import { render, waitFor, screen } from '@testing-library/react';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+
+// Import the component to test
+import { ImgGen, useImageGen } from 'use-vibes';
+import { DocWithId } from 'use-fireproof';
+
+import type { ImageDocument, UseImageGenOptions, UseImageGenResult } from 'use-vibes';
 
 // Create shared test data
 const createTestFile = () => new File(['test content'], 'test-image.png', { type: 'image/png' });
 
 // Mock database for tracking changes
-const dbPuts: Array<any> = [];
+const dbPuts: DocWithId<Partial<ImageDocument>>[] = [];
 const imageGenCallCount = { count: 0 };
 
 // Mock Fireproof and related dependencies
@@ -23,8 +32,10 @@ vi.mock('use-fireproof', () => {
         _files: { v1: createTestFile() },
       });
     }),
-    put: vi.fn().mockImplementation((doc: any) => {
-      dbPuts.push({ ...doc });
+    put: vi.fn().mockImplementation((doc: ImageDocument) => {
+      dbPuts.push({
+        ...doc,
+      });
       return Promise.resolve({ id: doc._id, rev: 'new-rev' });
     }),
     remove: vi.fn(),
@@ -36,7 +47,7 @@ vi.mock('use-fireproof', () => {
   return {
     useFireproof: vi.fn().mockReturnValue({ database: mockDb }),
     ImgFile: vi.fn().mockImplementation((props) => {
-      const React = require('react');
+      // const React = require('react');
       return React.createElement('img', {
         src: 'test-image-url',
         className: 'test-class',
@@ -49,7 +60,6 @@ vi.mock('use-fireproof', () => {
 });
 
 // Import the type for proper typing in mock implementation
-import type { UseImageGenOptions, UseImageGenResult } from '../src/hooks/image-gen/types';
 
 // Mock the image generation hook
 vi.mock('../src/hooks/image-gen/use-image-gen', () => {
@@ -58,7 +68,8 @@ vi.mock('../src/hooks/image-gen/use-image-gen', () => {
   return {
     useImageGen: vi.fn().mockImplementation((props: UseImageGenOptions): UseImageGenResult => {
       imageGenCallCount.count++;
-      const { _id, regenerate = false } = props || {};
+      const { _id } = props || {};
+      const regenerate = false;
 
       // Create a document based on the ID
       const doc = _id
@@ -128,14 +139,6 @@ vi.mock('call-ai', () => {
 });
 
 // Import React and testing libraries
-import React from 'react';
-import { render, waitFor, fireEvent, screen } from '@testing-library/react';
-import '@testing-library/jest-dom';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
-
-// Import the component to test
-import { ImgGen } from '../src/components/ImgGen';
-import { useImageGen } from '../src/hooks/image-gen/use-image-gen';
 
 describe('ImgGen ID Switching Behavior', () => {
   beforeEach(() => {
@@ -251,16 +254,16 @@ describe('ImgGen ID Switching Behavior', () => {
 
   it('allows regeneration to complete even after switching to a different image', async () => {
     // Set up direct database modifications to simulate completion of background process
-    const dbPut = vi.fn().mockImplementation((doc) => {
-      dbPuts.push(doc);
-      return Promise.resolve({ id: doc._id, rev: 'new-rev' });
-    });
+    // const dbPut = vi.fn().mockImplementation((doc) => {
+    //   dbPuts.push(doc);
+    //   return Promise.resolve({ id: doc._id, rev: 'new-rev' });
+    // });
 
     // Setup the useImageGen mock with synchronous behavior
     const useImageGenMock = vi.mocked(useImageGen);
 
     // First call - doc-1 initial render
-    useImageGenMock.mockImplementationOnce((props) => ({
+    useImageGenMock.mockImplementationOnce(() => ({
       document: {
         _id: 'doc-1',
         _rev: 'test-rev',
@@ -280,7 +283,7 @@ describe('ImgGen ID Switching Behavior', () => {
     }));
 
     // Second call - doc-2 render (after rerender)
-    useImageGenMock.mockImplementationOnce((props) => {
+    useImageGenMock.mockImplementationOnce(() => {
       // Simulate background process completing immediately after switching docs
       // Push to dbPuts directly to simulate successful background process
       dbPuts.push({
@@ -329,6 +332,6 @@ describe('ImgGen ID Switching Behavior', () => {
     // Verify the original document was updated with a new version
     expect(dbPuts.length).toBe(1);
     expect(dbPuts[0]._id).toBe('doc-1');
-    expect(dbPuts[0].versions.length).toBe(2);
+    expect(dbPuts[0].versions?.length).toBe(2);
   });
 });

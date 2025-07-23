@@ -1,75 +1,71 @@
 import * as React from 'react';
 import { v4 as uuid } from 'uuid';
 import type { ImageGenOptions } from 'call-ai';
-import { useImageGen } from '../hooks/image-gen/use-image-gen';
+import { useImageGen } from '../hooks/image-gen/use-image-gen.js';
 import { useFireproof, Database } from 'use-fireproof';
-import type { ImageDocument } from '../hooks/image-gen/types';
+import type { ImageDocument } from '../hooks/image-gen/types.js';
 import {
   ImgGenPromptWaiting,
   ImgGenDisplayPlaceholder,
   ImgGenDisplay,
   ImgGenError,
-} from './ImgGenUtils';
+} from './ImgGenUtils.js';
 // Import from direct file since the main index.ts might not be updated yet
-import { ImgGenUploadWaiting } from './ImgGenUtils/ImgGenUploadWaiting';
-import { getImgGenMode } from './ImgGenUtils/ImgGenModeUtils';
-import { ImgGenClasses, defaultClasses } from '../utils/style-utils';
-import { logDebug } from '../utils/debug';
+import { ImgGenUploadWaiting } from './ImgGenUtils/ImgGenUploadWaiting.js';
+import { getImgGenMode } from './ImgGenUtils/ImgGenModeUtils.js';
+import { ImgGenClasses, defaultClasses } from '../utils/style-utils.js';
+import { logDebug } from '../utils/debug.js';
 import './ImgGen.css';
 
 export interface ImgGenProps {
   /** Text prompt for image generation (required unless _id is provided) */
-  prompt?: string;
+  readonly prompt: string;
 
   /** Document ID to load a specific image instead of generating a new one */
-  _id?: string;
+  readonly _id: string;
 
   /** Classname(s) to apply to the image */
-  className?: string;
+  readonly className: string;
 
   /** Alt text for the image */
-  alt?: string;
+  readonly alt: string;
 
   /** Array of images to edit or combine with AI */
-  images?: File[];
+  readonly images: File[];
 
   /** Image generation options */
-  options?: ImageGenOptions;
+  readonly options: ImageGenOptions;
 
   /** Database name or instance to use for storing images */
-  database?: string | Database;
+  readonly database: string | Database;
 
   /** Callback when image load completes successfully */
-  onComplete?: () => void;
+  readonly onComplete: () => void;
 
   /** Callback when image load fails */
-
-  onError?: (error: Error) => void;
+  readonly onError: (error: Error) => void;
 
   /** Callback when document is deleted */
-
-  onDelete?: (id: string) => void;
+  readonly onDelete: (id: string) => void;
 
   /** Callback when prompt is edited */
-
-  onPromptEdit?: (id: string, newPrompt: string) => void;
+  readonly onPromptEdit: (id: string, newPrompt: string) => void;
 
   /** Custom CSS classes for styling component parts */
-  classes?: ImgGenClasses;
+  readonly classes: ImgGenClasses;
 
   /** Callback when a new document is created via drop or file picker */
-
-  onDocumentCreated?: (docId: string) => void;
+  readonly onDocumentCreated: (docId: string) => void;
 
   /** Enable debug logging */
-  debug?: boolean;
+  readonly debug: boolean;
 }
 
 /**
  * Core implementation of ImgGen component
  * This is the component that gets remounted when the document ID or prompt changes
  */
-function ImgGenCore(props: ImgGenProps): React.ReactElement {
+function ImgGenCore(props: Partial<ImgGenProps>): React.ReactElement {
   // Destructure the props for cleaner code
   const {
     prompt,
@@ -220,7 +216,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
 
         // Store the document to be used for generation
         // This ensures that when the regeneration happens, we have access to the document with uploaded images
-        const refreshedDoc = await db.get(id);
+        const refreshedDoc = await db.get<ImageDocument>(id);
 
         // Set the document in options before triggering regeneration
         if (refreshedDoc) {
@@ -470,7 +466,7 @@ function ImgGenCore(props: ImgGenProps): React.ReactElement {
  * Provides automatic caching, reactive updates, and placeholder handling
  * Uses a mountKey to ensure clean state when switching documents
  */
-export function ImgGen(props: ImgGenProps): React.ReactElement {
+export function ImgGen(props: Partial<ImgGenProps>): React.ReactElement {
   // Destructure key props for identity-change tracking
   // classes prop is used via the props spread to ImgGenCore
   const { _id, prompt, debug, onDocumentCreated } = props;

@@ -1,29 +1,27 @@
 import * as React from 'react';
-import type { ImageDocument } from '../../hooks/image-gen/types';
+import type { PartialImageDocument } from '../../hooks/image-gen/types.js';
 import { useFireproof, ImgFile, Database } from 'use-fireproof';
-import { ImgGenFileDrop } from '../ImgGenUtils/ImgGenFileDrop';
-import { ImgGenClasses, combineClasses } from '../../utils/style-utils';
+import { ImgGenFileDrop } from '../ImgGenUtils/ImgGenFileDrop.js';
+import { ImgGenClasses, combineClasses } from '../../utils/style-utils.js';
 import '../ImgGen.css';
 
 interface ImgGenUploadWaitingProps {
   /** Document with uploaded files (optional) */
-  document?: ImageDocument;
+  readonly document?: PartialImageDocument;
   /** Classname(s) to apply to the container */
-  className?: string;
+  readonly className?: string;
   /** Custom CSS classes for styling component parts */
-  classes?: ImgGenClasses;
+  readonly classes?: Partial<ImgGenClasses>;
   /** Enable debugging output */
-  debug?: boolean;
+  readonly debug?: boolean;
   /** Database name or instance to use for storing images */
-  database?: string | Database;
+  readonly database?: string | Database;
   /** Callback when new files are uploaded to this document */
-  onFilesAdded?: () => void;
+  readonly onFilesAdded?: () => void;
   /** Callback when document is created from file uploads */
-
-  onDocumentCreated?: (docId: string) => void;
+  readonly onDocumentCreated?: (docId: string) => void;
   /** Callback when prompt is set and generation should begin */
-
-  onPromptSubmit: (prompt: string, documentId?: string) => void;
+  readonly onPromptSubmit: (prompt: string, documentId?: string) => void;
 }
 
 /**

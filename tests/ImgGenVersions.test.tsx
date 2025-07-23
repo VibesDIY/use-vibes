@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { ImageOverlay } from 'use-vibes';
 
 // Use vi.hoisted to define mocks that need to be referenced in vi.mock
 const mockImgFile = vi.hoisted(() =>
@@ -14,7 +14,11 @@ const mockImgFile = vi.hoisted(() =>
         style,
         'aria-label': alt,
         ...rest,
-        onClick: rest.onClick || (() => {}),
+        onClick:
+          rest.onClick ||
+          (() => {
+            /* no-op */
+          }),
       },
       'Image Content'
     );
@@ -29,7 +33,6 @@ vi.mock('use-fireproof', () => ({
 }));
 
 // Import the components directly to test them individually
-import { ImageOverlay } from '../src/components/ImgGenUtils/overlays/ImageOverlay';
 
 describe('ImageOverlay Component Versions', () => {
   beforeEach(() => {
@@ -97,6 +100,7 @@ describe('ImageOverlay Component Versions', () => {
     expect(refreshButton).toBeInTheDocument();
 
     // Click the regenerate button
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     fireEvent.click(refreshButton!);
 
     // Verify that the regenerate callback was called
@@ -138,12 +142,14 @@ describe('ImageOverlay Component Versions', () => {
     // Test next button
     const nextButton = container.querySelector('[aria-label="Next version"]');
     expect(nextButton).toBeInTheDocument();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     fireEvent.click(nextButton!);
     expect(mockHandleNextVersion).toHaveBeenCalled();
 
     // Test previous button
     const prevButton = container.querySelector('[aria-label="Previous version"]');
     expect(prevButton).toBeInTheDocument();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     fireEvent.click(prevButton!);
     expect(mockHandlePrevVersion).toHaveBeenCalled();
   });

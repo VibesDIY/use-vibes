@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { render, screen, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { ImgGen } from '../src/components/ImgGen';
+import { ImgGen } from 'use-vibes';
+import { imageGen } from 'call-ai';
 
 // Define mock modules first (these are hoisted to the top by Vitest)
 vi.mock('call-ai', () => {
@@ -38,7 +39,6 @@ vi.mock('use-fireproof', () => {
 });
 
 // Import the mocked module after the vi.mock calls
-import { imageGen } from 'call-ai';
 
 // Cast the imported mocked function to include Vi mock methods
 const mockImageGen = imageGen as unknown as ReturnType<typeof vi.fn>;

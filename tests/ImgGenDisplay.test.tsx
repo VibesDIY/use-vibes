@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { ImgGenDisplay } from 'use-vibes';
+import { PartialImageDocument } from '../src/hooks/image-gen/types.js';
 
 // Use vi.hoisted to define mocks that need to be referenced in vi.mock
 const mockImgFile = vi.hoisted(() =>
@@ -39,20 +40,11 @@ vi.mock('../src/components/ImgGenUtils/overlays/DeleteConfirmationOverlay', () =
 }));
 
 // Import after mocks
-import { ImgGenDisplay } from '../src/components/ImgGenUtils';
 
 // Type simplification for testing purposes
-type TestDoc = {
-  _id: string;
-  _files: Record<string, File>;
-  type: 'image';
-  prompt?: string;
-  alt?: string;
-};
-
 describe('ImgGenDisplay Component', () => {
   // Create a simple document for testing
-  const createMockDocument = (prompt: string = 'Test prompt'): TestDoc => ({
+  const createMockDocument = (prompt = 'Test prompt'): PartialImageDocument => ({
     _id: 'test-image-id',
     _files: {
       image: new File(['test'], 'test-image.png', { type: 'image/png' }),
@@ -65,7 +57,7 @@ describe('ImgGenDisplay Component', () => {
     const mockDoc = createMockDocument('A beautiful landscape with mountains');
 
     const { container } = render(
-      <ImgGenDisplay document={mockDoc as any} className="test-class" alt="Test alt text" />
+      <ImgGenDisplay document={mockDoc} className="test-class" alt="Test alt text" />
     );
 
     // Find the root element
@@ -78,7 +70,7 @@ describe('ImgGenDisplay Component', () => {
 
   it('should use alt text as title when prompt is not available', () => {
     // Create a document without a prompt
-    const mockDoc: TestDoc = {
+    const mockDoc: PartialImageDocument = {
       _id: 'test-image-id',
       _files: {
         image: new File(['test'], 'test-image.png', { type: 'image/png' }),
@@ -87,11 +79,7 @@ describe('ImgGenDisplay Component', () => {
     };
 
     const { container } = render(
-      <ImgGenDisplay
-        document={mockDoc as any}
-        className="test-class"
-        alt="Alternative description text"
-      />
+      <ImgGenDisplay document={mockDoc} className="test-class" alt="Alternative description text" />
     );
 
     // Find the root element
@@ -104,7 +92,7 @@ describe('ImgGenDisplay Component', () => {
 
   it('should use default text as title when neither prompt nor alt is provided', () => {
     // Create a document without a prompt
-    const mockDoc: TestDoc = {
+    const mockDoc: PartialImageDocument = {
       _id: 'test-image-id',
       _files: {
         image: new File(['test'], 'test-image.png', { type: 'image/png' }),
@@ -112,9 +100,7 @@ describe('ImgGenDisplay Component', () => {
       type: 'image',
     };
 
-    const { container } = render(
-      <ImgGenDisplay document={mockDoc as any} className="test-class" />
-    );
+    const { container } = render(<ImgGenDisplay document={mockDoc} className="test-class" />);
 
     // Find the root element
     const rootElement = container.querySelector('.imggen-root');
@@ -126,7 +112,7 @@ describe('ImgGenDisplay Component', () => {
 
   it('should handle complex document structure with versioned prompts', () => {
     // Create a document with versioned prompts that matches the expected structure
-    const mockDoc = {
+    const mockDoc: PartialImageDocument = {
       _id: 'test-image-id',
       _files: {
         // Need to include the standard 'image' key for the mock to work
@@ -136,21 +122,19 @@ describe('ImgGenDisplay Component', () => {
       },
       prompt: 'Fallback prompt text',
       prompts: {
-        'prompt-0': { text: 'First version prompt', timestamp: 1620000000000 },
-        'prompt-1': { text: 'Second version prompt', timestamp: 1620000001000 },
+        'prompt-0': { text: 'First version prompt', created: 1620000000000 },
+        'prompt-1': { text: 'Second version prompt', created: 1620000001000 },
       },
       currentPromptKey: 'prompt-1',
       versions: [
-        { fileKey: 'image-v0', promptKey: 'prompt-0', timestamp: 1620000000000 },
-        { fileKey: 'image-v1', promptKey: 'prompt-1', timestamp: 1620000001000 },
+        { id: 'image-v0', promptKey: 'prompt-0', created: 1620000000000 },
+        { id: 'image-v1', promptKey: 'prompt-1', created: 1620000001000 },
       ],
       currentVersion: 1,
       type: 'image' as const,
     };
 
-    const { getByTestId } = render(
-      <ImgGenDisplay document={mockDoc as any} className="test-class" />
-    );
+    const { getByTestId } = render(<ImgGenDisplay document={mockDoc} className="test-class" />);
 
     // Our mock ImgFile renders with 'mock-img-file' test ID
     const imageElement = getByTestId('mock-img-file');

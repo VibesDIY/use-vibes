@@ -17,18 +17,18 @@
   --imggen-button-bg: rgba(255, 255, 255, 0.7);
   --imggen-error-text-body: #ffffff;
   --imggen-delete-hover-color: #ff3333;
-  
+
   /* Dimensions */
   --imggen-border-radius: 8px;
   --imggen-padding: 8px;
   --imggen-button-size: 28px;
   --imggen-progress-height: 8px;
-  
+
   /* Typography */
   --imggen-font-size: 14px;
   --imggen-font-weight: bold;
   --imggen-line-height: 1.5;
-  
+
   /* Effects */
   --imggen-blur-radius: 4px;
   --imggen-transition-speed: 0.2s;
@@ -76,7 +76,9 @@
   border: none;
   cursor: pointer;
   opacity: 0; /* Initially invisible */
-  transition: opacity var(--imggen-transition-speed) ease, transform var(--imggen-transition-speed) ease;
+  transition:
+    opacity var(--imggen-transition-speed) ease,
+    transform var(--imggen-transition-speed) ease;
   padding: 0;
   color: var(--imggen-text-color);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -299,21 +301,21 @@
 
 /* Version flash animation */
 @keyframes version-flash {
-  0% { 
+  0% {
     color: var(--imggen-text-color);
-    transform: scale(1); 
+    transform: scale(1);
   }
-  30% { 
+  30% {
     color: var(--imggen-flash);
-    transform: scale(1.3); 
+    transform: scale(1.3);
     /* font-weight: bold; */
   }
-  70% { 
+  70% {
     color: var(--imggen-flash);
     transform: scale(1.1);
     font-weight: bold;
   }
-  100% { 
+  100% {
     color: var(--imggen-text-color);
     transform: scale(1);
   }
@@ -325,8 +327,12 @@
 
 /* Regenerate spinner animation */
 @keyframes regen-spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .imggen-regen-spinning {
@@ -530,7 +536,9 @@
   border-radius: 8px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.2s, background-color 0.2s;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
   margin-bottom: 1rem;
 }
 

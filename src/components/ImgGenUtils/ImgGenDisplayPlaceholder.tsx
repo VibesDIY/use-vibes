@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { ImgGenPlaceholderProps } from './types';
-import { combineClasses, defaultClasses } from '../../utils/style-utils';
-import { ImageOverlay } from './overlays/ImageOverlay';
+import { ImgGenPlaceholderProps } from './types.js';
+import { combineClasses, defaultClasses } from '../../utils/style-utils.js';
+import { ImageOverlay } from './overlays/ImageOverlay.js';
 
 // Component for loading/placeholder state
 export function ImgGenDisplayPlaceholder({

@@ -1,10 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 
-import { ImageOverlay } from '../src/components/ImgGenUtils/overlays/ImageOverlay';
-import { defaultClasses } from '../src/utils/style-utils';
+import { ImageOverlay, defaultClasses } from 'use-vibes';
 
 describe('ImageOverlay Component', () => {
   // Mock functions for all the callbacks
