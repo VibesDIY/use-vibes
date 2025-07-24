@@ -1,6 +1,6 @@
-import eslint from "@eslint/js";
-import tseslint from "typescript-eslint";
-import importPlugin from "eslint-plugin-import";
+import eslint from '@eslint/js';
+import tseslint from 'typescript-eslint';
+import importPlugin from 'eslint-plugin-import';
 
 const opts = tseslint.config(
   eslint.configs.recommended,
@@ -10,25 +10,25 @@ const opts = tseslint.config(
   {
     languageOptions: {
       globals: {
-        queueMicrotask: "readonly",
+        queueMicrotask: 'readonly',
       },
     },
   },
   {
     ignores: [
-      "babel.config.cjs",
-      "jest.config.js",
-      "**/dist/",
-      "**/pubdir/",
-      "**/node_modules/",
-      "**/scripts/",
-      "**/examples/",
-      "scripts/",
-      "smoke/react/",
-      "src/missingTypes/lib.deno.d.ts",
-      "**/.cache/**",
-      "**/.esm-cache/**",
-      "**/.wrangler/**",
+      'babel.config.cjs',
+      'jest.config.js',
+      '**/dist/',
+      '**/pubdir/',
+      '**/node_modules/',
+      '**/scripts/',
+      '**/examples/',
+      'scripts/',
+      'smoke/react/',
+      'src/missingTypes/lib.deno.d.ts',
+      '**/.cache/**',
+      '**/.esm-cache/**',
+      '**/.wrangler/**',
     ],
   },
   {
@@ -37,14 +37,14 @@ const opts = tseslint.config(
     },
     rules: {
       // "no-console": ["warn"],
-      "import/no-duplicates": ["error"],
+      'import/no-duplicates': ['error'],
     },
   },
   {
     rules: {
-      "no-restricted-globals": ["error", "URL", "TextDecoder", "TextEncoder"],
+      'no-restricted-globals': ['error', 'URL', 'TextDecoder', 'TextEncoder'],
     },
-  },
+  }
 );
 
 export default opts;

@@ -5,13 +5,13 @@
 
 version: 2
 updates:
-  - package-ecosystem: "npm" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: 'npm' # See documentation for possible values
+    directory: '/' # Location of package manifests
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     open-pull-requests-limit: 20
     ignore:
-      - dependency-name: "drizzle-kit:*"
-        versions: [">0.30.6"]
-      - dependency-name: "tailwindcss:*"
-        versions: [">3.4.17"]
+      - dependency-name: 'drizzle-kit:*'
+        versions: ['>0.30.6']
+      - dependency-name: 'tailwindcss:*'
+        versions: ['>3.4.17']

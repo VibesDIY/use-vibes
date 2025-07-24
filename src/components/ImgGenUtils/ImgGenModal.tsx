@@ -1,40 +1,34 @@
 import * as React from 'react';
 import { ImgFile } from 'use-fireproof';
 import { createPortal } from 'react-dom';
-import { ImageOverlay } from './overlays/ImageOverlay';
-import { ImgGenError } from './ImgGenError';
-import { defaultClasses } from '../../utils/style-utils';
+import { ImageOverlay } from './overlays/ImageOverlay.js';
+import { ImgGenError } from './ImgGenError.js';
+import { defaultClasses, ImgGenClasses } from '../../utils/style-utils.js';
 
 export interface ImgGenModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  currentFile: File | undefined; // File object
-  alt?: string;
-  promptText: string;
-  editedPrompt: string | null;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly currentFile: File | undefined; // File object
+  readonly alt?: string;
+  readonly promptText: string;
+  readonly editedPrompt: string | null;
 
-  setEditedPrompt: (_editedPrompt: string | null) => void;
+  readonly setEditedPrompt: (_editedPrompt: string | null) => void;
 
-  handlePromptEdit: (_newPrompt: string) => void;
-  handleDeleteConfirm: () => void;
-  handlePrevVersion: () => void;
-  handleNextVersion: () => void;
-  handleRegen: () => void;
-  versionIndex: number;
-  totalVersions: number;
-  progress: number;
+  readonly handlePromptEdit: (_newPrompt: string) => void;
+  readonly handleDeleteConfirm: () => void;
+  readonly handlePrevVersion: () => void;
+  readonly handleNextVersion: () => void;
+  readonly handleRegen: () => void;
+  readonly versionIndex: number;
+  readonly totalVersions: number;
+  readonly progress: number;
   /** Whether to show a flash effect on the version indicator - used when a new version is added */
-  versionFlash?: boolean;
-  isRegenerating?: boolean;
+  readonly versionFlash?: boolean;
+  readonly isRegenerating?: boolean;
   /** Error if image generation failed */
-  error?: Error | null;
-  classes?: {
-    root?: string;
-    image?: string;
-    controls?: string;
-    overlay?: string;
-    modal?: string;
-  };
+  readonly error?: Error | null;
+  readonly classes?: Partial<ImgGenClasses>;
 }
 
 export function ImgGenModal({

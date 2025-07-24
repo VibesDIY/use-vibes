@@ -1,4 +1,4 @@
-import type { ImageDocument } from '../../hooks/image-gen/types';
+import type { PartialImageDocument } from '../../hooks/image-gen/types.js';
 
 /**
  * Possible display modes for the ImgGen component
@@ -21,7 +21,7 @@ export function getImgGenMode({
   error,
   debug,
 }: {
-  document: ImageDocument | null;
+  document?: PartialImageDocument | null;
   prompt?: string;
   loading: boolean;
   error?: Error;

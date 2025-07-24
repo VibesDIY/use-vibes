@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { ImageOverlay, ControlsBar } from 'use-vibes';
 
 // Use vi.hoisted to define mocks that need to be referenced in vi.mock
 const mockImgFile = vi.hoisted(() =>
@@ -14,7 +14,11 @@ const mockImgFile = vi.hoisted(() =>
         style,
         'aria-label': alt,
         ...rest,
-        onClick: rest.onClick || (() => {}),
+        onClick:
+          rest.onClick ||
+          (() => {
+            /* no-op */
+          }),
       },
       'Image Content'
     );
@@ -29,8 +33,6 @@ vi.mock('use-fireproof', () => ({
 }));
 
 // Import the components directly to test them individually
-import { ImageOverlay } from '../src/components/ImgGenUtils/overlays/ImageOverlay';
-import { ControlsBar } from '../src/components/ControlsBar';
 
 describe('ImageOverlay Component', () => {
   beforeEach(() => {

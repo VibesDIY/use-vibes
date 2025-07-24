@@ -1,24 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, fireEvent, screen } from '@testing-library/react';
-import '@testing-library/jest-dom';
-import { ImgGenModal } from '../src/components/ImgGenUtils/ImgGenModal';
+import { ImgGenModal } from 'use-vibes';
 
-// Mock ImgFile component
-vi.mock('use-fireproof', () => ({
-  ImgFile: ({ alt }: { alt: string; file: unknown; className?: string }) => (
-    <img data-testid="mock-img-file" alt={alt} />
-  ),
-}));
+// // Mock ImgFile component
+// vi.mock('use-fireproof', () => ({
+//   ImgFile: ({ alt }: { alt: string; file: unknown; className?: string }) => (
+//     <img data-testid="mock-img-file" alt={alt} />
+//   ),
+// }));
 
-// Mock createPortal to render content directly without portal
-vi.mock('react-dom', async () => {
-  const actual = await vi.importActual('react-dom');
-  return {
-    ...(actual as Record<string, unknown>),
-    createPortal: (children: React.ReactNode) => children,
-  };
-});
+// // Mock createPortal to render content directly without portal
+// vi.mock('react-dom', async () => {
+//   const actual = await vi.importActual('react-dom');
+//   return {
+//     ...(actual as Record<string, unknown>),
+//     createPortal: (children: React.ReactNode) => children,
+//   };
+// });
 
 describe('ImgGenModal Component', () => {
   const mockFile = new File(['dummy content'], 'dummy.png', { type: 'image/png' });

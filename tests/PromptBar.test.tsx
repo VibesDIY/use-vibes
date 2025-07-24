@@ -1,8 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render, fireEvent, screen } from '@testing-library/react';
+import { PromptBar } from 'use-vibes';
 import '@testing-library/jest-dom';
-import { PromptBar } from '../src/components/PromptBar';
+import * as matchers from '@testing-library/jest-dom/matchers';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+expect.extend(matchers as any);
 
 describe('PromptBar Component', () => {
   it('should display the prompt text in view mode', () => {
@@ -51,6 +55,7 @@ describe('PromptBar Component', () => {
     );
 
     // Find the prompt element and double-click it
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const promptElement = container.querySelector('.imggen-prompt-text')!;
     fireEvent.click(promptElement, { detail: 2 }); // Simulate double click
 

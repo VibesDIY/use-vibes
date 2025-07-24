@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { ImgGen } from '../src/index';
+import { ImgGen } from 'use-vibes';
 import React from 'react';
-import { render, act } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { render, act, RenderResult } from '@testing-library/react';
 
 // Create a mock base64 image for testing
 const mockBase64Image =
@@ -82,17 +81,19 @@ vi.mock('use-fireproof', () => ({
     useFind: () => [[]],
     useLiveFind: () => [[]],
     useIndex: () => [[]],
-    useSubscribe: () => {},
+    useSubscribe: () => {
+      /* no-op */
+    },
     // Create a proper database mock with proper promise handling
     database: {
       get: vi.fn().mockImplementation((id) => {
         return {
-          catch: (errorHandler) => {
+          catch: () => {
             // For tests that check 'Waiting for prompt', we need to fail differently
             if (id === 'test-image-id') {
-              return errorHandler(new Error('Test ID not found - expected for empty prompt test'));
+              return new Error('Test ID not found - expected for empty prompt test');
             }
-            return errorHandler(new Error('Not found'));
+            return new Error('Not found');
           },
         };
       }),
@@ -240,7 +241,9 @@ describe('ImgGen Component', () => {
   it('should accept custom props', async () => {
     // Skip this test as the component structure makes it difficult to test className
     // The custom class might not be visible depending on the component state
-    vi.spyOn(console, 'warn').mockImplementation(() => {}); // Suppress console warnings
+    vi.spyOn(console, 'warn').mockImplementation(() => {
+      /* no-op */
+    }); // Suppress console warnings
 
     // The test is checking functionality that's proven elsewhere
     expect(true).toBe(true);
@@ -277,9 +280,13 @@ describe('ImgGen Component', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
 
+    if (!renderResult) {
+      throw new Error('Failed to render component');
+    }
+
     // Check the rendered output for the waitingForPrompt message
     // The actual text could be in different formats or elements
-    const { container } = renderResult;
+    const container = (renderResult as RenderResult).container as RenderResult['container'];
 
     // Check if the container content includes our message (more flexible than exact text match)
     expect(container.textContent).toContain('click to upload');

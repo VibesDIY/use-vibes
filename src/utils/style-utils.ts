@@ -45,34 +45,34 @@ export function combineClasses(...classes: (string | boolean | null | undefined)
  */
 export interface ImgGenClasses {
   /** Root container class */
-  root?: string;
+  readonly root: string;
   /** Image container class */
-  container?: string;
+  readonly container: string;
   /** Image element class */
-  image?: string;
+  readonly image: string;
   /** Overlay panel class */
-  overlay?: string;
+  readonly overlay: string;
   /** Progress indicator class */
-  progress?: string;
+  readonly progress: string;
   /** Placeholder element class */
-  placeholder?: string;
+  readonly placeholder: string;
   /** Error container class */
-  error?: string;
+  readonly error: string;
   /** Control buttons container class */
-  controls?: string;
+  readonly controls: string;
   /** Button class */
-  button?: string;
+  readonly button: string;
   /** Prompt container class */
-  prompt?: string;
+  readonly prompt: string;
   /** Delete confirmation overlay class */
-  deleteOverlay?: string;
+  readonly deleteOverlay: string;
   /** Drop zone class for file uploads */
-  dropZone?: string;
+  readonly dropZone: string;
   /** Upload waiting container class */
-  uploadWaiting?: string;
+  readonly uploadWaiting: string;
 }
 
 /**
  * Default empty classes object
  */
-export const defaultClasses: ImgGenClasses = {};
+export const defaultClasses: Partial<ImgGenClasses> = {};

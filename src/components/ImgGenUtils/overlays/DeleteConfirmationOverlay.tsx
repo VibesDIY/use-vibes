@@ -1,11 +1,11 @@
 import * as React from 'react';
-import { combineClasses, defaultClasses, ImgGenClasses } from '../../../utils/style-utils';
+import { combineClasses, defaultClasses, ImgGenClasses } from '../../../utils/style-utils.js';
 
 interface DeleteConfirmationOverlayProps {
-  handleDeleteConfirm: () => void;
-  handleCancelDelete: () => void;
+  readonly handleDeleteConfirm: () => void;
+  readonly handleCancelDelete: () => void;
   /** Custom CSS classes for styling component parts */
-  classes?: ImgGenClasses;
+  readonly classes?: Partial<ImgGenClasses>;
 }
 
 export function DeleteConfirmationOverlay({

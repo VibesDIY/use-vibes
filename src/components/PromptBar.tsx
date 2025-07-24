@@ -1,15 +1,15 @@
 import * as React from 'react';
-import { combineClasses, defaultClasses, ImgGenClasses } from '../utils/style-utils';
+import { combineClasses, defaultClasses, ImgGenClasses } from '../utils/style-utils.js';
 
 interface PromptBarProps {
-  promptText: string;
-  editedPrompt: string | null; // null means not in edit mode
+  readonly promptText: string;
+  readonly editedPrompt: string | null; // null means not in edit mode
 
-  setEditedPrompt: (prompt: string | null) => void; // Set to null to exit edit mode
+  readonly setEditedPrompt: (prompt: string | null) => void; // Set to null to exit edit mode
 
-  handlePromptEdit: (prompt: string) => void;
+  readonly handlePromptEdit: (prompt: string) => void;
   /** Custom CSS classes for styling component parts */
-  classes?: ImgGenClasses;
+  readonly classes?: Partial<ImgGenClasses>;
 }
 
 /**

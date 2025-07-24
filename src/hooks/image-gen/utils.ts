@@ -1,5 +1,5 @@
 import { ImageGenOptions } from 'call-ai';
-import { ModuleState, ImageDocument, VersionInfo, PromptEntry } from './types';
+import { ModuleState, ImageDocument, VersionInfo, PromptEntry } from './types.js';
 
 // Module-level state for tracking and preventing duplicate calls
 export const MODULE_STATE: ModuleState = {
@@ -13,7 +13,7 @@ export const MODULE_STATE: ModuleState = {
 };
 
 // Helper to safely remove a key from all tracking collections
-export const cleanupRequestKey = (key: string) => {
+export function cleanupRequestKey(key: string) {
   MODULE_STATE.pendingImageGenCalls.delete(key);
   MODULE_STATE.processingRequests.delete(key);
   MODULE_STATE.pendingPrompts.delete(key);
@@ -22,10 +22,10 @@ export const cleanupRequestKey = (key: string) => {
   // Keep the createdDocuments entry as it's the actual deduplication map
   // But do clean up the timestamp to prevent memory leaks
   MODULE_STATE.requestTimestamps.delete(key);
-};
+}
 
 // Periodically clean up stale requests (every minute)
-setInterval(() => {
+export const cleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [key, timestamp] of MODULE_STATE.requestTimestamps.entries()) {
     if (now - timestamp > 5 * 60 * 1000) {
@@ -50,7 +50,9 @@ export function hashInput(prompt: string, options?: ImageGenOptions): string {
   const inputString = JSON.stringify({
     prompt,
     // Only include relevant options properties to avoid unnecessary regeneration
-    options: options
+    options,
+    /*
+    : options
       ? {
           size: options.size,
           quality: options.quality,
@@ -58,6 +60,7 @@ export function hashInput(prompt: string, options?: ImageGenOptions): string {
           style: options.style,
         }
       : undefined,
+      */
   });
 
   // Use a fast non-crypto hash for immediate results (FNV-1a algorithm)
@@ -176,7 +179,7 @@ export function getPromptsFromDocument(document: Partial<ImageDocument>): {
  * @returns Updated document with the new version added
  */
 export function addNewVersion(
-  document: Partial<ImageDocument>,
+  document: ImageDocument,
   newImageFile: File,
   newPrompt?: string
 ): ImageDocument {

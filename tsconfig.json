@@ -1,18 +1,18 @@
 {
   "compilerOptions": {
     "target": "es2020",
-    "module": "esnext",
-    "moduleResolution": "node",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "declaration": true,
     "outDir": "./dist",
     "strict": true,
-    "esModuleInterop": true,
+    "types": ["vitest/globals", "@testing-library/jest-dom"],
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "jsx": "react",
     "lib": ["es2020", "DOM"],
     "sourceMap": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"]
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

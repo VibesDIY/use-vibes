@@ -1,19 +1,20 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import React from 'react';
-import { render, waitFor, act } from '@testing-library/react';
-import '@testing-library/jest-dom';
+
+import { ImgGenProps, MODULE_STATE } from 'use-vibes';
+import { DocWithId } from 'use-fireproof';
 
 // Create a mock base64 image for testing
 const mockBase64Image =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
 // Array to track all database operations
-const dbPuts: Array<any> = [];
+const dbPuts: DocWithId<{ type: string }>[] = [];
 
 // IMPORTANT: Use vi.hoisted for all mock functions used in vi.mock calls
 // since they're hoisted to the top of the file before normal initialization
 const mockImageGen = vi.hoisted(() => {
-  return vi.fn().mockImplementation((prompt, options) => {
+  return vi.fn().mockImplementation((prompt) => {
     console.log(`[Mock imageGen] called with: ${prompt}`);
     return Promise.resolve({
       created: Date.now(),
@@ -30,7 +31,7 @@ const mockImageGen = vi.hoisted(() => {
 
 // Mock the callImageGeneration function which is created by createImageGenerator
 const mockCallImageGen = vi.hoisted(() => {
-  return vi.fn().mockImplementation((prompt, options) => {
+  return vi.fn().mockImplementation((prompt) => {
     console.log(`[Mock callImageGen] called with: ${prompt}`);
     return Promise.resolve({
       created: Date.now(),
@@ -47,10 +48,10 @@ const mockCallImageGen = vi.hoisted(() => {
 
 // Mock the createImageGenerator function which creates callImageGeneration
 const mockCreateImageGenerator = vi.hoisted(() => {
-  return vi.fn().mockImplementation((requestId) => {
+  return vi.fn().mockImplementation(() => {
     // Return a function that immediately calls mockCallImageGen when invoked
     // This ensures that the hook can call it properly with the right parameters
-    return function actualCallImageGeneration(prompt: string, options: any) {
+    return function actualCallImageGeneration(prompt: string, options: unknown) {
       console.log(`[Mock createImageGenerator] Generated function called with: ${prompt}`);
       // Forward all arguments to the mock implementation
       return mockCallImageGen(prompt, options);
@@ -102,7 +103,7 @@ const mockDbGet = vi.hoisted(() => {
 
 // Mock ImgFile component
 const mockImgFile = vi.hoisted(() => {
-  return vi.fn().mockImplementation(({ file, className, alt, style }) => {
+  return vi.fn().mockImplementation(({ className, alt, style }) => {
     return React.createElement(
       'div',
       {
@@ -123,7 +124,7 @@ vi.mock('call-ai', () => ({
 
 // Create a hoisted mock of the ImgGen component to ensure it's available at top level
 const MockImgGen = vi.hoisted(() => {
-  return vi.fn().mockImplementation((props: any) => {
+  return vi.fn().mockImplementation((props: ImgGenProps) => {
     const { prompt, options } = props;
 
     // Force proper assertions in tests
@@ -188,8 +189,6 @@ vi.mock('use-fireproof', () => ({
 }));
 
 // Import after mocks
-import { MODULE_STATE } from '../src/hooks/image-gen/utils';
-import { ImgGen } from '../src/index';
 
 describe('ImgGen Document Deduplication', () => {
   beforeEach(() => {

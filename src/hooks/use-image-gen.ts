@@ -4,4 +4,4 @@
  */
 
 // Re-export everything from the new modular structure
-export * from './image-gen';
+export * from './image-gen/index.js';

@@ -1,76 +1,49 @@
 {
-  "name": "use-vibes",
-  "version": "0.5.7",
+  "name": "use-vibes-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Lightweight library for making AI API calls with streaming support",
   "type": "module",
-  "description": "Transform any DOM element into an AI-powered micro-app",
-  "main": "dist/index.js",
-  "module": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.js"
-    },
-    "./style-loader": {
-      "types": "./dist/style-loader.d.ts",
-      "import": "./dist/style-loader.js",
-      "require": "./dist/style-loader.js"
-    }
+  "engines": {
+    "node": ">=22"
   },
-  "files": [
-    "dist"
-  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fireproof-storage/call-ai.git"
+  },
+  "homepage": "https://github.com/fireproof-storage/call-ai",
+  "bugs": {
+    "url": "https://github.com/fireproof-storage/call-ai/issues"
+  },
   "scripts": {
-    "build": "pnpm clean && tsc && pnpm copy-css",
-    "copy-css": "mkdir -p dist/components && cp src/components/ImgGen.css dist/components/",
-    "build:watch": "tsc --watch",
-    "dev:build": "tsc --watch",
-    "prepare": "pnpm build",
-    "lint": "eslint src --ext .ts,.tsx",
-    "lint:fix": "eslint src --ext .ts,.tsx --fix --rule 'no-unused-vars: 1' --rule 'no-empty: 1' --rule '@typescript-eslint/no-unused-vars: 1'",
-    "format": "prettier --write \"./**/*.{js,jsx,ts,tsx,json,md}\"",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "clean": "rimraf dist",
-    "typecheck": "tsc --noEmit",
-    "check": "pnpm lint && pnpm format && pnpm typecheck && pnpm test"
+    "build": "tsc",
+    "lint": "eslint .",
+    "test": "vitest --run",
+    "test:integration": "vitest simple.integration",
+    "test:all": "pnpm test && pnpm test:integration",
+    "format": "prettier .",
+    "coverage": "vitest --coverage"
   },
   "keywords": [
     "ai",
-    "dom",
-    "micro-app",
-    "generator",
-    "web",
-    "esm",
-    "typescript"
+    "llm",
+    "api",
+    "call",
+    "openai",
+    "streaming",
+    "openrouter"
   ],
   "author": "",
-  "license": "MIT",
-  "dependencies": {
-    "call-ai": "^0.10.1",
-    "use-fireproof": "^0.20.4",
-    "uuid": "^11.1.0"
-  },
-  "peerDependencies": {
-    "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
-  },
+  "license": "MIT or Apache-2.0",
   "devDependencies": {
     "@eslint/js": "^9.31.0",
     "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.3.0",
-    "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.2",
-    "@vitejs/plugin-react": "^4.4.1",
+    "@types/node": "^24.1.0",
     "eslint": "^9.31.0",
-    "eslint-plugin-import": "^2.31.0",
-    "eslint-plugin-react": "^7.37.5",
-    "jsdom": "^26.1.0",
-    "prettier": "^3.6.2",
-    "react-dom": "^19.1.0",
-    "rimraf": "^6.0.1",
-    "typescript": "^5.8.2",
-    "typescript-eslint": "^8.36.0",
+    "eslint-plugin-import": "^2.32.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.37.0",
     "vitest": "^3.2.4"
   }
 }

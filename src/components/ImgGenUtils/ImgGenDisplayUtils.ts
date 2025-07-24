@@ -1,4 +1,4 @@
-import { ImageDocument } from '../../hooks/image-gen/types';
+import { ImageDocument, PartialImageDocument } from '../../hooks/image-gen/types.js';
 
 /**
  * Utility functions for the ImgGenDisplay component
@@ -33,7 +33,7 @@ interface VersionInfoResult {
 /**
  * Get version information from document or create defaults
  */
-export function getVersionInfo(document: ImageDocument & { _id: string }): VersionInfoResult {
+export function getVersionInfo(document?: PartialImageDocument): VersionInfoResult {
   // Check if document has proper version structure
   if (document?.versions && document.versions.length > 0) {
     // Convert to enhanced version info with possible prompt fields
@@ -79,7 +79,7 @@ export function getVersionInfo(document: ImageDocument & { _id: string }): Versi
  * @param document The image document
  * @param versionIndex Optional index of the version to get prompt for
  */
-export function getPromptInfo(document: ImageDocument & { _id: string }, versionIndex?: number) {
+export function getPromptInfo(document?: PartialImageDocument, versionIndex?: number) {
   try {
     // If versionIndex is provided, try to get the version-specific prompt
     if (typeof versionIndex === 'number') {
@@ -110,7 +110,7 @@ export function getPromptInfo(document: ImageDocument & { _id: string }, version
         if (version.prompt) {
           return {
             currentPrompt: version.prompt,
-            prompts: { ...(document.prompts || {}), legacy: { text: version.prompt } },
+            prompts: { ...(document?.prompts || {}), legacy: { text: version.prompt } },
             currentPromptKey: 'legacy',
           };
         }
@@ -160,7 +160,7 @@ export function getPromptInfo(document: ImageDocument & { _id: string }, version
  * Get the current version file key
  */
 export function getCurrentFileKey(
-  document: ImageDocument & { _id: string },
+  document: PartialImageDocument | null | undefined,
   versionIndex: number,
   versions: EnhancedVersionInfo[]
 ) {
@@ -169,13 +169,13 @@ export function getCurrentFileKey(
   // If we have versions, use the ID from the current version index
   if (versions.length > versionIndex) {
     const versionId = versions[versionIndex].id;
-    if (document._files && document._files[versionId]) {
+    if (document?._files && document._files[versionId]) {
       return versionId;
     }
   }
 
   // Fallback to 'image' for legacy docs
-  if (document._files && document._files.image) {
+  if (document?._files && document._files.image) {
     return 'image';
   }
 

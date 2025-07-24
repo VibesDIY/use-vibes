@@ -1,21 +1,20 @@
 import * as React from 'react';
-import { combineClasses } from '../../utils/style-utils';
+import { combineClasses } from '../../utils/style-utils.js';
 import '../ImgGen.css';
 
 interface ImgGenFileDropProps {
   /** Callback when files are dropped or selected via browse */
-
-  onFilesDropped: (files: File[]) => void;
+  readonly onFilesDropped: (files: File[]) => void;
   /** Classname(s) to apply to the container */
-  className?: string;
+  readonly className?: string;
   /** Whether the drop zone is active */
-  isActive?: boolean;
+  readonly isActive?: boolean;
   /** Max number of files allowed */
-  maxFiles?: number;
+  readonly maxFiles?: number;
   /** Enable debugging output */
-  debug?: boolean;
+  readonly debug?: boolean;
   /** Custom message to display in drop zone */
-  addFilesMessage?: string;
+  readonly addFilesMessage?: string;
 }
 
 /**

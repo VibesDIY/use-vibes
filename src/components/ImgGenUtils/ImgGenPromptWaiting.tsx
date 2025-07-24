@@ -1,21 +1,21 @@
 import * as React from 'react';
 import '../ImgGen.css';
-import { combineClasses, defaultClasses, ImgGenClasses } from '../../utils/style-utils';
-import { ImgGenFileDrop } from './ImgGenFileDrop';
+import { combineClasses, defaultClasses, ImgGenClasses } from '../../utils/style-utils.js';
+import { ImgGenFileDrop } from './ImgGenFileDrop.js';
 import { useFireproof } from 'use-fireproof';
 
 interface ImgGenPromptWaitingProps {
   /** Classname(s) to apply to the container */
-  className?: string;
+  readonly className?: string;
   /** Custom CSS classes for styling component parts */
-  classes?: ImgGenClasses;
+  readonly classes?: Partial<ImgGenClasses>;
   /** Database name to use for storing images */
-  database?: string;
+  readonly database?: string;
   /** Enable debugging output */
-  debug?: boolean;
+  readonly debug?: boolean;
   /** Callback when files are uploaded via drag-drop or file picker */
 
-  onFilesUploaded?: (docId: string) => void;
+  readonly onFilesUploaded?: (docId: string) => void;
 }
 
 // Component for when neither prompt nor _id is provided
