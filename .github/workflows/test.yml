@@ -47,6 +47,7 @@ jobs:
         run: pnpm run lint
 
       - name: playwright
+        working-directory: ./tests
         run: pnpm exec playwright install chromium --with-deps
 
       - name: Run tests
