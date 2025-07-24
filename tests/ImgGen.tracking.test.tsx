@@ -1,10 +1,12 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, act, waitFor } from '@testing-library/react';
-import { ImgGen } from 'use-vibes';
+import { ImgGen, ImgGenProps, UseImageGenResult } from 'use-vibes';
+import { fireproof } from 'use-fireproof';
+import { PartialImageDocument } from '../src/hooks/image-gen/types.js';
 
 // Mock document that will be returned when ImgGen is used with a prompt
-const mockDocument = {
+const mockDocument: PartialImageDocument = {
   _id: 'test-document-id',
   type: 'image',
   prompt: 'Test prompt',
@@ -12,76 +14,93 @@ const mockDocument = {
   versions: [{ id: 'v1', created: 123 }],
 };
 
-// Keep track of hook calls for validation
-const mockCalls: { prompt?: string; _id?: string; regenerate?: boolean }[] = [];
+interface MockImgGenProps extends Partial<ImgGenProps> {
+  readonly regenerate?: boolean;
+}
+// // Keep track of hook calls for validation
+const mockCalls: MockImgGenProps[] = [];
 
-// Mock for the useImageGen hook
-vi.mock('../src/hooks/image-gen/use-image-gen', () => {
-  let versionCount = 1;
+// // Mock for the useImageGen hook
+// vi.mock('../src/hooks/image-gen/use-image-gen', () => {
+//   let versionCount = 1;
 
-  return {
-    useImageGen: vi.fn().mockImplementation(({ prompt, _id, regenerate }) => {
-      // Track function calls for test assertions
-      mockCalls.push({ prompt, _id, regenerate });
-
-      if (prompt && !_id) {
-        // When called with just a prompt, simulate creating a new document
-        return {
-          document: mockDocument,
-          loading: false,
-          imageData: 'mock-image-data',
-        };
-      } else if (_id === mockDocument._id) {
-        // When called with the correct document ID
-        if (regenerate) {
-          // Simulate regeneration by adding new version
-          versionCount++;
-          return {
-            document: {
-              ...mockDocument,
-              currentVersion: versionCount - 1,
-              versions: Array.from({ length: versionCount }, (_, i) => ({
-                id: `v${i + 1}`,
-                created: 123 + i * 100,
-              })),
-            },
-            loading: false,
-            imageData: `regenerated-image-${versionCount}`,
-          };
-        }
-
-        // Normal document loading
-        return {
-          document: mockDocument,
-          loading: false,
-          imageData: 'mock-image-data',
-        };
-      }
-
-      // Default - loading state
-      return {
-        document: null,
-        loading: true,
-        imageData: null,
-      };
-    }),
-  };
-});
+//   return {
+//     useImageGen: vi.fn().mockImplementation;
 
 // Mock Fireproof to avoid actual database operations
-vi.mock('use-fireproof', () => ({
-  useFireproof: () => ({ database: {} }),
-  // eslint-disable-next-line @typescript-eslint/no-extraneous-class
-  Database: class MockDatabase {},
-}));
+// vi.mock('use-fireproof', () => ({
+//   useFireproof: () => ({ database: {} }),
+//   // eslint-disable-next-line @typescript-eslint/no-extraneous-class
+//   Database: class MockDatabase {},
+// }));
 
 // Expose the mocked useImageGen for assertions
+
+let versionCount = 1;
+function mockUseImageGen({ prompt, _id, regenerate }: MockImgGenProps): UseImageGenResult {
+  // Track function calls for test assertions
+  mockCalls.push({ prompt, _id, regenerate });
+
+  if (prompt && !_id) {
+    // When called with just a prompt, simulate creating a new document
+    return {
+      document: mockDocument,
+      loading: false,
+      progress: 100,
+      size: { width: 512, height: 512 },
+      imageData: 'mock-image-data',
+    };
+  } else if (_id === mockDocument._id) {
+    // When called with the correct document ID
+    if (regenerate) {
+      // Simulate regeneration by adding new version
+      versionCount++;
+      return {
+        document: {
+          ...mockDocument,
+          currentVersion: versionCount - 1,
+          versions: Array.from({ length: versionCount }, (_, i) => ({
+            id: `v${i + 1}`,
+            created: 123 + i * 100,
+          })),
+        },
+        progress: 100,
+        size: { width: 512, height: 512 },
+        loading: false,
+        imageData: `regenerated-image-${versionCount}`,
+      };
+    }
+
+    // Normal document loading
+    return {
+      document: mockDocument,
+      loading: false,
+      progress: 100,
+      size: { width: 512, height: 512 },
+      imageData: 'mock-image-data',
+    };
+  }
+
+  // Default - loading state
+  return {
+    document: null,
+    loading: true,
+    progress: 0,
+    imageData: null,
+  };
+}
 
 describe('ImgGen Document ID Tracking', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset our mock call tracker
     mockCalls.length = 0;
+  });
+
+  const fpDb = fireproof('test-db', {
+    storeUrls: {
+      base: 'memory://test-db',
+    },
   });
 
   it('should track document ID when starting with just a prompt', async () => {
@@ -105,6 +124,8 @@ describe('ImgGen Document ID Tracking', () => {
             prompt="Test prompt"
             _id={docId} // Use tracked doc ID for regeneration
             data-testid="img-gen"
+            database={fpDb}
+            useImageGen={mockUseImageGen}
           />
           <button
             data-testid="regenerate-btn"

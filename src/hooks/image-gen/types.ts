@@ -24,6 +24,7 @@ export type ImageDocument = DocWithId<ImageDocumentPlain>;
 export type PartialImageDocument = DocWithId<Partial<ImageDocumentPlain>>;
 
 // Interface for version information
+//         { fileKey: 'image-v0', promptKey: 'prompt-0', timestamp: 1620000000000 },
 export interface VersionInfo {
   readonly id: string; // Version identifier (e.g. "v1", "v2")
   readonly created: number; // Timestamp when this version was created
@@ -64,7 +65,7 @@ export interface UseImageGenOptions {
 
 export interface UseImageGenResult {
   /** Base64 image data */
-  readonly imageData: string | null;
+  readonly imageData?: string | null;
 
   /** Whether the image is currently loading */
   readonly loading: boolean;
@@ -73,16 +74,16 @@ export interface UseImageGenResult {
   readonly progress: number;
 
   /** Error if image generation failed */
-  readonly error: Error | null;
+  readonly error?: Error | null;
 
   /** Size information parsed from options */
-  readonly size: {
+  readonly size?: {
     readonly width: number;
     readonly height: number;
   };
 
   /** Document for the generated image */
-  readonly document: PartialImageDocument | null;
+  readonly document?: PartialImageDocument | null;
 }
 
 // Module state type for tracking pending requests and their results

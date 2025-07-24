@@ -20,38 +20,40 @@ const mockImgFile = vi.hoisted(() =>
   })
 );
 
-// Mock use-fireproof module (placed before imports that use it)
-vi.mock('use-fireproof', () => ({
-  ImgFile: mockImgFile,
-  // Mock File constructor for tests
-  File: vi.fn().mockImplementation((data, name, options) => ({ name, type: options?.type })),
-}));
+// // Mock use-fireproof module (placed before imports that use it)
+// vi.mock('use-fireproof', () => ({
+//   ImgFile: mockImgFile,
+//   // Mock File constructor for tests
+//   File: vi.fn().mockImplementation((data, name, options) => ({ name, type: options?.type })),
+// }));
 
-// Mock the ImageOverlay component
-vi.mock('../src/components/ImgGenUtils/overlays/ImageOverlay', () => ({
-  ImageOverlay: vi.fn(() => <div data-testid="mock-image-overlay">Mocked Image Overlay</div>),
-}));
+// // Mock the ImageOverlay component
+// vi.mock('../src/components/ImgGenUtils/overlays/ImageOverlay', () => ({
+//   ImageOverlay: vi.fn(() => <div data-testid="mock-image-overlay">Mocked Image Overlay</div>),
+// }));
 
-// Mock the DeleteConfirmationOverlay component
-vi.mock('../src/components/ImgGenUtils/overlays/DeleteConfirmationOverlay', () => ({
-  DeleteConfirmationOverlay: vi.fn(() => (
-    <div data-testid="mock-delete-confirmation">Mocked Delete Confirmation</div>
-  )),
-}));
+// // Mock the DeleteConfirmationOverlay component
+// vi.mock('../src/components/ImgGenUtils/overlays/DeleteConfirmationOverlay', () => ({
+//   DeleteConfirmationOverlay: vi.fn(() => (
+//     <div data-testid="mock-delete-confirmation">Mocked Delete Confirmation</div>
+//   )),
+// }));
 
 // Import after mocks
 
 // Type simplification for testing purposes
 describe('ImgGenDisplay Component', () => {
   // Create a simple document for testing
-  const createMockDocument = (prompt = 'Test prompt'): PartialImageDocument => ({
-    _id: 'test-image-id',
-    _files: {
-      image: new File(['test'], 'test-image.png', { type: 'image/png' }),
-    },
-    prompt,
-    type: 'image',
-  });
+  function createMockDocument(prompt = 'Test prompt'): PartialImageDocument {
+    return {
+      _id: 'test-image-id',
+      _files: {
+        image: new File(['test'], 'test-image.png', { type: 'image/png' }),
+      },
+      prompt,
+      type: 'image',
+    };
+  }
 
   it('should add title attribute with prompt text to the root element', () => {
     const mockDoc = createMockDocument('A beautiful landscape with mountains');

@@ -1,9 +1,13 @@
 import * as React from 'react';
 import { v4 as uuid } from 'uuid';
 import type { ImageGenOptions } from 'call-ai';
-import { useImageGen } from '../hooks/image-gen/use-image-gen.js';
+import { useImageGen as defaultUseImageGen } from '../hooks/image-gen/use-image-gen.js';
 import { useFireproof, Database } from 'use-fireproof';
-import type { ImageDocument } from '../hooks/image-gen/types.js';
+import type {
+  ImageDocument,
+  UseImageGenOptions,
+  UseImageGenResult,
+} from '../hooks/image-gen/types.js';
 import {
   ImgGenPromptWaiting,
   ImgGenDisplayPlaceholder,
@@ -38,6 +42,8 @@ export interface ImgGenProps {
 
   /** Database name or instance to use for storing images */
   readonly database: string | Database;
+
+  readonly useImageGen: (options: Partial<UseImageGenOptions>) => UseImageGenResult;
 
   /** Callback when image load completes successfully */
   readonly onComplete: () => void;
@@ -82,6 +88,7 @@ function ImgGenCore(props: Partial<ImgGenProps>): React.ReactElement {
     onDocumentCreated,
     classes = defaultClasses,
     debug,
+    useImageGen,
   } = props;
 
   // Get access to the Fireproof database directly
@@ -113,7 +120,7 @@ function ImgGenCore(props: Partial<ImgGenProps>): React.ReactElement {
   const shouldSkipGeneration = !effectivePrompt && !_id;
 
   // Use the custom hook for all the image generation logic
-  const { imageData, loading, error, progress, document } = useImageGen({
+  const { imageData, loading, error, progress, document } = (useImageGen || defaultUseImageGen)({
     // Use the effective prompt that prioritizes form submission
     prompt: effectivePrompt,
     _id: _id,

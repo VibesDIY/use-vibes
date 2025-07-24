@@ -11,7 +11,7 @@ export { ControlsBar } from './components/ControlsBar.js';
 export { useImageGen, hashInput } from './hooks/image-gen/index.js';
 
 // Export style utilities
-export { ImgGenClasses, defaultClasses } from './utils/style-utils.js';
+export { type ImgGenClasses, defaultClasses } from './utils/style-utils.js';
 
 // Export utility functions
 export { base64ToFile } from './utils/base64.js';
@@ -22,13 +22,13 @@ export { ImageOverlay } from './components/ImgGenUtils/overlays/ImageOverlay.js'
 
 export { MODULE_STATE } from './hooks/image-gen/utils.js';
 
-export { ImageDocument } from './hooks/image-gen/types.js';
+export { type ImageDocument } from './hooks/image-gen/types.js';
 
 export { addNewVersion } from './hooks/image-gen/utils.js';
 
 export { ImgGenDisplay } from './components/ImgGenUtils/ImgGenDisplay.js';
-export { ImgGenModal } from './components/ImgGenUtils/ImgGenModal.js';
+export { ImgGenModal } from './components/ImgGenUtils/ImgGenModal.jsx';
 
 export { ImgGenDisplayPlaceholder } from './components/ImgGenUtils/ImgGenDisplayPlaceholder.js';
 
-export { UseImageGenOptions, UseImageGenResult } from './hooks/image-gen/types.js';
+export { type UseImageGenOptions, type UseImageGenResult } from './hooks/image-gen/types.js';

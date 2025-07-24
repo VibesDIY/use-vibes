@@ -21,7 +21,7 @@ export function getImgGenMode({
   error,
   debug,
 }: {
-  document: PartialImageDocument | null;
+  document?: PartialImageDocument | null;
   prompt?: string;
   loading: boolean;
   error?: Error;

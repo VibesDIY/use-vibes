@@ -2,22 +2,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, act } from '@testing-library/react';
 
-// Mock ImageOverlay component
-vi.mock('../src/components/ImgGenUtils/overlays/ImageOverlay', () => ({
-  ImageOverlay: vi.fn(({ promptText, showControls }) => (
-    <div
-      data-testid="mock-image-overlay"
-      data-prompt={promptText}
-      data-show-controls={showControls}
-      data-status="Generating..."
-      className="imggen-overlay"
-    >
-      <div className="imggen-controls">
-        {showControls === false && <div className="imggen-status-text">Generating...</div>}
-      </div>
-    </div>
-  )),
-}));
+// // Mock ImageOverlay component
+// vi.mock('../src/components/ImgGenUtils/overlays/ImageOverlay', () => ({
+//   ImageOverlay: vi.fn(({ promptText, showControls }) => (
+//     <div
+//       data-testid="mock-image-overlay"
+//       data-prompt={promptText}
+//       data-show-controls={showControls}
+//       data-status="Generating..."
+//       className="imggen-overlay"
+//     >
+//       <div className="imggen-controls">
+//         {showControls === false && <div className="imggen-status-text">Generating...</div>}
+//       </div>
+//     </div>
+//   )),
+// }));
 
 import { ImgGenDisplayPlaceholder, defaultClasses } from 'use-vibes';
 

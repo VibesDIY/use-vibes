@@ -15,13 +15,19 @@ const mockDb = {
 const mockFile = new File(['test content'], 'test-image.png', { type: 'image/png' });
 
 // Mock the call-ai module
-vi.mock('call-ai', () => ({
-  imageGen: vi.fn().mockImplementation(async () => ({
-    created: Date.now(),
-    data: [{ b64_json: 'test-base64-data' }],
-  })),
-  callAI: vi.fn().mockImplementation(async () => 'Mocked text response'),
-}));
+// vi.mock('call-ai', () => ({
+//   imageGen: vi.fn().mockImplementation(async () => ({
+//     created: Date.now(),
+//     data: [{ b64_json: 'test-base64-data' }],
+//   })),
+//   callAI: vi.fn().mockImplementation(async () => 'Mocked text response'),
+// }));
+
+// // Mock the use-image-gen module
+// vi.mock('../src/hooks/image-gen/use-image-gen', () => ({
+//   regenerateImage,
+//   generateImage,
+// }));
 
 // Mock the regenerateImage function (this is what the refresh button uses)
 const regenerateImage = vi.fn(async ({ db, _id }) => {
@@ -79,12 +85,6 @@ const generateImage = vi.fn(async ({ db, _id, prompt }) => {
     };
   }
 });
-
-// Mock the use-image-gen module
-vi.mock('../src/hooks/image-gen/use-image-gen', () => ({
-  regenerateImage,
-  generateImage,
-}));
 
 describe('Image Generation Refresh Functionality', () => {
   beforeEach(() => {
