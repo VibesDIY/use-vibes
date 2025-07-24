@@ -21,7 +21,7 @@
     "test": "vitest --run",
     "test:integration": "vitest simple.integration",
     "test:all": "pnpm test && pnpm test:integration",
-    "format": "prettier --write .",
+    "format": "prettier .",
     "coverage": "vitest --coverage"
   },
   "keywords": [
