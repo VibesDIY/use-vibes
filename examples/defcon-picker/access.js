@@ -80,6 +80,16 @@ export default function (doc, oldDoc, user, ctx) {
     };
   }
 
+  // Schedule-snapshot chunks are the backend's fallback data source (the upstream
+  // 403s the worker egress, so the scheduled tick assembles the schedule from these
+  // docs and serves it to EVERYONE). Owner-only, creates and updates alike —
+  // otherwise any signed-in user could overwrite a chunk and poison the schedule.
+  // No grant: clients never read them; the scheduled lane reads unfiltered anyway.
+  if (type === "schedule-snapshot") {
+    if (!user.isOwner) throw { forbidden: "owner only" };
+    return { channels: ["snapshot-internal"], grant: {} };
+  }
+
   // Unknown / legacy doc types: accept the write but route it to an unreadable channel
   // (no grant) rather than throwing — a single stray local doc must not fail the whole
   // anonymousLocal sign-in migration.

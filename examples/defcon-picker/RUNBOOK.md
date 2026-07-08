@@ -66,10 +66,33 @@ which `backend.js` proxies:
 - Module-level cache `{ at, body }` of the raw JSON text, **10-minute TTL**.
 - Cache miss → `globalThis.fetch` the upstream (`accept: application/json`), store
   the text, serve `content-type: application/json` + `cache-control: public, max-age=300`.
-- Upstream failure with a stale cache → serve the stale copy; failure with no cache
-  → 502.
+- Upstream failure → **db snapshot** (below), else stale cache; nothing at all → 502
+  with the underlying error in the body.
 - The subscription lane's schedule join (`fetchScheduleItems`) reads through the
   **same cache** — one upstream fetch serves both lanes.
+
+### The db snapshot (the real data path in production)
+
+**info.defcon.org also 403s the worker platform's egress** (IP/ASN-level; browser
+headers don't help — verified 2026-07-08), so in production the upstream branch
+always fails and the schedule actually flows through the db:
+
+- `scripts/refresh-schedule.mjs` runs where the upstream IS reachable (agent
+  container, laptop, CI), slims the feed to the fields the app reads (461 KB →
+  ~108 KB), and writes it into the `defcon34` db as `schedule-snapshot` chunk docs
+  (`seq`/`total`/`fetchedAt`/`body`, ≤100 KB per chunk — argv-size bound). Unknown
+  doc types land in `access.js`'s unreadable discard channel, so the chunks are
+  owner-writable and client-invisible.
+- The backend's 1-minute scheduled tick assembles a **complete** chunk set (all
+  `total` present, single `fetchedAt` — a torn refresh is ignored) into module
+  state; the proxy serves it whenever the upstream fails.
+- A **daily Routine** (cloud session cron, "Refresh DEF CON 34 schedule snapshot")
+  re-runs the refresher; bump the cadence during con week. Run it manually any
+  time: `node vibes/defcon-picker/scripts/refresh-schedule.mjs` (needs the
+  owner-account CLI login).
+- Freshness: refresher cadence + ≤1 m tick + ≤10 m client cache. If the upstream
+  ever unblocks the worker egress, the proxy automatically prefers the live feed
+  again.
 
 On top of that the client keeps its own `localStorage` copy for 10 minutes
 (`defcon34-schedule-cache`).

@@ -359,6 +359,65 @@ describe("fetch handler — GET /schedule.json (same-origin schedule proxy)", ()
     expect(res.headers.get("allow")).toBe("GET");
   });
 
+  // info.defcon.org 403s the platform egress outright, so in production the
+  // upstream path FAILS and the db snapshot (chunk docs written owner-side by
+  // scripts/refresh-schedule.mjs, assembled by the tick) is the real data path.
+  const snapshotChunks = (body, { fetchedAt = "2026-07-08T06:00:00.000Z", size = 40 } = {}) => {
+    const chunks = [];
+    for (let i = 0; i * size < body.length; i++) chunks.push(body.slice(i * size, (i + 1) * size));
+    return chunks.map((chunk, seq) => ({
+      _id: `schedule-snapshot-${seq}`,
+      type: "schedule-snapshot",
+      seq,
+      total: chunks.length,
+      fetchedAt,
+      body: chunk,
+    }));
+  };
+
+  it("serves the tick-assembled db snapshot when the upstream fails cold", async () => {
+    const body = JSON.stringify(FEED);
+    await scheduled({ scheduledTime: "2026-07-08T06:01:00Z" }, { db: { query: async () => snapshotChunks(body) } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("blocked", { status: 403 }))
+    );
+    const res = await icsFetch(req("/schedule.json"), {});
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe(body); // chunks re-joined in seq order
+  });
+
+  it("ignores chunks whose _id is not the canonical schedule-snapshot-<seq>", async () => {
+    const body = JSON.stringify(FEED);
+    const offId = snapshotChunks(body).map((d) => ({ ...d, _id: `evil-${d.seq}` }));
+    await scheduled({ scheduledTime: "2026-07-08T06:01:00Z" }, { db: { query: async () => offId } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("blocked");
+      })
+    );
+    expect((await icsFetch(req("/schedule.json"), {})).status).toBe(502);
+  });
+
+  it("ignores an incomplete or mixed-refresh chunk set", async () => {
+    const body = JSON.stringify(FEED);
+    const missing = snapshotChunks(body).slice(1); // seq 0 absent
+    const mixed = snapshotChunks(body);
+    mixed[0] = { ...mixed[0], fetchedAt: "2026-07-07T00:00:00.000Z" }; // torn refresh
+    for (const docs of [missing, mixed]) {
+      __resetScheduleCacheForTests();
+      await scheduled({ scheduledTime: "2026-07-08T06:01:00Z" }, { db: { query: async () => docs } });
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => {
+          throw new Error("blocked");
+        })
+      );
+      expect((await icsFetch(req("/schedule.json"), {})).status).toBe(502);
+    }
+  });
+
   it("shares one upstream fetch with the subscription lane", async () => {
     const spy = feedOk();
     await icsFetch(req("/schedule.json"), {}); // primes the cache

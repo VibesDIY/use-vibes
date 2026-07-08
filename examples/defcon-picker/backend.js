@@ -211,13 +211,22 @@ export const SCHEDULE_URL = "https://info.defcon.org/ht/defcon34/views/scheduleD
 // client's localStorage cache, and the manifest only rebuilds daily anyway.
 const SCHEDULE_TTL_MS = 10 * 60 * 1000;
 let scheduleCache = null; // { at, body }
+// The db-snapshot fallback, assembled by the scheduled tick from
+// `schedule-snapshot` chunk docs. info.defcon.org 403s this platform's egress
+// outright (IP/ASN-level — browser headers don't help), so the owner-side
+// refresher (scripts/refresh-schedule.mjs, which CAN reach the upstream)
+// writes the slimmed feed into the db and this isolate serves it from here.
+let dbSnapshot = null; // { at, body }
 export const __resetScheduleCacheForTests = () => {
   scheduleCache = null;
+  dbSnapshot = null;
 };
 
-// One fetch path for both consumers: fresh cache wins, then the upstream, then
-// the stale cache (a slightly old schedule beats none). Throws only when the
-// upstream fails AND nothing is cached — callers turn that into a 502.
+// One fetch path for both consumers: fresh cache wins, then the upstream
+// (kept as the fast path in case the block is ever lifted), then the
+// db snapshot from the tick, then the stale cache. Throws only when the
+// upstream fails AND nothing is cached or snapshotted — callers turn that
+// into a 502.
 // MUST call globalThis.fetch — bare `fetch` here resolves to this module's own
 // exported handler, not the global (module scope shadows the isolate global).
 const fetchScheduleText = async () => {
@@ -230,6 +239,7 @@ const fetchScheduleText = async () => {
     scheduleCache = { at: now, body };
     return body;
   } catch (err) {
+    if (dbSnapshot !== null) return dbSnapshot.body;
     if (scheduleCache !== null) return scheduleCache.body;
     throw err;
   }
@@ -243,7 +253,9 @@ const handleScheduleProxy = async () => {
   try {
     body = await fetchScheduleText();
   } catch (err) {
-    return textResponse(502, "schedule feed unavailable — try again later");
+    // Surface the upstream failure — this proxy is the app's only data path,
+    // so a bare 502 with no cause makes egress problems undiagnosable.
+    return textResponse(502, `schedule feed unavailable — try again later (${err && err.message ? err.message : "unknown error"})`);
   }
   return new Response(body, {
     status: 200,
@@ -290,6 +302,33 @@ export async function scheduled(event, ctx) {
     if (!users.has(key)) users.set(key, { eventIds: [], shifts: [] });
     return users.get(key);
   };
+  // Assemble the schedule snapshot from its chunk docs (written owner-side by
+  // scripts/refresh-schedule.mjs; the upstream 403s this isolate's egress).
+  // Chunks join in seq order, and only a COMPLETE set (all `total` present,
+  // one fetchedAt) replaces the previous snapshot — a half-written refresh
+  // must not produce truncated JSON.
+  // The _id check is defense-in-depth on top of access.js's owner-only rule for
+  // this type: only docs at the canonical chunk ids participate, so a stray doc
+  // that merely carries the type can never displace a chunk.
+  const chunks = docs
+    .filter(
+      (d) =>
+        d &&
+        d.type === "schedule-snapshot" &&
+        typeof d.body === "string" &&
+        Number.isInteger(d.seq) &&
+        d._id === `schedule-snapshot-${d.seq}`
+    )
+    .sort((a, b) => a.seq - b.seq);
+  if (chunks.length > 0) {
+    const total = chunks[0].total;
+    const fetchedAt = chunks[0].fetchedAt;
+    const complete =
+      Number.isInteger(total) &&
+      chunks.length === total &&
+      chunks.every((c, i) => c.seq === i && c.total === total && c.fetchedAt === fetchedAt);
+    if (complete) dbSnapshot = { at: Date.parse(fetchedAt) || Date.now(), body: chunks.map((c) => c.body).join("") };
+  }
   for (const d of docs) {
     if (!d || !d.userId) continue;
     if (d.type === "caltoken") {
