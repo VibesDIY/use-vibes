@@ -44,6 +44,13 @@ function MyComponent() {
 
 The previous standalone `use-vibes` README, with the full ImgGen API surface, is preserved at [`notes/legacy-README.md`](notes/legacy-README.md).
 
+## Example apps, source included
+
+[`examples/`](examples/) holds thirty real vibes — full apps with backends and
+tested access control (the platform's own remix hub among them), the
+festival-picker family, and one-sitting starters. Remix them on
+[vibes.diy](https://vibes.diy/) or push the source with the CLI.
+
 ## Docs and community
 
 - **Creator documentation:** <https://good.vibes.diy/creator-documentation/>
