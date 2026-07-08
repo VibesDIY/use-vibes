@@ -43,6 +43,24 @@ describe('access.js — channel routing', () => {
       },
     });
   });
+
+  // Either endpoint may sever a friend edge (Codex, vibes.diy#3433): bob must be
+  // able to revoke the mutual sharing alice created by scanning his QR — the
+  // "Added You" list renders a remove control for exactly this. Deletes only:
+  // bob still cannot create or modify an edge he doesn't own.
+  it('the target of a friend edge can delete it, but not create or modify it', () => {
+    const edge = { _id: 'friend-alice-bob', type: 'friend', userId: 'alice', friendSlug: 'bob' };
+    const bob = { userHandle: 'bob' };
+    const del = run({ _id: 'friend-alice-bob', _deleted: true }, edge, bob);
+    expect(del.ok.channels).toEqual(['user-alice', 'user-bob']); // authorized, routed like the edge
+    expect(run(edge, null, bob)).toEqual({ forbidden: 'not owner' }); // create for someone else
+    expect(run({ ...edge, friendSlug: 'bob' }, edge, bob)).toEqual({ forbidden: 'not owner' }); // non-delete update
+    expect(
+      run({ _id: 'friend-alice-bob', _deleted: true }, edge, { userHandle: 'mallory' })
+    ).toEqual({
+      forbidden: 'not owner', // a third party can't sever other people's edges
+    });
+  });
 });
 
 describe('access.js — super grants (owner only)', () => {

@@ -55,8 +55,16 @@ export default function (doc, oldDoc, user, ctx) {
   // shifts) are NOT shared. The edge doc itself lives in both user channels so it appears
   // in each person's following/followers list.
   if (type === 'friend') {
-    if (ownerId !== user.userHandle) throw { forbidden: 'not owner' };
     const friendSlug = doc.friendSlug != null ? doc.friendSlug : oldDoc && oldDoc.friendSlug;
+    // Only the initiator may create or modify the edge — but EITHER endpoint may
+    // sever it: the "Added You" list renders a remove control, and the person
+    // being followed must be able to revoke the mutual share grant someone else
+    // created by scanning their QR. Deleting the doc drops its grant on the next
+    // fixpoint, which is exactly the revocation.
+    const isDelete = Boolean(doc._deleted);
+    if (ownerId !== user.userHandle && !(isDelete && friendSlug === user.userHandle)) {
+      throw { forbidden: 'not owner' };
+    }
     return {
       channels: [`user-${ownerId}`, `user-${friendSlug}`],
       grant: {

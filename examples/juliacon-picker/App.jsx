@@ -588,6 +588,14 @@ export default function JuliaConPicker() {
     [events, myFavIds]
   );
 
+  // Super-mode peer picker: when a picker is selected, the favorites list must
+  // show THEIR picks (from the readable firehose), not the current user's.
+  const viewedFavoriteEvents = useMemo(() => {
+    if (!viewingUser || viewingUser === userId) return favoriteEvents;
+    const ids = new Set(allFavorites.filter((f) => (f.userId || 'anonymous') === viewingUser).map((f) => f.eventId));
+    return events.filter((e) => ids.has(e.eventId)).sort((a, b) => toFestivalDate(a.start) - toFestivalDate(b.start));
+  }, [viewingUser, userId, favoriteEvents, allFavorites, events]);
+
   const makeSchedule = (day) => {
     const ev = favoriteEvents.filter((e) => festivalDayFor(e.start) === day);
     const sh = shifts.filter((s) => festivalDayFor(shiftStartRaw(s)) === day);
@@ -784,7 +792,7 @@ export default function JuliaConPicker() {
 
               {view === 'favorites' && superMode && (
                 <FavoritesView
-                  favoriteEvents={favoriteEvents}
+                  favoriteEvents={viewedFavoriteEvents}
                   favUsers={favUsers}
                   viewingUser={viewingUser}
                   setViewingUser={setViewingUser}
