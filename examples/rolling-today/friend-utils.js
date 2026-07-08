@@ -10,8 +10,9 @@ export const byTypeFriendSlug = (doc) => [doc.type, doc.friendSlug];
 // docs from the old map, which access.js rejects as "unknown document type" and which
 // would otherwise fail the migration on every load.
 export const migrateRollingDoc = (doc, handle) => {
-  if (doc.type === "favorite") return { ...doc, userId: handle, _id: `favorite-${handle}-${doc.rideId}` };
-  if (doc.type === "note") return { ...doc, userId: handle, _id: `note-${handle}-${doc.rideId}` };
+  if (doc.type === 'favorite')
+    return { ...doc, userId: handle, _id: `favorite-${handle}-${doc.rideId}` };
+  if (doc.type === 'note') return { ...doc, userId: handle, _id: `note-${handle}-${doc.rideId}` };
   return null;
 };
 
@@ -21,10 +22,10 @@ export function visibleFavsByRide(favorites, visibleSlugs) {
   const m = {};
   for (const f of favorites) {
     if (!f.rideId) continue;
-    const uid = f.userId || "anonymous";
+    const uid = f.userId || 'anonymous';
     if (!visibleSlugs.has(uid)) continue;
     if (!m[f.rideId]) m[f.rideId] = [];
-    if (!m[f.rideId].some((x) => (x.userId || "anonymous") === uid)) m[f.rideId].push(f);
+    if (!m[f.rideId].some((x) => (x.userId || 'anonymous') === uid)) m[f.rideId].push(f);
   }
   return m;
 }
@@ -34,11 +35,12 @@ export function visibleFavsByRide(favorites, visibleSlugs) {
 // who copies their address bar doesn't re-share someone else's friend link.
 export const readFriendParam = () => {
   try {
-    const own = new URLSearchParams(window.location.search).get("friend");
+    const own = new URLSearchParams(window.location.search).get('friend');
     if (own) return own;
   } catch (e) {}
   try {
-    if (window.top && window.top !== window) return new URLSearchParams(window.top.location.search).get("friend");
+    if (window.top && window.top !== window)
+      return new URLSearchParams(window.top.location.search).get('friend');
   } catch (e) {}
   return null;
 };
@@ -46,9 +48,9 @@ export const clearFriendParamFromUrl = () => {
   const strip = (loc, hist) => {
     try {
       const u = new URL(loc.href);
-      if (u.searchParams.has("friend")) {
-        u.searchParams.delete("friend");
-        hist.replaceState(null, "", u.pathname + u.search + u.hash);
+      if (u.searchParams.has('friend')) {
+        u.searchParams.delete('friend');
+        hist.replaceState(null, '', u.pathname + u.search + u.hash);
       }
     } catch (e) {}
   };
@@ -62,9 +64,9 @@ export const clearFriendParamFromUrl = () => {
 // (rolling-today--<handle>.prod-v2…) so connect links work on staging and prod alike.
 export function currentVibeBase() {
   try {
-    const first = window.location.hostname.split(".")[0]; // <slug>--<handle>
-    const [slug, handle] = first.split("--");
+    const first = window.location.hostname.split('.')[0]; // <slug>--<handle>
+    const [slug, handle] = first.split('--');
     if (slug && handle) return `https://vibes.diy/vibe/${handle}/${slug}`;
   } catch (e) {}
-  return "https://vibes.diy/vibe/jchris/rolling-today";
+  return 'https://vibes.diy/vibe/jchris/rolling-today';
 }

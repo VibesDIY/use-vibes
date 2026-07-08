@@ -1,20 +1,25 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from 'react';
 
 // A note editor that buffers keystrokes locally so typing never re-renders the
 // whole app. It only persists (via onSave) when you focus away, and adopts external
 // live-query updates only while you're not editing.
-export default function NoteField({ saved, onSave, className, placeholder = "Add a private note…" }) {
-  const [text, setText] = useState(saved || "");
+export default function NoteField({
+  saved,
+  onSave,
+  className,
+  placeholder = 'Add a private note…',
+}) {
+  const [text, setText] = useState(saved || '');
   const [saving, setSaving] = useState(false);
   const editingRef = useRef(false);
 
   useEffect(() => {
-    if (!editingRef.current) setText(saved || "");
+    if (!editingRef.current) setText(saved || '');
   }, [saved]);
 
   const commit = async () => {
     editingRef.current = false;
-    if ((text || "") === (saved || "")) return;
+    if ((text || '') === (saved || '')) return;
     setSaving(true);
     try {
       await onSave(text);
@@ -36,7 +41,9 @@ export default function NoteField({ saved, onSave, className, placeholder = "Add
         className={className}
         rows={text && text.length > 40 ? 2 : 1}
       />
-      {saving && <span className="text-[0.7rem] font-bold uppercase tracking-wider opacity-60">Saving…</span>}
+      {saving && (
+        <span className="text-[0.7rem] font-bold uppercase tracking-wider opacity-60">Saving…</span>
+      )}
     </div>
   );
 }

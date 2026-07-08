@@ -12,7 +12,7 @@
 //   sees a window. The prune loops: each pass keeps the window's top 50 and
 //   deletes the rest, which pulls previously-unseen docs into the next query —
 //   converging on the GLOBAL top 50 within one tick (bounded passes).
-export const config = { scheduled: { interval: "1h" } };
+export const config = { scheduled: { interval: '1h' } };
 
 const KEEP = 50;
 const PRUNE_UTC_HOUR = 4; // once a day, on the ~04:00 UTC tick
@@ -26,20 +26,20 @@ export async function scheduled(event, ctx) {
   let pruned = 0;
   let junked = 0;
   for (let pass = 0; pass < MAX_PASSES; pass++) {
-    const docs = await ctx.db.query({ db: "scores" });
+    const docs = await ctx.db.query({ db: 'scores' });
     // The db has a CLOSED schema — highscore docs plus the prune-meta stamp.
     // Anything else is junk an auto-joined writer parked here; delete it, both
     // for bloat and so junk can't pin the query window and shield unseen
     // highscores from the sweep (Charlie #3040 follow-up). Every full-window
     // pass therefore makes progress: 2000 docs are either mostly junk (junk
     // deleted) or mostly highscores (excess deleted).
-    const junk = docs.filter((d) => d.kind !== "highscore" && d._id !== "prune-meta");
+    const junk = docs.filter((d) => d.kind !== 'highscore' && d._id !== 'prune-meta');
     const excess = docs
-      .filter((d) => d.kind === "highscore")
+      .filter((d) => d.kind === 'highscore')
       .sort((a, b) => (b.score || 0) - (a.score || 0) || (a.at || 0) - (b.at || 0))
       .slice(KEEP);
     for (const doc of [...junk, ...excess]) {
-      await ctx.db.delete(doc._id, { db: "scores" });
+      await ctx.db.delete(doc._id, { db: 'scores' });
     }
     pruned += excess.length;
     junked += junk.length;
@@ -48,7 +48,13 @@ export async function scheduled(event, ctx) {
   }
 
   await ctx.db.put(
-    { _id: "prune-meta", kind: "prune-meta", lastPruneAt: Date.parse(event.scheduledTime) || 0, pruned, junked },
-    { db: "scores" }
+    {
+      _id: 'prune-meta',
+      kind: 'prune-meta',
+      lastPruneAt: Date.parse(event.scheduledTime) || 0,
+      pruned,
+      junked,
+    },
+    { db: 'scores' }
   );
 }

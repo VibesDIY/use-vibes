@@ -34,16 +34,16 @@ The access function (see [access.js](access.js)):
 
 ```js
 export function teamChannels(doc, oldDoc, user, ctx) {
-  if (!user) throw { forbidden: "sign in to participate" };
-  if (doc.type === "channel") {
-    if (!user.isOwner) throw { forbidden: "only the owner can create channels" };
+  if (!user) throw { forbidden: 'sign in to participate' };
+  if (doc.type === 'channel') {
+    if (!user.isOwner) throw { forbidden: 'only the owner can create channels' };
     return { channels: [doc._id], grant: { public: [doc._id] } }; // public channel list
   }
-  if (doc.type === "message") {
-    if (doc.authorHandle !== user.userHandle) throw { forbidden: "not author" };
+  if (doc.type === 'message') {
+    if (doc.authorHandle !== user.userHandle) throw { forbidden: 'not author' };
     return { channels: [doc.channelId] }; // route the message to its channel
   }
-  throw { forbidden: "unknown document type" };
+  throw { forbidden: 'unknown document type' };
 }
 ```
 

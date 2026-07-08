@@ -1,6 +1,6 @@
-import React from "react"
-import { useFireproof } from "use-fireproof"
-import { useViewer } from "use-vibes"
+import React from 'react';
+import { useFireproof } from 'use-fireproof';
+import { useViewer } from 'use-vibes';
 
 // ── Spelling Hive ─────────────────────────────────────────────────────────────
 // Find every word in the comb: 7 letters, the center is required, 4+ letters,
@@ -17,31 +17,46 @@ import { useViewer } from "use-vibes"
 //   signed in. A backend.js scheduled sweep prunes it to the top 50 daily.
 
 const DEMO_PUZZLE = {
-  _id: "demo",
-  type: "puzzle",
-  letters: ["c", "e", "h", "i", "k", "n", "t"],
-  center: "k",
+  _id: 'demo',
+  type: 'puzzle',
+  letters: ['c', 'e', 'h', 'i', 'k', 'n', 't'],
+  center: 'k',
   // A tiny built-in fallback (a slice of the real "kitchen" puzzle) so the hive
   // renders before the CLI-loaded puzzles sync. Real puzzles replace it.
   words: [
-    { word: "kine", points: 1, pangram: false }, { word: "kite", points: 1, pangram: false },
-    { word: "kith", points: 1, pangram: false }, { word: "knit", points: 1, pangram: false },
-    { word: "keen", points: 1, pangram: false }, { word: "kent", points: 1, pangram: false },
-    { word: "khet", points: 1, pangram: false }, { word: "kithe", points: 5, pangram: false },
-    { word: "knee", points: 1, pangram: false }, { word: "nick", points: 1, pangram: false },
-    { word: "neck", points: 1, pangram: false }, { word: "nickel", points: 6, pangram: false },
-    { word: "chick", points: 5, pangram: false }, { word: "check", points: 5, pangram: false },
-    { word: "chicken", points: 7, pangram: false }, { word: "thick", points: 5, pangram: false },
-    { word: "thicken", points: 14, pangram: true }, { word: "kitchen", points: 14, pangram: true },
-    { word: "ethnic", points: 6, pangram: false }, { word: "tick", points: 1, pangram: false },
-    { word: "ticket", points: 6, pangram: false }, { word: "kinetic", points: 7, pangram: false },
+    { word: 'kine', points: 1, pangram: false },
+    { word: 'kite', points: 1, pangram: false },
+    { word: 'kith', points: 1, pangram: false },
+    { word: 'knit', points: 1, pangram: false },
+    { word: 'keen', points: 1, pangram: false },
+    { word: 'kent', points: 1, pangram: false },
+    { word: 'khet', points: 1, pangram: false },
+    { word: 'kithe', points: 5, pangram: false },
+    { word: 'knee', points: 1, pangram: false },
+    { word: 'nick', points: 1, pangram: false },
+    { word: 'neck', points: 1, pangram: false },
+    { word: 'nickel', points: 6, pangram: false },
+    { word: 'chick', points: 5, pangram: false },
+    { word: 'check', points: 5, pangram: false },
+    { word: 'chicken', points: 7, pangram: false },
+    { word: 'thick', points: 5, pangram: false },
+    { word: 'thicken', points: 14, pangram: true },
+    { word: 'kitchen', points: 14, pangram: true },
+    { word: 'ethnic', points: 6, pangram: false },
+    { word: 'tick', points: 1, pangram: false },
+    { word: 'ticket', points: 6, pangram: false },
+    { word: 'kinetic', points: 7, pangram: false },
   ],
   ranks: [
-    { name: "Beginner", minScore: 0 }, { name: "Good Start", minScore: 2 },
-    { name: "Moving Up", minScore: 5 }, { name: "Good", minScore: 8 },
-    { name: "Solid", minScore: 15 }, { name: "Nice", minScore: 25 },
-    { name: "Great", minScore: 40 }, { name: "Amazing", minScore: 50 },
-    { name: "Genius", minScore: 70 },
+    { name: 'Beginner', minScore: 0 },
+    { name: 'Good Start', minScore: 2 },
+    { name: 'Moving Up', minScore: 5 },
+    { name: 'Good', minScore: 8 },
+    { name: 'Solid', minScore: 15 },
+    { name: 'Nice', minScore: 25 },
+    { name: 'Great', minScore: 40 },
+    { name: 'Amazing', minScore: 50 },
+    { name: 'Genius', minScore: 70 },
   ],
 };
 
@@ -71,21 +86,24 @@ function saveFound(puzzleId, found) {
 
 export default function App() {
   const { viewer, can } = useViewer();
-  const { database: scoresDb, useLiveQuery: useScoresQuery } = useFireproof("scores");
-  const { useLiveQuery: usePuzzlesQuery } = useFireproof("puzzles");
+  const { database: scoresDb, useLiveQuery: useScoresQuery } = useFireproof('scores');
+  const { useLiveQuery: usePuzzlesQuery } = useFireproof('puzzles');
 
-  const { docs: puzzleDocs } = usePuzzlesQuery("type", { key: "puzzle" });
-  const puzzles = puzzleDocs.length > 0 ? [...puzzleDocs].sort((a, b) => String(a._id).localeCompare(String(b._id))) : [DEMO_PUZZLE];
+  const { docs: puzzleDocs } = usePuzzlesQuery('type', { key: 'puzzle' });
+  const puzzles =
+    puzzleDocs.length > 0
+      ? [...puzzleDocs].sort((a, b) => String(a._id).localeCompare(String(b._id)))
+      : [DEMO_PUZZLE];
   const [offset, setOffset] = React.useState(0); // roam away from today's puzzle
   const idx = (dayIndex(puzzles.length) + offset + puzzles.length * 1000) % puzzles.length;
   const puzzle = puzzles[idx];
 
-  const { docs: scoreDocs } = useScoresQuery("kind", { key: "highscore" });
+  const { docs: scoreDocs } = useScoresQuery('kind', { key: 'highscore' });
   const leaderboard = [...scoreDocs].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10);
 
   const [found, setFound] = React.useState(() => loadFound(puzzle._id));
   const [shuffleKey, setShuffleKey] = React.useState(0);
-  const [guess, setGuess] = React.useState("");
+  const [guess, setGuess] = React.useState('');
   const [flash, setFlash] = React.useState(null);
   const [pangramCelebrate, setPangramCelebrate] = React.useState(false);
   const flashTimer = React.useRef(null);
@@ -93,13 +111,14 @@ export default function App() {
   // Swap the local game when the puzzle changes (new day / roaming / docs sync).
   React.useEffect(() => {
     setFound(loadFound(puzzle._id));
-    setGuess("");
+    setGuess('');
   }, [puzzle._id]);
 
   const score = found.reduce((s, f) => s + (f.points || 0), 0);
   const totalPossible = puzzle.words.reduce((s, w) => s + w.points, 0) || 1;
   const pct = (score / totalPossible) * 100;
-  const rank = [...(puzzle.ranks || [])].reverse().find((r) => pct >= r.minScore) || puzzle.ranks?.[0];
+  const rank =
+    [...(puzzle.ranks || [])].reverse().find((r) => pct >= r.minScore) || puzzle.ranks?.[0];
 
   const letters = React.useMemo(() => {
     const outer = puzzle.letters.filter((l) => l !== puzzle.center);
@@ -121,13 +140,13 @@ export default function App() {
   // Signed-in players only ("who got it, if logged in"); anonymous play stays
   // entirely on-device.
   async function maybeSubmitHighScore(newScore) {
-    if (!viewer?.userSlug || !can("write")) return;
+    if (!viewer?.userSlug || !can('write')) return;
     const mine = scoreDocs.find((d) => d._id === `hs-${viewer.userSlug}`);
     if (mine && (mine.score || 0) >= newScore) return;
     try {
       await scoresDb.put({
         _id: `hs-${viewer.userSlug}`,
-        kind: "highscore",
+        kind: 'highscore',
         score: newScore,
         by: viewer.displayName || viewer.userSlug,
         handle: viewer.userSlug,
@@ -142,17 +161,17 @@ export default function App() {
   function submitGuess() {
     const g = guess.toLowerCase();
     if (!g) return;
-    if (g.length < 4) return showFlash("err", "Too short");
-    if (!g.includes(puzzle.center)) return showFlash("err", "Missing center letter");
-    if (![...g].every((ch) => puzzle.letters.includes(ch))) return showFlash("err", "Bad letters");
-    if (found.some((f) => f.word === g)) return showFlash("err", "Already found");
+    if (g.length < 4) return showFlash('err', 'Too short');
+    if (!g.includes(puzzle.center)) return showFlash('err', 'Missing center letter');
+    if (![...g].every((ch) => puzzle.letters.includes(ch))) return showFlash('err', 'Bad letters');
+    if (found.some((f) => f.word === g)) return showFlash('err', 'Already found');
     const match = puzzle.words.find((w) => w.word === g);
-    if (!match) return showFlash("err", "Not in word list");
+    if (!match) return showFlash('err', 'Not in word list');
     const nextFound = [...found, { word: g, points: match.points, pangram: match.pangram }];
     setFound(nextFound);
     saveFound(puzzle._id, nextFound);
-    setGuess("");
-    showFlash("ok", match.pangram ? `PANGRAM! +${match.points}` : `+${match.points}`);
+    setGuess('');
+    showFlash('ok', match.pangram ? `PANGRAM! +${match.points}` : `+${match.points}`);
     if (match.pangram) {
       setPangramCelebrate(true);
       setTimeout(() => setPangramCelebrate(false), 2500);
@@ -164,16 +183,19 @@ export default function App() {
   // word-games tree visibly reads as one family.
   const c = {
     page: "min-h-screen bg-gradient-to-b from-[#14342b] to-[#0a1f19] text-white font-['Nunito',sans-serif]",
-    header: "px-4 py-5 border-b border-white/10 flex items-center justify-between sticky top-0 bg-[#0a1f19]/80 backdrop-blur z-10",
+    header:
+      'px-4 py-5 border-b border-white/10 flex items-center justify-between sticky top-0 bg-[#0a1f19]/80 backdrop-blur z-10',
     title: "text-2xl font-bold font-['Fredoka',sans-serif] tracking-wide",
-    tagline: "text-xs text-white/60",
-    main: "max-w-md mx-auto px-4 py-6 space-y-6 pb-24",
-    section: "bg-white/5 border border-white/10 rounded-2xl p-4",
-    sectionTitle: "text-sm font-semibold uppercase tracking-wider text-white/70 mb-3",
-    btn: "min-h-[44px] px-4 py-3 rounded-xl bg-[#2f9e6e] hover:bg-[#37b57e] active:bg-[#278a5f] font-semibold transition disabled:opacity-50",
-    btnGhost: "min-h-[44px] px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 font-semibold transition",
-    input: "w-full min-h-[44px] px-4 py-3 rounded-xl bg-white/10 border border-white/15 text-lg tracking-widest text-center font-bold uppercase focus:outline-none focus:border-[#7fe0b0]",
-    avatar: "w-8 h-8 rounded-full border border-white/20",
+    tagline: 'text-xs text-white/60',
+    main: 'max-w-md mx-auto px-4 py-6 space-y-6 pb-24',
+    section: 'bg-white/5 border border-white/10 rounded-2xl p-4',
+    sectionTitle: 'text-sm font-semibold uppercase tracking-wider text-white/70 mb-3',
+    btn: 'min-h-[44px] px-4 py-3 rounded-xl bg-[#2f9e6e] hover:bg-[#37b57e] active:bg-[#278a5f] font-semibold transition disabled:opacity-50',
+    btnGhost:
+      'min-h-[44px] px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 font-semibold transition',
+    input:
+      'w-full min-h-[44px] px-4 py-3 rounded-xl bg-white/10 border border-white/15 text-lg tracking-widest text-center font-bold uppercase focus:outline-none focus:border-[#7fe0b0]',
+    avatar: 'w-8 h-8 rounded-full border border-white/20',
   };
 
   return (
@@ -184,27 +206,41 @@ export default function App() {
           <p className={c.tagline}>Find every word in the comb</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm font-bold text-[#7fe0b0]">{rank?.name || "Beginner"}</span>
-          <span className="text-lg font-bold font-['Fredoka',sans-serif] bg-[#7fe0b0] text-[#14342b] px-3 py-1 rounded-full">{score}</span>
+          <span className="text-sm font-bold text-[#7fe0b0]">{rank?.name || 'Beginner'}</span>
+          <span className="text-lg font-bold font-['Fredoka',sans-serif] bg-[#7fe0b0] text-[#14342b] px-3 py-1 rounded-full">
+            {score}
+          </span>
           <span className="text-xs text-white/60">{found.length}w</span>
           {viewer && <img src={viewer.avatarUrl} alt={viewer.userSlug} className={c.avatar} />}
         </div>
       </header>
       <main id="app" className={c.main}>
         <section id="puzzle-controls" className={c.section}>
-          <h2 className={c.sectionTitle}>Puzzle {puzzles.length > 1 ? `${idx + 1} of ${puzzles.length}` : ""}</h2>
+          <h2 className={c.sectionTitle}>
+            Puzzle {puzzles.length > 1 ? `${idx + 1} of ${puzzles.length}` : ''}
+          </h2>
           <div className="flex gap-2">
             <button className={c.btnGhost} onClick={() => setShuffleKey((k) => k + 1)}>
               Shuffle
             </button>
-            <button className={c.btnGhost} onClick={() => setOffset((o) => o - 1)} disabled={puzzles.length < 2}>
+            <button
+              className={c.btnGhost}
+              onClick={() => setOffset((o) => o - 1)}
+              disabled={puzzles.length < 2}
+            >
               ← Prev
             </button>
-            <button className={c.btnGhost + " flex-1"} onClick={() => setOffset((o) => o + 1)} disabled={puzzles.length < 2}>
+            <button
+              className={c.btnGhost + ' flex-1'}
+              onClick={() => setOffset((o) => o + 1)}
+              disabled={puzzles.length < 2}
+            >
               Next puzzle →
             </button>
           </div>
-          <p className="text-xs text-white/40 mt-2">Today's puzzle picks itself — roam if you finish it.</p>
+          <p className="text-xs text-white/40 mt-2">
+            Today's puzzle picks itself — roam if you finish it.
+          </p>
         </section>
         <section id="hive" className={c.section}>
           <h2 className={c.sectionTitle}>The Hive</h2>
@@ -225,13 +261,15 @@ export default function App() {
                 key={i}
                 onClick={() => setGuess((g) => (g + tile.letter).slice(0, 20))}
                 className={`absolute w-[30%] aspect-square flex items-center justify-center text-2xl font-bold uppercase font-['Fredoka',sans-serif] transition active:scale-95 ${
-                  tile.center ? "bg-[#7fe0b0] text-[#14342b]" : "bg-[#2f9e6e]/30 hover:bg-[#2f9e6e]/50 text-white"
+                  tile.center
+                    ? 'bg-[#7fe0b0] text-[#14342b]'
+                    : 'bg-[#2f9e6e]/30 hover:bg-[#2f9e6e]/50 text-white'
                 }`}
                 style={{
                   left: `${tile.x}%`,
                   top: `${tile.y}%`,
-                  transform: "translate(-50%, -50%)",
-                  clipPath: "polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%)",
+                  transform: 'translate(-50%, -50%)',
+                  clipPath: 'polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%)',
                 }}
               >
                 {tile.letter}
@@ -250,19 +288,31 @@ export default function App() {
             <input
               className={c.input}
               value={guess}
-              onChange={(e) => setGuess(e.target.value.toLowerCase().replace(/[^a-z]/g, ""))}
+              onChange={(e) => setGuess(e.target.value.toLowerCase().replace(/[^a-z]/g, ''))}
               placeholder="type or tap"
               maxLength={20}
               autoCapitalize="off"
               autoCorrect="off"
             />
             <div className="flex gap-2 mt-3">
-              <button type="button" className={c.btnGhost} onClick={() => setGuess("")}>Clear</button>
-              <button type="button" className={c.btnGhost} onClick={() => setGuess((g) => g.slice(0, -1))}>⌫</button>
-              <button type="submit" className={c.btn + " flex-1"}>Enter</button>
+              <button type="button" className={c.btnGhost} onClick={() => setGuess('')}>
+                Clear
+              </button>
+              <button
+                type="button"
+                className={c.btnGhost}
+                onClick={() => setGuess((g) => g.slice(0, -1))}
+              >
+                ⌫
+              </button>
+              <button type="submit" className={c.btn + ' flex-1'}>
+                Enter
+              </button>
             </div>
             {flash && (
-              <p className={`text-sm mt-2 text-center font-semibold ${flash.kind === "ok" ? "text-[#8fdda8]" : "text-[#e09090]"}`}>
+              <p
+                className={`text-sm mt-2 text-center font-semibold ${flash.kind === 'ok' ? 'text-[#8fdda8]' : 'text-[#e09090]'}`}
+              >
                 {flash.msg}
               </p>
             )}
@@ -273,12 +323,17 @@ export default function App() {
           <div>
             <div className="flex items-baseline justify-between mb-2">
               <span className="text-3xl font-bold font-['Fredoka',sans-serif]">{score}</span>
-              <span className="text-sm text-[#7fe0b0] font-semibold">{rank?.name || "—"}</span>
+              <span className="text-sm text-[#7fe0b0] font-semibold">{rank?.name || '—'}</span>
             </div>
             <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-[#2f9e6e] to-[#7fe0b0] transition-all" style={{ width: `${Math.min(100, pct)}%` }} />
+              <div
+                className="h-full bg-gradient-to-r from-[#2f9e6e] to-[#7fe0b0] transition-all"
+                style={{ width: `${Math.min(100, pct)}%` }}
+              />
             </div>
-            <p className="text-xs text-white/50 mt-2">{found.length} of {puzzle.words.length} words found · your words stay on this device</p>
+            <p className="text-xs text-white/50 mt-2">
+              {found.length} of {puzzle.words.length} words found · your words stay on this device
+            </p>
           </div>
         </section>
         {pangramCelebrate && (
@@ -294,11 +349,16 @@ export default function App() {
             <p className="text-sm text-white/50">No words yet — start finding them.</p>
           ) : (
             <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
-              {[...found].sort((a, b) => a.word.localeCompare(b.word)).map((f) => (
-                <li key={f.word} className={`text-sm capitalize ${f.pangram ? "text-[#7fe0b0] font-bold" : "text-white/85"}`}>
-                  {f.word}
-                </li>
-              ))}
+              {[...found]
+                .sort((a, b) => a.word.localeCompare(b.word))
+                .map((f) => (
+                  <li
+                    key={f.word}
+                    className={`text-sm capitalize ${f.pangram ? 'text-[#7fe0b0] font-bold' : 'text-white/85'}`}
+                  >
+                    {f.word}
+                  </li>
+                ))}
             </ul>
           )}
         </section>
@@ -310,7 +370,11 @@ export default function App() {
             <ol className="space-y-1">
               {leaderboard.map((s, i) => (
                 <li key={s._id} className="flex items-center justify-between text-sm">
-                  <span className={s.handle === viewer?.userSlug ? "text-[#7fe0b0] font-bold" : "text-white/85"}>
+                  <span
+                    className={
+                      s.handle === viewer?.userSlug ? 'text-[#7fe0b0] font-bold' : 'text-white/85'
+                    }
+                  >
                     {i + 1}. {s.by || s.handle}
                   </span>
                   <span className="font-bold font-['Fredoka',sans-serif]">{s.score}</span>
@@ -319,7 +383,9 @@ export default function App() {
             </ol>
           )}
           <p className="text-xs text-white/40 mt-2">
-            {viewer ? "Beat your best on any puzzle to climb the board." : "Sign in to post your best score."}
+            {viewer
+              ? 'Beat your best on any puzzle to climb the board.'
+              : 'Sign in to post your best score.'}
           </p>
         </section>
       </main>

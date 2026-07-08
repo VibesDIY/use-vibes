@@ -1,22 +1,22 @@
-export const FESTIVAL_TZ = "America/Los_Angeles";
+export const FESTIVAL_TZ = 'America/Los_Angeles';
 
 const hasExplicitTZ = (s) => /([+-]\d\d:\d\d|Z)$/.test(s);
-export const ensureT = (s = "") => (s.includes("T") ? s : s.replace(" ", "T"));
+export const ensureT = (s = '') => (s.includes('T') ? s : s.replace(' ', 'T'));
 
 // Intl.DateTimeFormat construction is expensive (tens of µs each). These helpers
 // run inside sort comparators and filters over hundreds of events every render,
 // so we build each formatter ONCE at module scope and memoize the results by their
 // input string — the festival's date strings are a small, stable set parsed
 // thousands of times per render. This is the single biggest render-cost win.
-const _offsetFmt = new Intl.DateTimeFormat("en-US", {
+const _offsetFmt = new Intl.DateTimeFormat('en-US', {
   timeZone: FESTIVAL_TZ,
-  hourCycle: "h23",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
+  hourCycle: 'h23',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
 });
 
 const tzOffsetMinutes = (date) => {
@@ -26,7 +26,7 @@ const tzOffsetMinutes = (date) => {
 };
 
 const parseInTZ = (naive) => {
-  const utcGuess = new Date(naive + "Z");
+  const utcGuess = new Date(naive + 'Z');
   if (isNaN(utcGuess)) return new Date(NaN);
   const offset = tzOffsetMinutes(utcGuess);
   return new Date(utcGuess.getTime() - offset * 60000);
@@ -46,26 +46,27 @@ export const toFestivalDate = (s) => {
 };
 
 export const FESTIVAL_2026 = {
-  dayOrder: ["Thursday", "Friday", "Saturday", "Sunday", "Monday"],
+  dayOrder: ['Thursday', 'Friday', 'Saturday', 'Sunday', 'Monday'],
   dates: {
-    Thursday: "2026-07-30",
-    Friday: "2026-07-31",
-    Saturday: "2026-08-01",
-    Sunday: "2026-08-02",
-    Monday: "2026-08-03",
+    Thursday: '2026-07-30',
+    Friday: '2026-07-31',
+    Saturday: '2026-08-01',
+    Sunday: '2026-08-02',
+    Monday: '2026-08-03',
   },
-  fallbackStart: "2026-07-30T00:00:00",
+  fallbackStart: '2026-07-30T00:00:00',
 };
 
-export const LOGO_URL = "https://pickathon.com/wp-content/themes/pickathon/images/2026/_logo_head.png";
+export const LOGO_URL =
+  'https://pickathon.com/wp-content/themes/pickathon/images/2026/_logo_head.png';
 
-const _dayPartsFmt = new Intl.DateTimeFormat("en-US", {
+const _dayPartsFmt = new Intl.DateTimeFormat('en-US', {
   timeZone: FESTIVAL_TZ,
-  weekday: "long",
-  hourCycle: "h23",
-  hour: "2-digit",
+  weekday: 'long',
+  hourCycle: 'h23',
+  hour: '2-digit',
 });
-const _weekdayFmt = new Intl.DateTimeFormat("en-US", { timeZone: FESTIVAL_TZ, weekday: "long" });
+const _weekdayFmt = new Intl.DateTimeFormat('en-US', { timeZone: FESTIVAL_TZ, weekday: 'long' });
 const _dayForCache = new Map();
 export const festivalDayFor = (dateStr) => {
   if (_dayForCache.has(dateStr)) return _dayForCache.get(dateStr);
@@ -83,11 +84,15 @@ export const festivalDayFor = (dateStr) => {
   return out;
 };
 
-const _timeFmt = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: FESTIVAL_TZ });
-const _dateFmt = new Intl.DateTimeFormat("en-US", {
-  weekday: "long",
-  month: "short",
-  day: "numeric",
+const _timeFmt = new Intl.DateTimeFormat('en-US', {
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZone: FESTIVAL_TZ,
+});
+const _dateFmt = new Intl.DateTimeFormat('en-US', {
+  weekday: 'long',
+  month: 'short',
+  day: 'numeric',
   timeZone: FESTIVAL_TZ,
 });
 const _timeCache = new Map();
@@ -99,14 +104,14 @@ const _dateStrCache = new Map();
 export const fmtTime = (s) => {
   if (_timeCache.has(s)) return _timeCache.get(s);
   const d = toFestivalDate(s);
-  const out = isNaN(d) ? "" : _timeFmt.format(d);
+  const out = isNaN(d) ? '' : _timeFmt.format(d);
   _timeCache.set(s, out);
   return out;
 };
 export const fmtDate = (s) => {
   if (_dateStrCache.has(s)) return _dateStrCache.get(s);
   const d = toFestivalDate(s);
-  const out = isNaN(d) ? "" : _dateFmt.format(d);
+  const out = isNaN(d) ? '' : _dateFmt.format(d);
   _dateStrCache.set(s, out);
   return out;
 };
@@ -155,8 +160,8 @@ export const scheduleIcsItems = ({ events = [], shifts = [], shiftStart, shiftEn
     // Trim here: the backend trims titles then rejects empties, so a
     // whitespace-only title must be dropped (or trimmed) before it can 400
     // the whole payload.
-    const title = typeof e.title === "string" ? e.title.trim() : "";
-    if (title === "" || isNaN(toFestivalDate(e.start)) || isNaN(toFestivalDate(e.end))) continue;
+    const title = typeof e.title === 'string' ? e.title.trim() : '';
+    if (title === '' || isNaN(toFestivalDate(e.start)) || isNaN(toFestivalDate(e.end))) continue;
     const item = { id: `event-${e.eventId}`, title, start: e.start, end: e.end };
     if (e.venueTitle) item.location = e.venueTitle;
     if (e.url) item.url = e.url;
@@ -173,8 +178,8 @@ export const scheduleIcsItems = ({ events = [], shifts = [], shiftStart, shiftEn
     if (toFestivalDate(end).getTime() === toFestivalDate(start).getTime()) continue;
     // Trimmed-or-default: a whitespace-only kind is truthy, so `s.kind || "Shift"`
     // would ship "   " and the backend's trim-then-reject would 400 the export.
-    const kind = typeof s.kind === "string" ? s.kind.trim() : "";
-    items.push({ id: `shift-${s._id}`, title: kind === "" ? "Shift" : kind, start, end });
+    const kind = typeof s.kind === 'string' ? s.kind.trim() : '';
+    items.push({ id: `shift-${s._id}`, title: kind === '' ? 'Shift' : kind, start, end });
   }
   return items;
 };
@@ -182,8 +187,8 @@ export const scheduleIcsItems = ({ events = [], shifts = [], shiftStart, shiftEn
 // The Pickathon feed returns HTML-entity-encoded strings (e.g. "Skills &amp; Games").
 // Decode them once at ingest so titles render as text, not markup.
 export const decodeEntities = (s) => {
-  if (typeof s !== "string" || !s.includes("&")) return s;
-  const el = document.createElement("textarea");
+  if (typeof s !== 'string' || !s.includes('&')) return s;
+  const el = document.createElement('textarea');
   el.innerHTML = s;
   return el.value;
 };

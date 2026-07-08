@@ -1,7 +1,7 @@
-import React from "react";
-import { fmtTime } from "./festival-utils.js";
-import { lineupTag, eventCardStyle, eventCardBg } from "./styles.js";
-import NoteField from "./NoteField.jsx";
+import React from 'react';
+import { fmtTime } from './festival-utils.js';
+import { lineupTag, eventCardStyle, eventCardBg } from './styles.js';
+import NoteField from './NoteField.jsx';
 
 export default function BrowseView({
   filteredEvents,
@@ -51,7 +51,7 @@ export default function BrowseView({
       {(() => {
         const byDay = {};
         for (const event of filteredEvents) {
-          const day = event.day || "";
+          const day = event.day || '';
           (byDay[day] || (byDay[day] = [])).push(event);
         }
         const daysToShow = displayDays.filter((day) => byDay[day]?.length > 0);
@@ -86,7 +86,9 @@ export default function BrowseView({
                           </span>
                         </div>
                         {event.speakers && (
-                          <p className="text-xs font-bold text-[#2a2a2a]/70 dark:text-[#ece9f1]/70">{event.speakers}</p>
+                          <p className="text-xs font-bold text-[#2a2a2a]/70 dark:text-[#ece9f1]/70">
+                            {event.speakers}
+                          </p>
                         )}
                         <div className={`space-y-[1px] text-sm font-bold ${c.bodyText}`}>
                           <p>{event.venueTitle}</p>
@@ -102,7 +104,9 @@ export default function BrowseView({
                           />
                         ) : notes[event.eventId] ? (
                           <div className={c.noteBox}>
-                            <p className={`text-sm font-bold ${c.bodyText}`}>{notes[event.eventId]}</p>
+                            <p className={`text-sm font-bold ${c.bodyText}`}>
+                              {notes[event.eventId]}
+                            </p>
                           </div>
                         ) : null}
                       </div>
@@ -112,10 +116,16 @@ export default function BrowseView({
                             onClick={() => toggleFavorite(event)}
                             className={myFavIds.has(event.eventId) ? c.favToggleOn : c.favToggleOff}
                           >
-                            {myFavIds.has(event.eventId) ? "♥" : "♡"}
+                            {myFavIds.has(event.eventId) ? '♥' : '♡'}
                           </button>
                         )}
-                        <a href={event.url} target="_blank" rel="noopener noreferrer" className={c.linkBtn} title="View talk page">
+                        <a
+                          href={event.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={c.linkBtn}
+                          title="View talk page"
+                        >
                           <svg
                             width="20"
                             height="20"

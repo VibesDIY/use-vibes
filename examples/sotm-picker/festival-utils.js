@@ -1,22 +1,22 @@
-export const FESTIVAL_TZ = "Europe/Paris";
+export const FESTIVAL_TZ = 'Europe/Paris';
 
 const hasExplicitTZ = (s) => /([+-]\d\d:\d\d|Z)$/.test(s);
-export const ensureT = (s = "") => (s.includes("T") ? s : s.replace(" ", "T"));
+export const ensureT = (s = '') => (s.includes('T') ? s : s.replace(' ', 'T'));
 
 // Intl.DateTimeFormat construction is expensive (tens of µs each). These helpers
 // run inside sort comparators and filters over hundreds of events every render,
 // so we build each formatter ONCE at module scope and memoize the results by their
 // input string — the conference's date strings are a small, stable set parsed
 // thousands of times per render. This is the single biggest render-cost win.
-const _offsetFmt = new Intl.DateTimeFormat("en-US", {
+const _offsetFmt = new Intl.DateTimeFormat('en-US', {
   timeZone: FESTIVAL_TZ,
-  hourCycle: "h23",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
+  hourCycle: 'h23',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
 });
 
 const tzOffsetMinutes = (date) => {
@@ -26,7 +26,7 @@ const tzOffsetMinutes = (date) => {
 };
 
 const parseInTZ = (naive) => {
-  const utcGuess = new Date(naive + "Z");
+  const utcGuess = new Date(naive + 'Z');
   if (isNaN(utcGuess)) return new Date(NaN);
   const offset = tzOffsetMinutes(utcGuess);
   return new Date(utcGuess.getTime() - offset * 60000);
@@ -46,22 +46,22 @@ export const toFestivalDate = (s) => {
 };
 
 export const FESTIVAL_2026 = {
-  dayOrder: ["Friday", "Saturday", "Sunday"],
+  dayOrder: ['Friday', 'Saturday', 'Sunday'],
   dates: {
-    Friday: "2026-08-28",
-    Saturday: "2026-08-29",
-    Sunday: "2026-08-30",
+    Friday: '2026-08-28',
+    Saturday: '2026-08-29',
+    Sunday: '2026-08-30',
   },
-  fallbackStart: "2026-08-28T00:00:00",
+  fallbackStart: '2026-08-28T00:00:00',
 };
 
-const _dayPartsFmt = new Intl.DateTimeFormat("en-US", {
+const _dayPartsFmt = new Intl.DateTimeFormat('en-US', {
   timeZone: FESTIVAL_TZ,
-  weekday: "long",
-  hourCycle: "h23",
-  hour: "2-digit",
+  weekday: 'long',
+  hourCycle: 'h23',
+  hour: '2-digit',
 });
-const _weekdayFmt = new Intl.DateTimeFormat("en-US", { timeZone: FESTIVAL_TZ, weekday: "long" });
+const _weekdayFmt = new Intl.DateTimeFormat('en-US', { timeZone: FESTIVAL_TZ, weekday: 'long' });
 const _dayForCache = new Map();
 export const festivalDayFor = (dateStr) => {
   if (_dayForCache.has(dateStr)) return _dayForCache.get(dateStr);
@@ -79,11 +79,15 @@ export const festivalDayFor = (dateStr) => {
   return out;
 };
 
-const _timeFmt = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: FESTIVAL_TZ });
-const _dateFmt = new Intl.DateTimeFormat("en-US", {
-  weekday: "long",
-  month: "short",
-  day: "numeric",
+const _timeFmt = new Intl.DateTimeFormat('en-US', {
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZone: FESTIVAL_TZ,
+});
+const _dateFmt = new Intl.DateTimeFormat('en-US', {
+  weekday: 'long',
+  month: 'short',
+  day: 'numeric',
   timeZone: FESTIVAL_TZ,
 });
 const _timeCache = new Map();
@@ -95,14 +99,14 @@ const _dateStrCache = new Map();
 export const fmtTime = (s) => {
   if (_timeCache.has(s)) return _timeCache.get(s);
   const d = toFestivalDate(s);
-  const out = isNaN(d) ? "" : _timeFmt.format(d);
+  const out = isNaN(d) ? '' : _timeFmt.format(d);
   _timeCache.set(s, out);
   return out;
 };
 export const fmtDate = (s) => {
   if (_dateStrCache.has(s)) return _dateStrCache.get(s);
   const d = toFestivalDate(s);
-  const out = isNaN(d) ? "" : _dateFmt.format(d);
+  const out = isNaN(d) ? '' : _dateFmt.format(d);
   _dateStrCache.set(s, out);
   return out;
 };
@@ -111,7 +115,7 @@ export const fmtDate = (s) => {
 // deterministic string hash (FNV-1a — it spreads this year's nine track names
 // across five of the six hues) so the assignment is stable across feed refreshes,
 // reloads, and clients — no session-local scrambling of the legend.
-export const TRACK_COLORS = ["#4c7a34", "#2d6a8f", "#a15c0f", "#6d5a8e", "#1e7d63", "#8f5a4a"];
+export const TRACK_COLORS = ['#4c7a34', '#2d6a8f', '#a15c0f', '#6d5a8e', '#1e7d63', '#8f5a4a'];
 export const trackColor = (track) => {
   let h = 0x811c9dc5;
   for (let i = 0; i < track.length; i++) {
@@ -123,7 +127,7 @@ export const trackColor = (track) => {
 
 // pretalx duration is "HH:MM" (occasionally "H:MM"); minutes, or null if unparseable.
 const durationMinutes = (s) => {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(typeof s === "string" ? s : "");
+  const m = /^(\d{1,2}):(\d{2})$/.exec(typeof s === 'string' ? s : '');
   return m ? +m[1] * 60 + +m[2] : null;
 };
 
@@ -154,7 +158,7 @@ export const flattenPretalx = (data) => {
           if (mins === null) continue;
           end = new Date(startDate.getTime() + mins * 60000).toISOString();
         }
-        const track = e.track || "General";
+        const track = e.track || 'General';
         list.push({
           eventId: e.guid,
           title: e.title,
@@ -164,7 +168,7 @@ export const flattenPretalx = (data) => {
           venueTitle: room,
           track,
           type: e.type,
-          speakers: (e.persons || []).map((p) => p.name).join(", "),
+          speakers: (e.persons || []).map((p) => p.name).join(', '),
           lineup: { id: track, color: trackColor(track) },
           day: festivalDayFor(start),
         });
@@ -219,8 +223,8 @@ export const scheduleIcsItems = ({ events = [], shifts = [], shiftStart, shiftEn
     // Trim here: the backend trims titles then rejects empties, so a
     // whitespace-only title must be dropped (or trimmed) before it can 400
     // the whole payload.
-    const title = typeof e.title === "string" ? e.title.trim() : "";
-    if (title === "" || isNaN(toFestivalDate(e.start)) || isNaN(toFestivalDate(e.end))) continue;
+    const title = typeof e.title === 'string' ? e.title.trim() : '';
+    if (title === '' || isNaN(toFestivalDate(e.start)) || isNaN(toFestivalDate(e.end))) continue;
     const item = { id: `event-${e.eventId}`, title, start: e.start, end: e.end };
     if (e.venueTitle) item.location = e.venueTitle;
     if (e.url) item.url = e.url;
@@ -237,8 +241,8 @@ export const scheduleIcsItems = ({ events = [], shifts = [], shiftStart, shiftEn
     if (toFestivalDate(end).getTime() === toFestivalDate(start).getTime()) continue;
     // Trimmed-or-default: a whitespace-only kind is truthy, so `s.kind || "Shift"`
     // would ship "   " and the backend's trim-then-reject would 400 the export.
-    const kind = typeof s.kind === "string" ? s.kind.trim() : "";
-    items.push({ id: `shift-${s._id}`, title: kind === "" ? "Shift" : kind, start, end });
+    const kind = typeof s.kind === 'string' ? s.kind.trim() : '';
+    items.push({ id: `shift-${s._id}`, title: kind === '' ? 'Shift' : kind, start, end });
   }
   return items;
 };

@@ -1,9 +1,9 @@
-import React, { useState } from "react";
-import ScheduleView from "./ScheduleView.jsx";
+import React, { useState } from 'react';
+import ScheduleView from './ScheduleView.jsx';
 
 // Sentinel for selectedFriend meaning "everyone I'm connected to" — the unified
 // schedule. `*` can't appear in a real handle, so it can't collide.
-export const ALL_FRIENDS = "*all*";
+export const ALL_FRIENDS = '*all*';
 
 export default function FriendsView({
   friends,
@@ -50,7 +50,7 @@ export default function FriendsView({
         <div className="flex items-center gap-[3px]">
           <button
             onClick={copyLink}
-            className={`flex items-center gap-0.5 py-[7px] px-2.5 font-bold rounded-2xl m-0.5  transition-all ${copied ? "bg-[#389826] text-white" : "bg-white dark:bg-[#262031] text-[#2a2a2a] dark:text-[#ece9f1] hover:bg-[#ece4f3] dark:hover:bg-[#241a2e]"}`}
+            className={`flex items-center gap-0.5 py-[7px] px-2.5 font-bold rounded-2xl m-0.5  transition-all ${copied ? 'bg-[#389826] text-white' : 'bg-white dark:bg-[#262031] text-[#2a2a2a] dark:text-[#ece9f1] hover:bg-[#ece4f3] dark:hover:bg-[#241a2e]'}`}
           >
             {copied ? (
               <>
@@ -89,25 +89,31 @@ export default function FriendsView({
           </button>
         </div>
         <p className={`text-sm font-bold text-center max-w-[340px] ${c.bodyText}`}>
-          Send this link to someone you want to add as a friend. When they open it, you'll be added to each other's crews and can
-          see each other's schedules.
+          Send this link to someone you want to add as a friend. When they open it, you'll be added
+          to each other's crews and can see each other's schedules.
         </p>
       </div>
 
       <div className="mb-1.5 p-2.5 bg-white dark:bg-[#262031] rounded-2xl m-0.5 ">
         <p className={`text-sm font-bold mb-1 ${c.bodyText} italic`}>
-          {friends.length + friendedBy.length > 0 ? "Click a friend to see their schedule" : "Add a friend to see their schedule"}
+          {friends.length + friendedBy.length > 0
+            ? 'Click a friend to see their schedule'
+            : 'Add a friend to see their schedule'}
         </p>
         {friends.length + friendedBy.length > 0 && (
           <div className="flex items-center flex-wrap gap-0.5 mb-1.5">
             <button
               onClick={() => setSelectedFriend(selectedFriend === ALL_FRIENDS ? null : ALL_FRIENDS)}
-              className={`py-[5px] px-2 font-black rounded-full m-0.5 transition-all ${selectedFriend === ALL_FRIENDS ? "bg-[#CB3C33] text-white" : "bg-[#9558B2] dark:bg-[#3a2545] text-white hover:opacity-90"}`}
+              className={`py-[5px] px-2 font-black rounded-full m-0.5 transition-all ${selectedFriend === ALL_FRIENDS ? 'bg-[#CB3C33] text-white' : 'bg-[#9558B2] dark:bg-[#3a2545] text-white hover:opacity-90'}`}
             >
               All
             </button>
-            <span className={`text-sm font-bold ${c.bodyText}`}>everyone's picks as one schedule</span>
-            <label className={`flex items-center gap-0.5 text-sm font-bold ${c.bodyText} cursor-pointer`}>
+            <span className={`text-sm font-bold ${c.bodyText}`}>
+              everyone's picks as one schedule
+            </span>
+            <label
+              className={`flex items-center gap-0.5 text-sm font-bold ${c.bodyText} cursor-pointer`}
+            >
               <input
                 type="checkbox"
                 checked={!!includeMyFaves}
@@ -126,7 +132,7 @@ export default function FriendsView({
             {friendedBy.map((f) => (
               <div
                 key={`by-${f._id}`}
-                className={`flex items-center gap-0.5 p-0.5 rounded-full m-0.5  transition-all ${selectedFriend === f.userId ? "bg-[#CB3C33]" : "bg-[#9558B2] dark:bg-[#3a2545]"}`}
+                className={`flex items-center gap-0.5 p-0.5 rounded-full m-0.5  transition-all ${selectedFriend === f.userId ? 'bg-[#CB3C33]' : 'bg-[#9558B2] dark:bg-[#3a2545]'}`}
               >
                 <button
                   onClick={() => setSelectedFriend(selectedFriend === f.userId ? null : f.userId)}
@@ -142,16 +148,20 @@ export default function FriendsView({
 
         <h3 className={`text-xl font-black mb-1 ${c.bodyText}`}>Following ({friends.length})</h3>
         {friends.length === 0 ? (
-          <p className={`font-bold ${c.bodyText}`}>No friends yet — share your QR code above to connect.</p>
+          <p className={`font-bold ${c.bodyText}`}>
+            No friends yet — share your QR code above to connect.
+          </p>
         ) : (
           <div className="flex flex-wrap gap-[3px]">
             {friends.map((f) => (
               <div
                 key={f._id}
-                className={`flex items-center gap-0.5 p-0.5 rounded-full m-0.5  transition-all ${selectedFriend === f.friendSlug ? "bg-[#CB3C33]" : "bg-[#ece4f3] dark:bg-[#241a2e]"}`}
+                className={`flex items-center gap-0.5 p-0.5 rounded-full m-0.5  transition-all ${selectedFriend === f.friendSlug ? 'bg-[#CB3C33]' : 'bg-[#ece4f3] dark:bg-[#241a2e]'}`}
               >
                 <button
-                  onClick={() => setSelectedFriend(selectedFriend === f.friendSlug ? null : f.friendSlug)}
+                  onClick={() =>
+                    setSelectedFriend(selectedFriend === f.friendSlug ? null : f.friendSlug)
+                  }
                   className="flex items-center"
                 >
                   <ViewerTag userHandle={f.friendSlug} />
@@ -190,7 +200,9 @@ export default function FriendsView({
             shiftStartRaw={shiftStartRaw}
             shiftEndRaw={shiftEndRaw}
             emptyMessage={
-              selectedFriend === ALL_FRIENDS ? "Your crew hasn't picked any talks yet." : "This friend hasn't picked any talks yet."
+              selectedFriend === ALL_FRIENDS
+                ? "Your crew hasn't picked any talks yet."
+                : "This friend hasn't picked any talks yet."
             }
             canWrite={false}
             onToggleFavorite={canWrite ? toggleFavorite : null}

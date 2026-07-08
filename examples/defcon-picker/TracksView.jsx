@@ -1,12 +1,22 @@
-import React from "react";
-import { fmtDate, fmtTime } from "./festival-utils.js";
-import { eventCardBg } from "./styles.js";
+import React from 'react';
+import { fmtDate, fmtTime } from './festival-utils.js';
+import { eventCardBg } from './styles.js';
 
 // Track titles are free text from the feed ("Aw, man...pages!"), so scroll-anchor
 // ids must be sanitized to something DOM-id-safe.
-const trackDomId = (title) => `track-${title.replace(/[^A-Za-z0-9_-]/g, "-")}`;
+const trackDomId = (title) => `track-${title.replace(/[^A-Za-z0-9_-]/g, '-')}`;
 
-export default function TracksView({ tracksList, myFavIds, canWrite, toggleFavorite, favCounts, superMode, c, database, userId }) {
+export default function TracksView({
+  tracksList,
+  myFavIds,
+  canWrite,
+  toggleFavorite,
+  favCounts,
+  superMode,
+  c,
+  database,
+  userId,
+}) {
   const toggleAllTrack = async (track) => {
     const allFaved = track.events.every((e) => myFavIds.has(e.eventId));
     if (allFaved) {
@@ -19,7 +29,7 @@ export default function TracksView({ tracksList, myFavIds, canWrite, toggleFavor
         if (!myFavIds.has(e.eventId)) {
           await database.put({
             _id: `favorite-${userId}-${e.eventId}`,
-            type: "favorite",
+            type: 'favorite',
             eventId: e.eventId,
             userId,
           });
@@ -38,11 +48,15 @@ export default function TracksView({ tracksList, myFavIds, canWrite, toggleFavor
         {tracksList.map((track) => (
           <button
             key={`nav-${track.title}`}
-            onClick={() => document.getElementById(trackDomId(track.title))?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onClick={() =>
+              document
+                .getElementById(trackDomId(track.title))
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
             className="px-2 py-1.5 rounded-xl m-0.5 font-black text-sm cursor-pointer hover:opacity-80 transition-all"
             style={{
-              backgroundColor: track.lineup?.color || "#39ff14",
-              color: track.lineup?.textColor || "#ffffff",
+              backgroundColor: track.lineup?.color || '#39ff14',
+              color: track.lineup?.textColor || '#ffffff',
             }}
           >
             {track.title} ({track.events.length})
@@ -57,31 +71,32 @@ export default function TracksView({ tracksList, myFavIds, canWrite, toggleFavor
             <h3
               className="text-lg font-black mb-[3px] px-2 py-1.5 rounded-xl m-0.5 inline-block"
               style={{
-                backgroundColor: track.lineup?.color || "#39ff14",
-                color: track.lineup?.textColor || "#ffffff",
+                backgroundColor: track.lineup?.color || '#39ff14',
+                color: track.lineup?.textColor || '#ffffff',
               }}
             >
               {track.title} ({track.events.length})
             </h3>
             <div
               className={`rounded-[16px] m-0.5 p-2 shadow-lg ${eventCardBg}`}
-              style={{ "--lineup": track.lineup?.color || "#39ff14" }}
+              style={{ '--lineup': track.lineup?.color || '#39ff14' }}
             >
               <div className="flex items-start gap-[3px]">
                 {canWrite && (
                   <button
                     onClick={() => toggleAllTrack(track)}
                     title="Favorite every session on this track"
-                    className={`shrink-0 text-2xl p-1.5 rounded-2xl m-0.5 font-bold transition-all ${allFaved ? "bg-[#39ff14] text-[#0a0a0c] hover:opacity-90" : anyFav ? "bg-[#39ff14]/40 text-[#0a0a0c] hover:opacity-90" : "bg-[#1a1a20] text-[#e8e8e8] hover:bg-[#26262e]"}`}
+                    className={`shrink-0 text-2xl p-1.5 rounded-2xl m-0.5 font-bold transition-all ${allFaved ? 'bg-[#39ff14] text-[#0a0a0c] hover:opacity-90' : anyFav ? 'bg-[#39ff14]/40 text-[#0a0a0c] hover:opacity-90' : 'bg-[#1a1a20] text-[#e8e8e8] hover:bg-[#26262e]'}`}
                   >
-                    {allFaved ? "♥" : anyFav ? "◐" : "♡"}
+                    {allFaved ? '♥' : anyFav ? '◐' : '♡'}
                   </button>
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-0.5 mb-0.5 flex-wrap">
                     <p className={`text-sm font-bold text-[#e8e8e8]/70`}>
-                      {track.venueList.length} room{track.venueList.length > 1 ? "s" : ""} · {track.events.length} session
-                      {track.events.length > 1 ? "s" : ""}
+                      {track.venueList.length} room{track.venueList.length > 1 ? 's' : ''} ·{' '}
+                      {track.events.length} session
+                      {track.events.length > 1 ? 's' : ''}
                     </p>
                     {superMode && track.events.some((e) => favCounts[e.eventId] > 0) && (
                       <span className={c.badge} title="Total picks across sessions">
@@ -95,9 +110,9 @@ export default function TracksView({ tracksList, myFavIds, canWrite, toggleFavor
                         {canWrite && (
                           <button
                             onClick={() => toggleFavorite(e)}
-                            className={`text-sm px-0.5 py-[0.5px] rounded-lg m-0.5 font-bold transition-all ${myFavIds.has(e.eventId) ? "bg-[#39ff14] text-[#0a0a0c]" : "bg-[#1a1a20] text-[#e8e8e8] hover:bg-[#26262e]"}`}
+                            className={`text-sm px-0.5 py-[0.5px] rounded-lg m-0.5 font-bold transition-all ${myFavIds.has(e.eventId) ? 'bg-[#39ff14] text-[#0a0a0c]' : 'bg-[#1a1a20] text-[#e8e8e8] hover:bg-[#26262e]'}`}
                           >
-                            {myFavIds.has(e.eventId) ? "♥" : "♡"}
+                            {myFavIds.has(e.eventId) ? '♥' : '♡'}
                           </button>
                         )}
                         <span className={`text-sm font-black ${c.bodyText}`}>{e.title}</span>

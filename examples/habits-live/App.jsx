@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { useFireproof } from "use-fireproof";
-import { useViewer, useVibe } from "use-vibes";
+import React, { useState, useMemo, useEffect } from 'react';
+import { useFireproof } from 'use-fireproof';
+import { useViewer, useVibe } from 'use-vibes';
 
 // ── Habits Live (system/habits-live) ─────────────────────────────────────────
 // The daily-recurring branch of the /start Productive lane (#3080): habits
@@ -18,13 +18,13 @@ import { useViewer, useVibe } from "use-vibes";
 // out via anonymousLocal; sign-in is only for syncing and accountability
 // sharing, and lives in the Friends sheet.
 
-const DB = "habits";
+const DB = 'habits';
 
 // Local calendar day (YYYY-MM-DD) for a Date — the ONE day-key derivation.
 function dayKey(d) {
   const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${dd}`;
 }
 
@@ -34,7 +34,7 @@ function lastDays(n) {
   const now = new Date();
   for (let i = n - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-    out.push({ key: dayKey(d), label: "SMTWTFS"[d.getDay()], date: d });
+    out.push({ key: dayKey(d), label: 'SMTWTFS'[d.getDay()], date: d });
   }
   return out;
 }
@@ -49,7 +49,8 @@ function streakFor(daySet, days) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
     const k = dayKey(d);
     if (daySet.has(k)) count += 1;
-    else if (k === today) continue; // today not logged yet — keep counting back
+    else if (k === today)
+      continue; // today not logged yet — keep counting back
     else break;
   }
   return count;
@@ -60,8 +61,8 @@ function streakFor(daySet, days) {
 // (check-<habitId>-<day>), so preserved _ids make retries idempotent. Members
 // can't exist pre-login — drop strays.
 const migrateHabitsDoc = (doc, handle) => {
-  if (doc.type === "habit" || doc.type === "check") {
-    return { ...doc, scopeId: "default-" + handle, authorHandle: handle };
+  if (doc.type === 'habit' || doc.type === 'check') {
+    return { ...doc, scopeId: 'default-' + handle, authorHandle: handle };
   }
   return null;
 };
@@ -76,19 +77,19 @@ export default function App() {
 
   const signedIn = !!viewer?.userHandle;
   const myHandle = me?.userHandle || viewer?.userHandle;
-  const myScopeId = "default-" + (myHandle || "anon");
+  const myScopeId = 'default-' + (myHandle || 'anon');
 
-  const { doc: draft, merge: mergeDraft } = useDocument({ name: "" });
-  const { docs: habitDocs } = useLiveQuery("type", { key: "habit" });
-  const { docs: checkDocs } = useLiveQuery("type", { key: "check" });
-  const { docs: memberDocs } = useLiveQuery("type", { key: "member" });
+  const { doc: draft, merge: mergeDraft } = useDocument({ name: '' });
+  const { docs: habitDocs } = useLiveQuery('type', { key: 'habit' });
+  const { docs: checkDocs } = useLiveQuery('type', { key: 'check' });
+  const { docs: memberDocs } = useLiveQuery('type', { key: 'member' });
 
   // Whose habits am I looking at? Mine, or a friend's who invited me.
   const [scopeChoice, setScopeChoiceState] = useState(() => {
     try {
-      return localStorage.getItem("habits-live-scope") || "mine";
+      return localStorage.getItem('habits-live-scope') || 'mine';
     } catch {
-      return "mine";
+      return 'mine';
     }
   });
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -110,19 +111,21 @@ export default function App() {
   const sharedScopeIds = useMemo(() => {
     const ids = new Set();
     for (const m of memberDocs) {
-      if (myHandle && m.userHandle === myHandle && m.scopeId && m.scopeId !== myScopeId) ids.add(m.scopeId);
+      if (myHandle && m.userHandle === myHandle && m.scopeId && m.scopeId !== myScopeId)
+        ids.add(m.scopeId);
     }
     return [...ids].sort();
   }, [memberDocs, myHandle, myScopeId]);
 
-  const activeScopeId = scopeChoice === "mine" || !sharedScopeIds.includes(scopeChoice) ? myScopeId : scopeChoice;
+  const activeScopeId =
+    scopeChoice === 'mine' || !sharedScopeIds.includes(scopeChoice) ? myScopeId : scopeChoice;
   const isMyScope = activeScopeId === myScopeId;
-  const scopeOwnerHandle = activeScopeId.slice("default-".length);
+  const scopeOwnerHandle = activeScopeId.slice('default-'.length);
 
   function switchScope(choice) {
     setScopeChoiceState(choice);
     try {
-      localStorage.setItem("habits-live-scope", choice);
+      localStorage.setItem('habits-live-scope', choice);
     } catch {
       /* per-device nicety only */
     }
@@ -150,18 +153,33 @@ export default function App() {
   const viewers = memberDocs.filter((m) => m.scopeId === activeScopeId);
 
   // Viewers are read-only by construction (access.js); the UI mirrors that.
-  const canWrite = isMyScope && (signedIn ? ready && !!can.create({ type: "habit", scopeId: myScopeId, authorHandle: myHandle }).ok : true);
+  const canWrite =
+    isMyScope &&
+    (signedIn
+      ? ready && !!can.create({ type: 'habit', scopeId: myScopeId, authorHandle: myHandle }).ok
+      : true);
   // Probe with a concrete userHandle — the fn validates the grantee id, so a
   // handle-less probe would throw instead of answering.
   const canInvite =
-    signedIn && ready ? !!can.create({ type: "member", scopeId: myScopeId, userHandle: myHandle, addedBy: myHandle }).ok : false;
+    signedIn && ready
+      ? !!can.create({
+          type: 'member',
+          scopeId: myScopeId,
+          userHandle: myHandle,
+          addedBy: myHandle,
+        }).ok
+      : false;
 
   async function guarded(write) {
     try {
       setNotice(null);
       await write();
     } catch (e) {
-      setNotice(signedIn ? e?.message || "That change was not allowed." : "Sign in to keep using your habits on this device.");
+      setNotice(
+        signedIn
+          ? e?.message || 'That change was not allowed.'
+          : 'Sign in to keep using your habits on this device.'
+      );
     }
   }
 
@@ -169,10 +187,10 @@ export default function App() {
     e.preventDefault();
     const name = draft.name.trim();
     if (!name || !canWrite) return;
-    mergeDraft({ name: "" });
+    mergeDraft({ name: '' });
     await guarded(() =>
       database.put({
-        type: "habit",
+        type: 'habit',
         name,
         scopeId: myScopeId,
         createdAt: Date.now(),
@@ -191,7 +209,7 @@ export default function App() {
         ? database.del(existing._id)
         : database.put({
             _id: `check-${habit._id}-${key}`,
-            type: "check",
+            type: 'check',
             habitId: habit._id,
             day: key,
             scopeId: myScopeId,
@@ -210,7 +228,9 @@ export default function App() {
     }
     setDeleteArmedId(null);
     const doomed = checkDocs.filter((c) => c.habitId === habit._id);
-    await guarded(() => Promise.all([...doomed.map((c) => database.del(c._id)), database.del(habit._id)]));
+    await guarded(() =>
+      Promise.all([...doomed.map((c) => database.del(c._id)), database.del(habit._id)])
+    );
   }
 
   // `handle` arrives pre-sanitized from HandleInput (picked handles are real
@@ -220,7 +240,7 @@ export default function App() {
     if (handle === myHandle || viewers.some((m) => m.userHandle === handle)) return;
     await guarded(() =>
       database.put({
-        type: "member",
+        type: 'member',
         scopeId: myScopeId,
         userHandle: handle,
         addedBy: myHandle,
@@ -243,21 +263,26 @@ export default function App() {
       <div className="max-w-md mx-auto">
         <header className="mb-3 flex items-end justify-between px-1">
           <div>
-            <span className="block text-[0.6rem] uppercase tracking-widest font-bold text-[#242424] opacity-60">Habits Live</span>
+            <span className="block text-[0.6rem] uppercase tracking-widest font-bold text-[#242424] opacity-60">
+              Habits Live
+            </span>
             <h1 className="text-xl md:text-3xl font-bold text-[#242424] leading-tight">
-              {isMyScope ? "My Habits" : `@${scopeOwnerHandle}'s habits`}
+              {isMyScope ? 'My Habits' : `@${scopeOwnerHandle}'s habits`}
             </h1>
           </div>
           <button
             onClick={() => setSheetOpen(true)}
             className="min-h-[44px] px-3 bg-[#ffd670] border-4 border-[#242424] font-bold text-sm text-[#242424] active:bg-[#70d6ff]"
           >
-            Friends{signedIn && viewers.length > 0 ? ` (${viewers.length})` : ""}
+            Friends{signedIn && viewers.length > 0 ? ` (${viewers.length})` : ''}
           </button>
         </header>
 
         {canWrite ? (
-          <form onSubmit={addHabit} className="bg-[#ffffff] border-4 border-[#242424] p-3 mb-3 flex gap-2">
+          <form
+            onSubmit={addHabit}
+            className="bg-[#ffffff] border-4 border-[#242424] p-3 mb-3 flex gap-2"
+          >
             <input
               type="text"
               placeholder="Start a daily habit..."
@@ -275,7 +300,9 @@ export default function App() {
         ) : (
           !isMyScope && (
             <div className="bg-[#ffffff] border-4 border-[#242424] p-3 mb-3 text-center">
-              <p className="font-bold text-[#242424] text-sm">Cheering @{scopeOwnerHandle} on — viewers can look, only they can log.</p>
+              <p className="font-bold text-[#242424] text-sm">
+                Cheering @{scopeOwnerHandle} on — viewers can look, only they can log.
+              </p>
             </div>
           )
         )}
@@ -290,7 +317,9 @@ export default function App() {
           {habits.length === 0 && (
             <div className="bg-[#ffffff] bg-opacity-70 border-4 border-[#242424] p-6 text-center">
               <p className="font-bold text-[#242424] opacity-70">
-                {isMyScope ? "No habits yet — start one above. Check in daily to build a streak." : "No habits here yet."}
+                {isMyScope
+                  ? 'No habits yet — start one above. Check in daily to build a streak.'
+                  : 'No habits here yet.'}
               </p>
             </div>
           )}
@@ -302,9 +331,11 @@ export default function App() {
             return (
               <div key={habit._id} className="bg-[#ffffff] border-4 border-[#242424] p-3">
                 <div className="flex items-center justify-between gap-2 mb-2">
-                  <h3 className="font-bold text-[#242424] text-lg leading-tight flex-1">{habit.name}</h3>
+                  <h3 className="font-bold text-[#242424] text-lg leading-tight flex-1">
+                    {habit.name}
+                  </h3>
                   <span
-                    className={`shrink-0 text-sm font-bold px-2 py-0.5 border-2 border-[#242424] ${streak > 0 ? "bg-[#ffd670]" : "bg-[#ffffff] opacity-50"}`}
+                    className={`shrink-0 text-sm font-bold px-2 py-0.5 border-2 border-[#242424] ${streak > 0 ? 'bg-[#ffd670]' : 'bg-[#ffffff] opacity-50'}`}
                   >
                     🔥 {streak}
                   </span>
@@ -312,9 +343,9 @@ export default function App() {
                     <button
                       aria-label={`Delete ${habit.name}`}
                       onClick={() => deleteHabit(habit)}
-                      className={`shrink-0 min-h-[32px] px-2 border-2 font-bold text-xs ${deleteArmedId === habit._id ? "bg-[#d94f3d] text-white border-[#242424]" : "border-[#d94f3d] text-[#d94f3d] bg-[#ffffff]"}`}
+                      className={`shrink-0 min-h-[32px] px-2 border-2 font-bold text-xs ${deleteArmedId === habit._id ? 'bg-[#d94f3d] text-white border-[#242424]' : 'border-[#d94f3d] text-[#d94f3d] bg-[#ffffff]'}`}
                     >
-                      {deleteArmedId === habit._id ? "Really?" : "✕"}
+                      {deleteArmedId === habit._id ? 'Really?' : '✕'}
                     </button>
                   )}
                 </div>
@@ -331,11 +362,15 @@ export default function App() {
                         onClick={() => toggleDay(habit, d.key)}
                         aria-label={`${habit.name} on ${d.key}`}
                         className={`border-[#242424] font-bold text-[#242424] flex flex-col items-center justify-center ${
-                          isToday ? "flex-1 min-h-[52px] border-4 text-base" : "w-9 min-h-[44px] border-2 text-[0.6rem]"
-                        } ${checked ? "bg-[#e9ff70]" : "bg-[#ffffff]"} ${!canWrite ? "opacity-70" : "active:bg-[#ffd670]"}`}
+                          isToday
+                            ? 'flex-1 min-h-[52px] border-4 text-base'
+                            : 'w-9 min-h-[44px] border-2 text-[0.6rem]'
+                        } ${checked ? 'bg-[#e9ff70]' : 'bg-[#ffffff]'} ${!canWrite ? 'opacity-70' : 'active:bg-[#ffd670]'}`}
                       >
-                        <span className="opacity-60">{isToday ? (doneToday ? "DONE TODAY ✓" : "MARK TODAY") : d.label}</span>
-                        {!isToday && <span>{checked ? "✓" : "·"}</span>}
+                        <span className="opacity-60">
+                          {isToday ? (doneToday ? 'DONE TODAY ✓' : 'MARK TODAY') : d.label}
+                        </span>
+                        {!isToday && <span>{checked ? '✓' : '·'}</span>}
                       </button>
                     );
                   })}
@@ -347,7 +382,9 @@ export default function App() {
 
         <div className="pt-2 pb-20 text-center">
           {!signedIn && (
-            <p className="text-xs font-bold text-[#242424] opacity-70">On this device — sign in to sync &amp; share your streaks</p>
+            <p className="text-xs font-bold text-[#242424] opacity-70">
+              On this device — sign in to sync &amp; share your streaks
+            </p>
           )}
         </div>
       </div>
@@ -360,14 +397,16 @@ export default function App() {
           <div className="fixed inset-0 z-40" onPointerDown={() => setSheetOpen(false)} />
           <div
             className="fixed inset-x-0 bottom-0 z-50 md:inset-x-auto md:left-1/2 md:bottom-10 md:w-[380px] md:-translate-x-1/2 bg-[#ffffff] border-t-4 md:border-4 border-[#242424] p-4 pb-16 md:pb-4 space-y-3 max-h-[70vh] overflow-y-auto"
-            style={{ boxShadow: "0 -6px 0 #242424" }}
+            style={{ boxShadow: '0 -6px 0 #242424' }}
           >
             {!signedIn ? (
               <>
-                <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest">Sync &amp; share</h3>
+                <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest">
+                  Sync &amp; share
+                </h3>
                 <p className="text-sm font-bold text-[#242424]">
-                  Your habits live on this device. Sign in to sync them everywhere and invite friends to cheer your streaks — they see,
-                  you log.
+                  Your habits live on this device. Sign in to sync them everywhere and invite
+                  friends to cheer your streaks — they see, you log.
                 </p>
                 <div className="flex justify-center py-1">
                   <ViewerTag />
@@ -375,9 +414,13 @@ export default function App() {
               </>
             ) : (
               <>
-                <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest">My accountability crew</h3>
+                <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest">
+                  My accountability crew
+                </h3>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-bold text-[#242424] opacity-60 uppercase tracking-widest">Viewers</span>
+                  <span className="text-xs font-bold text-[#242424] opacity-60 uppercase tracking-widest">
+                    Viewers
+                  </span>
                   {memberDocs.filter((m) => m.scopeId === myScopeId).length === 0 && (
                     <span className="text-sm font-bold text-[#242424] opacity-50">nobody yet</span>
                   )}
@@ -389,7 +432,11 @@ export default function App() {
                         className="text-sm font-bold text-[#242424] bg-[#ffd670] border-2 border-[#242424] px-2 py-0.5 inline-flex items-center gap-1"
                       >
                         @{m.userHandle}
-                        <button aria-label={`Remove @${m.userHandle}`} onClick={() => removeViewer(m)} className="font-bold">
+                        <button
+                          aria-label={`Remove @${m.userHandle}`}
+                          onClick={() => removeViewer(m)}
+                          className="font-bold"
+                        >
                           ✕
                         </button>
                       </span>
@@ -404,15 +451,23 @@ export default function App() {
                     value={null}
                     onChange={addViewer}
                     placeholder="Invite a viewer..."
-                    style={{ display: "block", "--border": "#242424", "--card-bg": "#ffffff", "--text": "#242424", "--muted": "#5c5c5c" }}
+                    style={{
+                      display: 'block',
+                      '--border': '#242424',
+                      '--card-bg': '#ffffff',
+                      '--text': '#242424',
+                      '--muted': '#5c5c5c',
+                    }}
                   />
                 )}
                 {(sharedScopeIds.length > 0 || !isMyScope) && (
                   <>
-                    <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest pt-1">Watching</h3>
+                    <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest pt-1">
+                      Watching
+                    </h3>
                     <button
-                      onClick={() => switchScope("mine")}
-                      className={`w-full min-h-[44px] px-3 border-4 border-[#242424] font-bold text-left text-[#242424] ${isMyScope ? "bg-[#e9ff70]" : "bg-[#ffffff]"}`}
+                      onClick={() => switchScope('mine')}
+                      className={`w-full min-h-[44px] px-3 border-4 border-[#242424] font-bold text-left text-[#242424] ${isMyScope ? 'bg-[#e9ff70]' : 'bg-[#ffffff]'}`}
                     >
                       My Habits
                     </button>
@@ -420,9 +475,9 @@ export default function App() {
                       <button
                         key={id}
                         onClick={() => switchScope(id)}
-                        className={`w-full min-h-[44px] px-3 border-4 border-[#242424] font-bold text-left text-[#242424] ${activeScopeId === id ? "bg-[#e9ff70]" : "bg-[#ffffff]"}`}
+                        className={`w-full min-h-[44px] px-3 border-4 border-[#242424] font-bold text-left text-[#242424] ${activeScopeId === id ? 'bg-[#e9ff70]' : 'bg-[#ffffff]'}`}
                       >
-                        @{id.slice("default-".length)}'s habits
+                        @{id.slice('default-'.length)}'s habits
                       </button>
                     ))}
                   </>

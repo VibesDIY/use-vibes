@@ -15,11 +15,11 @@
 // Usage: node vibes/defcon-picker/scripts/refresh-schedule.mjs
 // (needs a vibes-diy CLI login that owns calendar/defcon-picker)
 
-import { execFileSync } from "node:child_process";
+import { execFileSync } from 'node:child_process';
 
-const UPSTREAM = "https://info.defcon.org/ht/defcon34/views/scheduleDays.json";
-const VIBE = "calendar/defcon-picker";
-const DB = "defcon34";
+const UPSTREAM = 'https://info.defcon.org/ht/defcon34/views/scheduleDays.json';
+const VIBE = 'calendar/defcon-picker';
+const DB = 'defcon34';
 // Linux caps a single argv string at 128 KiB (MAX_ARG_STRLEN) and the chunk
 // rides `db put`'s positional JSON arg, so stay comfortably under it — also
 // well below any doc-size ceiling. A full-con feed (DC33 was ~3.8 MB raw, far
@@ -40,23 +40,34 @@ const slimSession = (s) => ({
   locationName: s.locationName,
   color: s.color,
   tags: Array.isArray(s.tags)
-    ? s.tags.map((t) => ({ label: t.label, colorBackground: t.colorBackground, colorForeground: t.colorForeground }))
+    ? s.tags.map((t) => ({
+        label: t.label,
+        colorBackground: t.colorBackground,
+        colorForeground: t.colorForeground,
+      }))
     : [],
-  contentEntity: s.contentEntity && Array.isArray(s.contentEntity.links) ? { links: s.contentEntity.links } : undefined,
+  contentEntity:
+    s.contentEntity && Array.isArray(s.contentEntity.links)
+      ? { links: s.contentEntity.links }
+      : undefined,
 });
 
 const cli = (args, input) =>
-  execFileSync("npx", ["vibes-diy", ...args], { encoding: "utf8", input, stdio: ["pipe", "pipe", "inherit"] });
+  execFileSync('npx', ['vibes-diy', ...args], {
+    encoding: 'utf8',
+    input,
+    stdio: ['pipe', 'pipe', 'inherit'],
+  });
 
 // curl, not fetch: Node's undici ignores HTTPS_PROXY, and agent containers
 // route outbound HTTPS through a proxy — a direct connection gets blocked.
 // curl honors the proxy env everywhere this script runs.
-const raw = execFileSync("curl", ["-sS", "--fail", "-H", "accept: application/json", UPSTREAM], {
-  encoding: "utf8",
+const raw = execFileSync('curl', ['-sS', '--fail', '-H', 'accept: application/json', UPSTREAM], {
+  encoding: 'utf8',
   maxBuffer: 64 * 1024 * 1024,
 });
 const days = JSON.parse(raw);
-if (!Array.isArray(days)) throw new Error("upstream shape changed: expected an array of days");
+if (!Array.isArray(days)) throw new Error('upstream shape changed: expected an array of days');
 
 const slim = days.map((d) => ({ day: d.day, sessions: (d.sessions || []).map(slimSession) }));
 const body = JSON.stringify(slim);
@@ -67,14 +78,16 @@ for (let i = 0; i < body.length; i += CHUNK_CHARS) chunks.push(body.slice(i, i +
 const fetchedAt = new Date().toISOString();
 const docs = chunks.map((chunk, seq) => ({
   _id: `schedule-snapshot-${seq}`,
-  type: "schedule-snapshot",
+  type: 'schedule-snapshot',
   seq,
   total: chunks.length,
   fetchedAt,
   body: chunk,
 }));
 
-console.log(`fetched ${days.length} days / ${sessionCount} sessions; ${body.length} chars → ${docs.length} chunk(s)`);
+console.log(
+  `fetched ${days.length} days / ${sessionCount} sessions; ${body.length} chars → ${docs.length} chunk(s)`
+);
 
 // access.js owner-gates `schedule-snapshot` (the served schedule must not be
 // poisonable by ordinary signed-in users), and owner enforcement is HANDLE-based:
@@ -86,11 +99,11 @@ console.log(`fetched ${days.length} days / ${sessionCount} sessions; ${body.leng
 // the owner's next push would land under `calendar`.
 // The doc JSON rides stdin ('-'), so no argv byte limit applies regardless of
 // chunk size or non-ASCII content.
-const RESTORE_HANDLE = "jchris"; // the account's primary handle
-cli(["user-settings", "--set-default-handle", "calendar"]);
+const RESTORE_HANDLE = 'jchris'; // the account's primary handle
+cli(['user-settings', '--set-default-handle', 'calendar']);
 try {
   for (const doc of docs) {
-    cli(["db", "put", "--vibe", VIBE, "--db", DB, "-"], JSON.stringify(doc));
+    cli(['db', 'put', '--vibe', VIBE, '--db', DB, '-'], JSON.stringify(doc));
     console.log(`put ${doc._id} (${doc.body.length} chars)`);
   }
 
@@ -99,13 +112,13 @@ try {
   // sparse stale chunks that keep the backend's completeness check false forever.
   for (let seq = docs.length; seq < docs.length + DELETE_TAIL; seq++) {
     try {
-      cli(["db", "del", "--vibe", VIBE, "--db", DB, `schedule-snapshot-${seq}`]);
+      cli(['db', 'del', '--vibe', VIBE, '--db', DB, `schedule-snapshot-${seq}`]);
     } catch {
       // not-found (or transient) — keep sweeping the rest of the range
     }
   }
 } finally {
-  cli(["user-settings", "--set-default-handle", RESTORE_HANDLE]);
+  cli(['user-settings', '--set-default-handle', RESTORE_HANDLE]);
 }
 
 console.log(`snapshot refreshed at ${docs[0].fetchedAt}`);

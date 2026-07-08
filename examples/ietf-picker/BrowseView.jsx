@@ -1,7 +1,7 @@
-import React from "react";
-import { fmtTime } from "./festival-utils.js";
-import { lineupTag, eventCardStyle, eventCardBg } from "./styles.js";
-import NoteField from "./NoteField.jsx";
+import React from 'react';
+import { fmtTime } from './festival-utils.js';
+import { lineupTag, eventCardStyle, eventCardBg } from './styles.js';
+import NoteField from './NoteField.jsx';
 
 export default function BrowseView({
   filteredEvents,
@@ -51,7 +51,7 @@ export default function BrowseView({
       {(() => {
         const byDay = {};
         for (const event of filteredEvents) {
-          const day = event.day || "";
+          const day = event.day || '';
           (byDay[day] || (byDay[day] = [])).push(event);
         }
         const daysToShow = displayDays.filter((day) => byDay[day]?.length > 0);
@@ -85,7 +85,10 @@ export default function BrowseView({
                             {tag.label}
                           </span>
                           {event.isBof && (
-                            <span className={c.badge} title="Birds of a Feather — a possible new working group">
+                            <span
+                              className={c.badge}
+                              title="Birds of a Feather — a possible new working group"
+                            >
                               BOF
                             </span>
                           )}
@@ -104,7 +107,9 @@ export default function BrowseView({
                           />
                         ) : notes[event.eventId] ? (
                           <div className={c.noteBox}>
-                            <p className={`text-sm font-bold ${c.bodyText}`}>{notes[event.eventId]}</p>
+                            <p className={`text-sm font-bold ${c.bodyText}`}>
+                              {notes[event.eventId]}
+                            </p>
                           </div>
                         ) : null}
                       </div>
@@ -114,7 +119,7 @@ export default function BrowseView({
                             onClick={() => toggleFavorite(event)}
                             className={myFavIds.has(event.eventId) ? c.favToggleOn : c.favToggleOff}
                           >
-                            {myFavIds.has(event.eventId) ? "♥" : "♡"}
+                            {myFavIds.has(event.eventId) ? '♥' : '♡'}
                           </button>
                         )}
                         <a

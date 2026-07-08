@@ -1,8 +1,8 @@
-import React from "react";
-import { callAI } from "call-ai";
-import { useFireproof } from "use-fireproof";
-import { useViewer } from "use-vibes";
-import { useVibe } from "use-vibes";
+import React from 'react';
+import { callAI } from 'call-ai';
+import { useFireproof } from 'use-fireproof';
+import { useViewer } from 'use-vibes';
+import { useVibe } from 'use-vibes';
 
 function Header({ ViewerTag, c }) {
   return (
@@ -17,18 +17,25 @@ function Header({ ViewerTag, c }) {
 }
 
 function AddTaskForm({ c, database, useDocument, can, ready }) {
-  const { doc, merge, submit } = useDocument({ text: "", type: "task", done: false, createdAt: Date.now() });
+  const { doc, merge, submit } = useDocument({
+    text: '',
+    type: 'task',
+    done: false,
+    createdAt: Date.now(),
+  });
   const [isLoading, setIsLoading] = React.useState(false);
   const [suggestions, setSuggestions] = React.useState([]);
 
   if (!ready)
     return (
-      <section className={`${c.surface} p-4 rounded-[var(--radius)] border-[length:var(--border-width)] border-[var(--border)]`}>
+      <section
+        className={`${c.surface} p-4 rounded-[var(--radius)] border-[length:var(--border-width)] border-[var(--border)]`}
+      >
         <p className={c.muted}>Loading...</p>
       </section>
     );
 
-  const verdict = can.create({ type: "task", text: doc.text, done: false });
+  const verdict = can.create({ type: 'task', text: doc.text, done: false });
   if (!verdict.ok) {
     return (
       <section
@@ -45,7 +52,7 @@ function AddTaskForm({ c, database, useDocument, can, ready }) {
     setIsLoading(true);
     try {
       const res = await callAI(`Break down this task into 3 concrete subtasks: "${doc.text}"`, {
-        schema: { properties: { subtasks: { type: "array", items: { type: "string" } } } },
+        schema: { properties: { subtasks: { type: 'array', items: { type: 'string' } } } },
       });
       const parsed = JSON.parse(res);
       setSuggestions(parsed.subtasks || []);
@@ -58,7 +65,7 @@ function AddTaskForm({ c, database, useDocument, can, ready }) {
 
   async function acceptSuggestion(text) {
     try {
-      await database.put({ text, type: "task", done: false, createdAt: Date.now() });
+      await database.put({ text, type: 'task', done: false, createdAt: Date.now() });
       setSuggestions(suggestions.filter((s) => s !== text));
     } catch (e) {
       console.error(e);
@@ -89,7 +96,12 @@ function AddTaskForm({ c, database, useDocument, can, ready }) {
           <button type="submit" className={c.btn} disabled={!doc.text.trim()}>
             Add
           </button>
-          <button type="button" onClick={suggest} disabled={isLoading || !doc.text.trim()} className={c.btnGhost}>
+          <button
+            type="button"
+            onClick={suggest}
+            disabled={isLoading || !doc.text.trim()}
+            className={c.btnGhost}
+          >
             {isLoading ? (
               <svg
                 className="animate-spin inline"
@@ -105,7 +117,7 @@ function AddTaskForm({ c, database, useDocument, can, ready }) {
                 <circle cx="12" cy="12" r="9" strokeDasharray="40 20" />
               </svg>
             ) : (
-              "Suggest"
+              'Suggest'
             )}
           </button>
         </div>
@@ -114,7 +126,10 @@ function AddTaskForm({ c, database, useDocument, can, ready }) {
         <ul className="mt-3 space-y-1">
           {suggestions.map((s, i) => (
             <li key={i} className="flex items-center gap-2">
-              <button onClick={() => acceptSuggestion(s)} className={`${c.btnGhost} flex-1 text-left`}>
+              <button
+                onClick={() => acceptSuggestion(s)}
+                className={`${c.btnGhost} flex-1 text-left`}
+              >
                 <span className={c.text}>+ {s}</span>
               </button>
             </li>
@@ -177,7 +192,7 @@ function TaskList({ c, tasks, database, can }) {
             return (
               <li
                 key={task._id}
-                className={`flex items-center gap-3 p-3 rounded-[var(--radius-sm)] border-[length:var(--border-width)] border-[var(--border)] ${isSaving ? "opacity-60" : ""}`}
+                className={`flex items-center gap-3 p-3 rounded-[var(--radius-sm)] border-[length:var(--border-width)] border-[var(--border)] ${isSaving ? 'opacity-60' : ''}`}
               >
                 <input
                   type="checkbox"
@@ -186,10 +201,17 @@ function TaskList({ c, tasks, database, can }) {
                   disabled={!canEdit || isSaving}
                   className="w-5 h-5"
                 />
-                <span className={`flex-1 ${c.text} ${task.done ? "line-through opacity-60" : ""}`}>{task.text}</span>
+                <span className={`flex-1 ${c.text} ${task.done ? 'line-through opacity-60' : ''}`}>
+                  {task.text}
+                </span>
                 {isSaving && <span className={`text-xs ${c.muted}`}>Saving…</span>}
                 {canDelete && (
-                  <button onClick={() => remove(task)} disabled={isSaving} className={c.btnGhost} aria-label="Delete">
+                  <button
+                    onClick={() => remove(task)}
+                    disabled={isSaving}
+                    className={c.btnGhost}
+                    aria-label="Delete"
+                  >
                     <svg
                       width="16"
                       height="16"
@@ -215,22 +237,22 @@ function TaskList({ c, tasks, database, can }) {
 
 export default function App() {
   const { ViewerTag } = useViewer();
-  const { database, useLiveQuery, useDocument } = useFireproof("todos");
-  const { can, ready, me } = useVibe("todos");
-  const { docs: tasks } = useLiveQuery("createdAt", { descending: true });
+  const { database, useLiveQuery, useDocument } = useFireproof('todos');
+  const { can, ready, me } = useVibe('todos');
+  const { docs: tasks } = useLiveQuery('createdAt', { descending: true });
 
   const c = {
-    page: "bg-[var(--background)] min-h-screen font-[var(--font-family)]",
-    headerBg: "bg-[var(--surface)]",
-    surface: "bg-[var(--surface)]",
-    text: "text-[var(--text-primary)]",
-    muted: "text-[var(--text-secondary)]",
-    accent: "bg-[var(--accent)] text-[var(--accent-text)]",
+    page: 'bg-[var(--background)] min-h-screen font-[var(--font-family)]',
+    headerBg: 'bg-[var(--surface)]',
+    surface: 'bg-[var(--surface)]',
+    text: 'text-[var(--text-primary)]',
+    muted: 'text-[var(--text-secondary)]',
+    accent: 'bg-[var(--accent)] text-[var(--accent-text)]',
     input:
-      "bg-[var(--background)] text-[var(--text-primary)] border-[length:var(--border-width)] border-[var(--border)] rounded-[var(--radius-sm)] px-3 py-3 w-full min-h-[44px]",
-    btn: "bg-[var(--primary)] text-[var(--accent-text)] rounded-[var(--radius-sm)] px-4 py-3 min-h-[44px] font-medium disabled:opacity-50",
+      'bg-[var(--background)] text-[var(--text-primary)] border-[length:var(--border-width)] border-[var(--border)] rounded-[var(--radius-sm)] px-3 py-3 w-full min-h-[44px]',
+    btn: 'bg-[var(--primary)] text-[var(--accent-text)] rounded-[var(--radius-sm)] px-4 py-3 min-h-[44px] font-medium disabled:opacity-50',
     btnGhost:
-      "bg-transparent text-[var(--text-secondary)] rounded-[var(--radius-sm)] px-3 py-2 min-h-[44px] border-[length:var(--border-width)] border-[var(--border)]",
+      'bg-transparent text-[var(--text-secondary)] rounded-[var(--radius-sm)] px-3 py-2 min-h-[44px] border-[length:var(--border-width)] border-[var(--border)]',
   };
 
   return (

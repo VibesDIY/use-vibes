@@ -10,19 +10,19 @@
 // The export name matches the database name passed to useFireproof/useVibe
 // ("teamChannels"), which is how the runtime selects this function.
 export function teamChannels(doc, oldDoc, user, ctx) {
-  if (!user) throw { forbidden: "sign in to participate" };
+  if (!user) throw { forbidden: 'sign in to participate' };
 
-  if (doc.type === "channel") {
-    if (!user.isOwner) throw { forbidden: "only the owner can create channels" };
-    if (oldDoc && oldDoc.createdBy !== user.userHandle) throw { forbidden: "not creator" };
+  if (doc.type === 'channel') {
+    if (!user.isOwner) throw { forbidden: 'only the owner can create channels' };
+    if (oldDoc && oldDoc.createdBy !== user.userHandle) throw { forbidden: 'not creator' };
     return { channels: [doc._id], grant: { public: [doc._id] } };
   }
 
-  if (doc.type === "message") {
-    if (doc.authorHandle !== user.userHandle) throw { forbidden: "not author" };
-    if (oldDoc && oldDoc.authorHandle !== user.userHandle) throw { forbidden: "not author" };
+  if (doc.type === 'message') {
+    if (doc.authorHandle !== user.userHandle) throw { forbidden: 'not author' };
+    if (oldDoc && oldDoc.authorHandle !== user.userHandle) throw { forbidden: 'not author' };
     return { channels: [doc.channelId] };
   }
 
-  throw { forbidden: "unknown document type" };
+  throw { forbidden: 'unknown document type' };
 }

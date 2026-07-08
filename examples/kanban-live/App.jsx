@@ -1,6 +1,6 @@
-import React, { useState, useRef, useMemo, useEffect } from "react";
-import { useFireproof } from "use-fireproof";
-import { useViewer, useVibe } from "use-vibes";
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { useFireproof } from 'use-fireproof';
+import { useViewer, useVibe } from 'use-vibes';
 
 // ── Kanban Live (jchris/kanban-live) ─────────────────────────────────────────
 // The hybrid: og/paris-yemaya-2877's pointer-drag feel (pointer capture, rAF
@@ -17,25 +17,25 @@ import { useViewer, useVibe } from "use-vibes";
 // (plain-ACL verdicts are optimistic for anonymous visitors, whose writes
 // never sync). Read-only visitors can still tap a card to view details.
 
-const DB = "kanban";
+const DB = 'kanban';
 
 const COLUMNS = [
-  { id: "todo", label: "To Do", bg: "bg-[#ff70a6]" },
-  { id: "inprogress", label: "In Progress", bg: "bg-[#ffd670]" },
-  { id: "done", label: "Done", bg: "bg-[#e9ff70]" },
+  { id: 'todo', label: 'To Do', bg: 'bg-[#ff70a6]' },
+  { id: 'inprogress', label: 'In Progress', bg: 'bg-[#ffd670]' },
+  { id: 'done', label: 'Done', bg: 'bg-[#e9ff70]' },
 ];
 
-const PRIORITIES = ["LOW", "MED", "HIGH"];
+const PRIORITIES = ['LOW', 'MED', 'HIGH'];
 const PriorityColors = {
-  LOW: "bg-[#70d6ff]",
-  MED: "bg-[#ffd670]",
-  HIGH: "bg-[#ff70a6]",
+  LOW: 'bg-[#70d6ff]',
+  MED: 'bg-[#ffd670]',
+  HIGH: 'bg-[#ff70a6]',
 };
 
 const STEP = 1000;
 
 function effPos(t) {
-  return typeof t.position === "number" ? t.position : (t.createdAt || 0) / 1000;
+  return typeof t.position === 'number' ? t.position : (t.createdAt || 0) / 1000;
 }
 
 // Insertion position for dropping at `index` within `sorted` (dragged card excluded).
@@ -50,8 +50,10 @@ function positionForIndex(sorted, index) {
 
 function PriorityChip({ priority }) {
   return (
-    <span className={`shrink-0 text-[0.65rem] px-2 py-0.5 border-2 border-[#242424] font-bold ${PriorityColors[priority] || PriorityColors.MED}`}>
-      {priority || "MED"}
+    <span
+      className={`shrink-0 text-[0.65rem] px-2 py-0.5 border-2 border-[#242424] font-bold ${PriorityColors[priority] || PriorityColors.MED}`}
+    >
+      {priority || 'MED'}
     </span>
   );
 }
@@ -64,7 +66,7 @@ function TaskCard({ task, onPointerDown }) {
       data-tid={task._id}
       className="bg-[#ffffff] border-4 border-[#242424] px-3 py-3 mb-2 select-none cursor-pointer active:opacity-70"
       onPointerDown={(e) => onPointerDown(e, task)}
-      style={{ touchAction: "none", willChange: "transform" }}
+      style={{ touchAction: 'none', willChange: 'transform' }}
     >
       <div className="flex justify-between items-center gap-2 min-h-[24px]">
         <h4 className="font-bold text-[#242424] text-base leading-tight flex-1">{task.title}</h4>
@@ -78,7 +80,16 @@ function Placeholder() {
   return <div className="bg-white/60 border-4 border-dashed border-[#242424] h-16 mb-3" />;
 }
 
-function Column({ col, tasks, dragging, isOver, overIndex, dragTaskId, columnRefs, onPointerDown }) {
+function Column({
+  col,
+  tasks,
+  dragging,
+  isOver,
+  overIndex,
+  dragTaskId,
+  columnRefs,
+  onPointerDown,
+}) {
   const visible = dragging ? tasks.filter((t) => t._id !== dragTaskId) : tasks;
   const items = [];
   visible.forEach((task, i) => {
@@ -97,10 +108,10 @@ function Column({ col, tasks, dragging, isOver, overIndex, dragTaskId, columnRef
         ref={(el) => {
           columnRefs.current[col.id] = el;
         }}
-        className={`min-h-[40vh] md:min-h-[50vh] p-3 border-4 border-[#242424] bg-[#ffffff] bg-opacity-50 transition-shadow ${isOver ? "ring-4 ring-[#70d6ff]" : ""}`}
+        className={`min-h-[40vh] md:min-h-[50vh] p-3 border-4 border-[#242424] bg-[#ffffff] bg-opacity-50 transition-shadow ${isOver ? 'ring-4 ring-[#70d6ff]' : ''}`}
         style={{
           backgroundImage: `radial-gradient(circle at 20px 20px, #242424 3px, transparent 3px)`,
-          backgroundSize: "40px 40px",
+          backgroundSize: '40px 40px',
         }}
       >
         {items}
@@ -112,10 +123,10 @@ function Column({ col, tasks, dragging, isOver, overIndex, dragTaskId, columnRef
 // Edits start from the task doc the board already has (never `useDocument({_id})`
 // pre-hydration), and save spreads the full doc so no field is dropped.
 function DetailView({ task, canWrite, database, onClose }) {
-  const [title, setTitle] = useState(task.title || "");
-  const [description, setDescription] = useState(task.description || "");
-  const [status, setStatus] = useState(task.status || "todo");
-  const [priority, setPriority] = useState(task.priority || "MED");
+  const [title, setTitle] = useState(task.title || '');
+  const [description, setDescription] = useState(task.description || '');
+  const [status, setStatus] = useState(task.status || 'todo');
+  const [priority, setPriority] = useState(task.priority || 'MED');
 
   async function saveTask() {
     await database.put({
@@ -141,7 +152,7 @@ function DetailView({ task, canWrite, database, onClose }) {
   return (
     <div
       className="fixed inset-0 flex items-start justify-center p-3 z-50"
-      style={{ background: "rgba(36,36,36,0.4)" }}
+      style={{ background: 'rgba(36,36,36,0.4)' }}
       onClick={onClose}
     >
       <div
@@ -164,7 +175,7 @@ function DetailView({ task, canWrite, database, onClose }) {
               type="button"
               disabled={!canWrite}
               onClick={() => setPriority(p)}
-              className={`flex-1 min-h-[44px] border-4 border-[#242424] font-bold text-sm text-[#242424] transition-colors ${priority === p ? PriorityColors[p] : "bg-[#ffffff]"} disabled:opacity-60`}
+              className={`flex-1 min-h-[44px] border-4 border-[#242424] font-bold text-sm text-[#242424] transition-colors ${priority === p ? PriorityColors[p] : 'bg-[#ffffff]'} disabled:opacity-60`}
             >
               {p}
             </button>
@@ -207,7 +218,10 @@ function DetailView({ task, canWrite, database, onClose }) {
                 Delete
               </button>
             )}
-            <button onClick={onClose} className="min-h-[40px] px-3 border-2 border-[#242424] bg-[#ffffff] font-bold text-sm text-[#242424]">
+            <button
+              onClick={onClose}
+              className="min-h-[40px] px-3 border-2 border-[#242424] bg-[#ffffff] font-bold text-sm text-[#242424]"
+            >
               Close
             </button>
             {/* Save anchors the lower-right — thumb zone, end of the flow. The
@@ -232,47 +246,48 @@ export default function App() {
   const { viewer, HandleInput } = useViewer();
   const { can, ready, me } = useVibe(DB);
 
-  const { doc: newTask, merge: mergeNewTask } = useDocument({ title: "", priority: "MED" });
+  const { doc: newTask, merge: mergeNewTask } = useDocument({ title: '', priority: 'MED' });
 
-  const { docs: liveTasks } = useLiveQuery("type", { key: "task" });
-  const { docs: boardDocs } = useLiveQuery("type", { key: "board" });
-  const { docs: memberDocs } = useLiveQuery("type", { key: "member" });
+  const { docs: liveTasks } = useLiveQuery('type', { key: 'task' });
+  const { docs: boardDocs } = useLiveQuery('type', { key: 'board' });
+  const { docs: memberDocs } = useLiveQuery('type', { key: 'member' });
 
   // Boards: a built-in "default" plus board docs. Tasks carry a boardId;
   // legacy docs without one belong to Default — no migration needed. The
   // active board is a per-device choice (localStorage).
   const [boardId, setBoardIdState] = useState(() => {
     try {
-      return localStorage.getItem("kanban-live-board") || "default";
+      return localStorage.getItem('kanban-live-board') || 'default';
     } catch {
-      return "default";
+      return 'default';
     }
   });
   const [boardPickerOpen, setBoardPickerOpen] = useState(false);
-  const [newBoardName, setNewBoardName] = useState("");
-  const [renameDraft, setRenameDraft] = useState("");
+  const [newBoardName, setNewBoardName] = useState('');
+  const [renameDraft, setRenameDraft] = useState('');
   const [deleteArmed, setDeleteArmed] = useState(false);
   // Every user has an IMPLICIT personal board: "default-<their handle>" — no
   // board doc, not public, same access model as any other board. The stored
   // board choice "default" is a sentinel meaning "my default", resolved here.
-  const myDefaultId = "default-" + (me?.userHandle || viewer?.userHandle || "anon");
-  const activeBoardId = boardId === "default" ? myDefaultId : boardId;
+  const myDefaultId = 'default-' + (me?.userHandle || viewer?.userHandle || 'anon');
+  const activeBoardId = boardId === 'default' ? myDefaultId : boardId;
   const sortedBoards = [...boardDocs]
-    .filter((b) => !String(b._id).startsWith("default"))
+    .filter((b) => !String(b._id).startsWith('default'))
     .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  const boards = [{ _id: "default", name: "Default" }, ...sortedBoards];
-  const boardName = boards.find((b) => b._id === boardId)?.name || "Default";
+  const boards = [{ _id: 'default', name: 'Default' }, ...sortedBoards];
+  const boardName = boards.find((b) => b._id === boardId)?.name || 'Default';
   const boardTasks = liveTasks.filter((t) => t.boardId === activeBoardId);
-  const taskCountFor = (id) => liveTasks.filter((t) => t.boardId === (id === "default" ? myDefaultId : id)).length;
+  const taskCountFor = (id) =>
+    liveTasks.filter((t) => t.boardId === (id === 'default' ? myDefaultId : id)).length;
 
   function switchBoard(id, knownName) {
     setBoardIdState(id);
     // Keep the rename draft in lockstep with the active board — a just-created
     // board's doc may not have landed in the live query yet, so the caller can
     // pass the name it already knows.
-    setRenameDraft(knownName || boards.find((b) => b._id === id)?.name || "Default");
+    setRenameDraft(knownName || boards.find((b) => b._id === id)?.name || 'Default');
     try {
-      localStorage.setItem("kanban-live-board", id);
+      localStorage.setItem('kanban-live-board', id);
     } catch {
       /* per-device nicety only */
     }
@@ -303,24 +318,35 @@ export default function App() {
     }
     const doc = boardDocs.find((b) => b._id === boardId);
     if (!doc || !canWrite) return;
-    const doomed = [...liveTasks.filter((t) => t.boardId === boardId), ...memberDocs.filter((m) => m.boardId === boardId)];
-    switchBoard("default");
+    const doomed = [
+      ...liveTasks.filter((t) => t.boardId === boardId),
+      ...memberDocs.filter((m) => m.boardId === boardId),
+    ];
+    switchBoard('default');
     await Promise.all([...doomed.map((d) => database.del(d._id)), database.del(doc._id)]);
   }
 
-  const isDefaultBoard = boardId === "default";
+  const isDefaultBoard = boardId === 'default';
 
   // Per-BOARD write verdict — with access.js bound, the fn is the authority
   // (owner on Default; creator/members on shared boards). The signed-in guard
   // stays: verdicts are optimistic for anonymous visitors, whose writes only
   // land locally and never sync.
   const boardMembers = memberDocs.filter((m) => m.boardId === activeBoardId);
-  const createVerdict = ready ? can.create({ type: "task", boardId: activeBoardId, authorHandle: me?.userHandle }) : null;
+  const createVerdict = ready
+    ? can.create({ type: 'task', boardId: activeBoardId, authorHandle: me?.userHandle })
+    : null;
   const canWrite = !!viewer && !!createVerdict?.ok;
   // Only the board's admin (creator, or the user on their own default) may
   // invite — ask the access fn the exact question with a member-doc verdict.
-  const canInvite = !!viewer && ready ? !!can.create({ type: "member", boardId: activeBoardId, addedBy: me?.userHandle }).ok : false;
-  const boardAdminHandle = boardId === "default" ? me?.userHandle || viewer?.userHandle : boards.find((b) => b._id === boardId)?.creatorHandle;
+  const canInvite =
+    !!viewer && ready
+      ? !!can.create({ type: 'member', boardId: activeBoardId, addedBy: me?.userHandle }).ok
+      : false;
+  const boardAdminHandle =
+    boardId === 'default'
+      ? me?.userHandle || viewer?.userHandle
+      : boards.find((b) => b._id === boardId)?.creatorHandle;
 
   // ---- Drag state ----
   const [dragging, setDragging] = useState(false);
@@ -336,7 +362,7 @@ export default function App() {
   const [composerOpen, setComposerOpen] = useState(false); // mobile bottom sheet
   const [activeColIdx, setActiveColIdx] = useState(0); // mobile strip dots
   // The sheet adds to whichever column was centered when it was OPENED.
-  const [composerTarget, setComposerTarget] = useState("todo");
+  const [composerTarget, setComposerTarget] = useState('todo');
 
   const columnRefs = useRef({ todo: null, inprogress: null, done: null });
   const stripRef = useRef(null); // the horizontal snap strip (mobile)
@@ -367,11 +393,11 @@ export default function App() {
     const title = newTask.title.trim();
     if (!title || !canWrite) return;
     const priority = newTask.priority;
-    mergeNewTask({ title: "" }); // clear input immediately, keep chosen priority
+    mergeNewTask({ title: '' }); // clear input immediately, keep chosen priority
     setComposerOpen(false);
     const list = tasksByCol[colId] || [];
     await database.put({
-      type: "task",
+      type: 'task',
       title,
       priority,
       status: colId,
@@ -386,9 +412,9 @@ export default function App() {
     e.preventDefault();
     const name = newBoardName.trim();
     if (!name || !canWrite) return;
-    setNewBoardName("");
+    setNewBoardName('');
     const res = await database.put({
-      type: "board",
+      type: 'board',
       name,
       createdAt: Date.now(),
       creatorHandle: me?.userHandle || viewer?.userHandle, // access.js: creator is the board's admin
@@ -402,7 +428,7 @@ export default function App() {
     if (!handle || !canInvite) return;
     if (boardMembers.some((m) => m.userHandle === handle)) return; // already a member
     await database.put({
-      type: "member",
+      type: 'member',
       boardId: activeBoardId,
       userHandle: handle,
       addedBy: me?.userHandle || viewer?.userHandle,
@@ -444,7 +470,7 @@ export default function App() {
   function locateIndex(status, y) {
     const el = columnRefs.current[status];
     if (!el) return 0;
-    const cards = [...el.querySelectorAll("[data-tid]")];
+    const cards = [...el.querySelectorAll('[data-tid]')];
     for (let i = 0; i < cards.length; i++) {
       const r = cards[i].getBoundingClientRect();
       if (y < r.top + r.height / 2) return i;
@@ -490,11 +516,11 @@ export default function App() {
     if (!dragging && canWrite && (deltaX > 5 || deltaY > 5)) {
       setDragging(true);
       setHasDragged(true);
-      document.body.style.userSelect = "none";
-      document.body.style.cursor = "grabbing";
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'grabbing';
       // Snap-mandatory would re-snap away from our fractional stops the moment
       // we scroll programmatically — off while dragging, restored after drop.
-      if (stripRef.current) stripRef.current.style.scrollSnapType = "none";
+      if (stripRef.current) stripRef.current.style.scrollSnapType = 'none';
     }
   }
 
@@ -502,7 +528,7 @@ export default function App() {
     const strip = stripRef.current;
     if (!strip) return;
     const max = strip.scrollWidth - strip.clientWidth;
-    strip.scrollTo({ left: Math.max(0, Math.min(max, left)), behavior: "smooth" });
+    strip.scrollTo({ left: Math.max(0, Math.min(max, left)), behavior: 'smooth' });
   }
 
   // One rAF loop drives the overlay, the drop target, and mobile edge
@@ -602,8 +628,8 @@ export default function App() {
     setSnapshot(null);
     pointerIdRef.current = null;
     dropRef.current = { status: null, index: 0 };
-    document.body.style.userSelect = "";
-    document.body.style.cursor = "";
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
 
     if (didDrag) {
       if (task && dest && canWrite) {
@@ -627,10 +653,10 @@ export default function App() {
           smoothStripTo(sc.startLeft);
         }
         setTimeout(() => {
-          if (stripRef.current) stripRef.current.style.scrollSnapType = "";
+          if (stripRef.current) stripRef.current.style.scrollSnapType = '';
         }, 500);
       } else if (strip) {
-        strip.style.scrollSnapType = "";
+        strip.style.scrollSnapType = '';
       }
     } else if (task) {
       setDetailTaskId(task._id); // tap → detail view
@@ -642,11 +668,11 @@ export default function App() {
     if (!dragTask) return;
     const onMove = (e) => handlePointerMove(e);
     const onUp = () => handlePointerUp();
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp, { once: true });
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, { once: true });
     return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragTask, dragging, overStatus, overIndex, hasDragged]);
@@ -659,14 +685,16 @@ export default function App() {
           left: 0,
           top: 0,
           transform: `translate3d(${dragPos.x - dragOffset.x}px, ${dragPos.y - dragOffset.y}px, 0)`,
-          willChange: "transform",
-          filter: "drop-shadow(0 6px 0 #242424)",
+          willChange: 'transform',
+          filter: 'drop-shadow(0 6px 0 #242424)',
         }}
       >
         <div className="scale-105">
           <div className="bg-[#ffffff] border-4 border-[#242424] p-4 w-[240px]">
             <div className="flex justify-between items-start gap-2">
-              <h4 className="font-bold text-[#242424] text-base leading-tight flex-1">{dragTask.title}</h4>
+              <h4 className="font-bold text-[#242424] text-base leading-tight flex-1">
+                {dragTask.title}
+              </h4>
               <PriorityChip priority={dragTask.priority} />
             </div>
           </div>
@@ -687,7 +715,13 @@ export default function App() {
     >
       {overlay}
       {detailTask && (
-        <DetailView key={detailTask._id} task={detailTask} canWrite={canWrite} database={database} onClose={() => setDetailTaskId(null)} />
+        <DetailView
+          key={detailTask._id}
+          task={detailTask}
+          canWrite={canWrite}
+          database={database}
+          onClose={() => setDetailTaskId(null)}
+        />
       )}
 
       <header id="app-header" className="mb-3 md:mb-5 max-w-5xl mx-auto">
@@ -696,17 +730,24 @@ export default function App() {
             create, rename, or delete. */}
         <div className="flex items-end justify-between mb-2 md:mb-4 px-1">
           <button onClick={openBoardSheet} className="text-left">
-            <span className="block text-[0.6rem] uppercase tracking-widest font-bold text-[#242424] opacity-60">Kanban Live</span>
+            <span className="block text-[0.6rem] uppercase tracking-widest font-bold text-[#242424] opacity-60">
+              Kanban Live
+            </span>
             <h1 className="text-xl md:text-3xl font-bold text-[#242424] leading-tight">
               {boardName} <span className="text-sm md:text-xl align-middle">▾</span>
             </h1>
           </button>
-          <span className="text-xs md:text-sm font-bold text-[#242424] opacity-70">{boardTasks.length} tasks</span>
+          <span className="text-xs md:text-sm font-bold text-[#242424] opacity-70">
+            {boardTasks.length} tasks
+          </span>
         </div>
 
         {canWrite ? (
           /* Desktop composer — on mobile the floating + opens the bottom sheet. */
-          <form onSubmit={(e) => handleSubmit(e, "todo")} className="hidden md:block bg-[#ffffff] border-4 border-[#242424] p-3">
+          <form
+            onSubmit={(e) => handleSubmit(e, 'todo')}
+            className="hidden md:block bg-[#ffffff] border-4 border-[#242424] p-3"
+          >
             <div className="flex flex-row gap-2">
               <input
                 type="text"
@@ -721,7 +762,7 @@ export default function App() {
                     key={p}
                     type="button"
                     onClick={() => mergeNewTask({ priority: p })}
-                    className={`min-h-[48px] px-3 border-4 border-[#242424] font-bold text-sm text-[#242424] transition-colors ${newTask.priority === p ? PriorityColors[p] : "bg-[#ffffff]"}`}
+                    className={`min-h-[48px] px-3 border-4 border-[#242424] font-bold text-sm text-[#242424] transition-colors ${newTask.priority === p ? PriorityColors[p] : 'bg-[#ffffff]'}`}
                   >
                     {p}
                   </button>
@@ -740,8 +781,9 @@ export default function App() {
             <div className="bg-[#ffffff] border-4 border-[#242424] p-3 text-center">
               <p className="font-bold text-[#242424] text-sm">
                 {viewer
-                  ? createVerdict?.reason || "Read-only — ask the board's admin to add you as a member."
-                  : "Boards are private — log in to see and edit yours."}
+                  ? createVerdict?.reason ||
+                    "Read-only — ask the board's admin to add you as a member."
+                  : 'Boards are private — log in to see and edit yours.'}
               </p>
             </div>
           )
@@ -755,7 +797,7 @@ export default function App() {
         ref={stripRef}
         onScroll={handleStripScroll}
         className="flex flex-row gap-3 md:gap-4 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory md:snap-none pb-2 md:pb-4 max-w-5xl mx-auto"
-        style={{ scrollbarWidth: "none" }}
+        style={{ scrollbarWidth: 'none' }}
       >
         {COLUMNS.map((col) => (
           <Column
@@ -777,7 +819,7 @@ export default function App() {
         {COLUMNS.map((col, i) => (
           <span
             key={col.id}
-            className={`w-2.5 h-2.5 border-2 border-[#242424] rounded-full ${i === activeColIdx ? "bg-[#242424]" : "bg-[#ffffff]"}`}
+            className={`w-2.5 h-2.5 border-2 border-[#242424] rounded-full ${i === activeColIdx ? 'bg-[#242424]' : 'bg-[#ffffff]'}`}
           />
         ))}
       </div>
@@ -788,11 +830,11 @@ export default function App() {
         <button
           aria-label="Add task"
           onClick={() => {
-            setComposerTarget(COLUMNS[activeColIdx]?.id || "todo");
+            setComposerTarget(COLUMNS[activeColIdx]?.id || 'todo');
             setComposerOpen(true);
           }}
           className="md:hidden fixed bottom-5 left-5 z-40 w-14 h-14 bg-[#e9ff70] border-4 border-[#242424] text-3xl leading-none font-bold text-[#242424] active:bg-[#70d6ff]"
-          style={{ boxShadow: "4px 4px 0 #242424" }}
+          style={{ boxShadow: '4px 4px 0 #242424' }}
         >
           +
         </button>
@@ -809,14 +851,16 @@ export default function App() {
               above that zone, and the create row at the top for good measure. */}
           <div
             className="fixed inset-x-0 bottom-0 z-50 md:inset-x-auto md:left-1/2 md:bottom-10 md:w-[380px] md:-translate-x-1/2 bg-[#ffffff] border-t-4 md:border-4 border-[#242424] p-4 pb-16 md:pb-4 space-y-2 max-h-[70vh] overflow-y-auto"
-            style={{ boxShadow: "0 -6px 0 #242424" }}
+            style={{ boxShadow: '0 -6px 0 #242424' }}
           >
             {/* Current board management — members for every board (your
                 implicit Default included); rename/delete only for boards that
                 are real docs. */}
             {canWrite && (
               <>
-                <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest">This board</h3>
+                <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest">
+                  This board
+                </h3>
                 {!isDefaultBoard && (
                   <form onSubmit={renameBoard} className="flex gap-2">
                     <input
@@ -825,7 +869,10 @@ export default function App() {
                       placeholder="Board name"
                       className="flex-1 min-w-0 min-h-[44px] p-2 border-4 border-[#242424] text-[#242424] font-bold"
                     />
-                    <button type="submit" className="min-h-[44px] px-3 bg-[#70d6ff] border-4 border-[#242424] font-bold text-[#242424]">
+                    <button
+                      type="submit"
+                      className="min-h-[44px] px-3 bg-[#70d6ff] border-4 border-[#242424] font-bold text-[#242424]"
+                    >
                       Rename
                     </button>
                   </form>
@@ -833,10 +880,17 @@ export default function App() {
                 {/* Members: read/write on this board's channel, granted by
                     handle. The access fn only lets the board's admin invite. */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-bold text-[#242424] opacity-60 uppercase tracking-widest">Members</span>
-                  <span className="text-sm font-bold text-[#242424]">@{boardAdminHandle || "?"}</span>
+                  <span className="text-xs font-bold text-[#242424] opacity-60 uppercase tracking-widest">
+                    Members
+                  </span>
+                  <span className="text-sm font-bold text-[#242424]">
+                    @{boardAdminHandle || '?'}
+                  </span>
                   {boardMembers.map((m) => (
-                    <span key={m._id} className="text-sm font-bold text-[#242424] bg-[#ffd670] border-2 border-[#242424] px-2 py-0.5">
+                    <span
+                      key={m._id}
+                      className="text-sm font-bold text-[#242424] bg-[#ffd670] border-2 border-[#242424] px-2 py-0.5"
+                    >
                       @{m.userHandle}
                     </span>
                   ))}
@@ -850,22 +904,30 @@ export default function App() {
                     value={null}
                     onChange={addMember}
                     placeholder="Add a member..."
-                    style={{ display: "block", "--border": "#242424", "--card-bg": "#ffffff", "--text": "#242424", "--muted": "#5c5c5c" }}
+                    style={{
+                      display: 'block',
+                      '--border': '#242424',
+                      '--card-bg': '#ffffff',
+                      '--text': '#242424',
+                      '--muted': '#5c5c5c',
+                    }}
                   />
                 )}
                 {!isDefaultBoard && (
                   <button
                     onClick={deleteBoard}
-                    className={`w-full min-h-[44px] px-3 border-2 font-bold text-sm ${deleteArmed ? "bg-[#d94f3d] text-white border-[#242424]" : "border-[#d94f3d] text-[#d94f3d] bg-[#ffffff]"}`}
+                    className={`w-full min-h-[44px] px-3 border-2 font-bold text-sm ${deleteArmed ? 'bg-[#d94f3d] text-white border-[#242424]' : 'border-[#d94f3d] text-[#d94f3d] bg-[#ffffff]'}`}
                   >
                     {deleteArmed
                       ? `Really delete "${boardName}" and its ${liveTasks.filter((t) => t.boardId === boardId).length} task(s)?`
-                      : "Delete board"}
+                      : 'Delete board'}
                   </button>
                 )}
               </>
             )}
-            <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest pt-1">Boards</h3>
+            <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest pt-1">
+              Boards
+            </h3>
             {canWrite && (
               <form onSubmit={createBoard} className="flex gap-2">
                 <input
@@ -874,7 +936,10 @@ export default function App() {
                   placeholder="New board name..."
                   className="flex-1 min-w-0 min-h-[44px] p-2 border-4 border-[#242424] text-[#242424] placeholder-[#242424] placeholder-opacity-50"
                 />
-                <button type="submit" className="min-h-[44px] px-4 bg-[#e9ff70] border-4 border-[#242424] font-bold text-[#242424]">
+                <button
+                  type="submit"
+                  className="min-h-[44px] px-4 bg-[#e9ff70] border-4 border-[#242424] font-bold text-[#242424]"
+                >
                   Create
                 </button>
               </form>
@@ -883,10 +948,12 @@ export default function App() {
               <button
                 key={b._id}
                 onClick={() => switchBoard(b._id)}
-                className={`w-full min-h-[44px] px-3 border-4 border-[#242424] font-bold text-left text-[#242424] ${b._id === boardId ? "bg-[#e9ff70]" : "bg-[#ffffff]"}`}
+                className={`w-full min-h-[44px] px-3 border-4 border-[#242424] font-bold text-left text-[#242424] ${b._id === boardId ? 'bg-[#e9ff70]' : 'bg-[#ffffff]'}`}
               >
                 {b.name}
-                <span className="float-right text-xs opacity-60 font-normal">{taskCountFor(b._id)}</span>
+                <span className="float-right text-xs opacity-60 font-normal">
+                  {taskCountFor(b._id)}
+                </span>
               </button>
             ))}
           </div>
@@ -898,11 +965,14 @@ export default function App() {
               catcher makes the first tap outside the sheet close it (without
               also triggering whatever was under the finger). The draft lives in
               useDocument state, so closing never loses typed content. */}
-          <div className="md:hidden fixed inset-0 z-40" onPointerDown={() => setComposerOpen(false)} />
+          <div
+            className="md:hidden fixed inset-0 z-40"
+            onPointerDown={() => setComposerOpen(false)}
+          />
           <form
             onSubmit={(e) => handleSubmit(e, composerTarget)}
             className="md:hidden fixed inset-x-0 bottom-0 z-50 bg-[#ffffff] border-t-4 border-[#242424] p-4 pb-16 space-y-3"
-            style={{ boxShadow: "0 -6px 0 #242424" }}
+            style={{ boxShadow: '0 -6px 0 #242424' }}
           >
             <input
               type="text"
@@ -918,7 +988,7 @@ export default function App() {
                   key={p}
                   type="button"
                   onClick={() => mergeNewTask({ priority: p })}
-                  className={`flex-1 min-h-[48px] border-4 border-[#242424] font-bold text-sm text-[#242424] ${newTask.priority === p ? PriorityColors[p] : "bg-[#ffffff]"}`}
+                  className={`flex-1 min-h-[48px] border-4 border-[#242424] font-bold text-sm text-[#242424] ${newTask.priority === p ? PriorityColors[p] : 'bg-[#ffffff]'}`}
                 >
                   {p}
                 </button>
@@ -929,7 +999,7 @@ export default function App() {
                 type="submit"
                 className="flex-1 min-h-[48px] bg-[#e9ff70] border-4 border-[#242424] font-bold text-[#242424] active:bg-[#70d6ff]"
               >
-                Add to {COLUMNS.find((c) => c.id === composerTarget)?.label || "To Do"}
+                Add to {COLUMNS.find((c) => c.id === composerTarget)?.label || 'To Do'}
               </button>
               <button
                 type="button"

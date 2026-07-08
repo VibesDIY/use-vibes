@@ -1,6 +1,6 @@
-import React from "react";
-import { fmtTime, fmtDate } from "./festival-utils.js";
-import { lineupTag, eventCardStyle, eventCardBg } from "./styles.js";
+import React from 'react';
+import { fmtTime, fmtDate } from './festival-utils.js';
+import { lineupTag, eventCardStyle, eventCardBg } from './styles.js';
 
 export default function FavoritesView({
   favoriteEvents,
@@ -20,7 +20,7 @@ export default function FavoritesView({
       <div className="mb-1.5 p-2 bg-[#dbe7f3] dark:bg-[#101c2a] rounded-2xl m-0.5">
         <div className="flex items-center justify-between mb-[3px] flex-wrap gap-0.5">
           <h3 className={`text-lg font-black ${c.bodyText}`}>
-            {viewingUser ? `Viewing ${viewingUser}'s picks` : "Pickers (tap to view their picks)"}
+            {viewingUser ? `Viewing ${viewingUser}'s picks` : 'Pickers (tap to view their picks)'}
           </h3>
           {viewingUser && (
             <button onClick={() => setViewingUser(null)} className={c.btnBlue}>
@@ -33,12 +33,12 @@ export default function FavoritesView({
             <button
               key={u.userId}
               onClick={() => setViewingUser(u.userId === userId ? null : u.userId)}
-              className={`flex items-center gap-0.5 p-[1px] rounded-full m-0.5 transition-all ${viewingUser === u.userId || (!viewingUser && u.userId === userId) ? "bg-[#FFD43B]" : "bg-white dark:bg-[#15202b] hover:bg-[#4B8BBE] dark:hover:bg-[#1d3a55]"}`}
-              title={`${u.count} pick${u.count === 1 ? "" : "s"}`}
+              className={`flex items-center gap-0.5 p-[1px] rounded-full m-0.5 transition-all ${viewingUser === u.userId || (!viewingUser && u.userId === userId) ? 'bg-[#FFD43B]' : 'bg-white dark:bg-[#15202b] hover:bg-[#4B8BBE] dark:hover:bg-[#1d3a55]'}`}
+              title={`${u.count} pick${u.count === 1 ? '' : 's'}`}
             >
               <ViewerTag userHandle={u.userId} />
               <span
-                className={`pr-[3px] font-bold text-sm ${viewingUser === u.userId || (!viewingUser && u.userId === userId) ? "text-[#1a1a1a]" : c.bodyText}`}
+                className={`pr-[3px] font-bold text-sm ${viewingUser === u.userId || (!viewingUser && u.userId === userId) ? 'text-[#1a1a1a]' : c.bodyText}`}
               >
                 {u.count}
               </span>
@@ -74,7 +74,9 @@ export default function FavoritesView({
                       </span>
                     </div>
                     {event.speakers && (
-                      <p className={`text-sm font-bold text-[#22303c]/70 dark:text-[#e4edf5]/70`}>{event.speakers}</p>
+                      <p className={`text-sm font-bold text-[#22303c]/70 dark:text-[#e4edf5]/70`}>
+                        {event.speakers}
+                      </p>
                     )}
                     <div className={`space-y-[1px] text-sm font-bold ${c.bodyText}`}>
                       <p>{event.venueTitle}</p>

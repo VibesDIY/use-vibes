@@ -11,12 +11,12 @@ the [CLI](https://good.vibes.diy/docs/cli) (`npx vibes-diy push`).
 
 ## Full apps (backend + access control)
 
-| App | What it shows |
-| --- | --- |
-| [`meta-hub`](meta-hub/) | The remix hub that ships this platform — backend fan-out, owner-gated writes, a RUNBOOK for operating it |
-| [`mention-hub`](mention-hub/) | Bluesky @-mention listener with guardrails — scheduled backend work, a write-only credential vault pattern |
-| [`rolling-today`](rolling-today/) | Group ride calendar — backend jobs, calendar feeds, friends, unit-tested access rules |
-| [`spelling-hive`](spelling-hive/) | Daily word puzzle with a backend that maintains server-controlled state |
+| App                               | What it shows                                                                                              |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [`meta-hub`](meta-hub/)           | The remix hub that ships this platform — backend fan-out, owner-gated writes, a RUNBOOK for operating it   |
+| [`mention-hub`](mention-hub/)     | Bluesky @-mention listener with guardrails — scheduled backend work, a write-only credential vault pattern |
+| [`rolling-today`](rolling-today/) | Group ride calendar — backend jobs, calendar feeds, friends, unit-tested access rules                      |
+| [`spelling-hive`](spelling-hive/) | Daily word puzzle with a backend that maintains server-controlled state                                    |
 
 ## Festival & conference pickers
 

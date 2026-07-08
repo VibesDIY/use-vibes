@@ -1,5 +1,5 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
-import { useFireproof } from "use-vibes";
+import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { useFireproof } from 'use-vibes';
 
 // ── Bloom Machine ───────────────────────────────────────────────────────────
 // The music starter for the Instant Starter Stack. A 4×4 grid of pads, each tied
@@ -10,10 +10,10 @@ import { useFireproof } from "use-vibes";
 
 // One row per pitch (top = highest). Each note owns a distinct colour.
 const NOTES = [
-  { name: "C5", freq: 523.25, color: "#f472b6", glow: "#ec4899" }, // pink
-  { name: "A4", freq: 440.0, color: "#fbbf24", glow: "#f59e0b" }, // amber
-  { name: "G4", freq: 392.0, color: "#34d399", glow: "#10b981" }, // emerald
-  { name: "E4", freq: 329.63, color: "#60a5fa", glow: "#3b82f6" }, // blue
+  { name: 'C5', freq: 523.25, color: '#f472b6', glow: '#ec4899' }, // pink
+  { name: 'A4', freq: 440.0, color: '#fbbf24', glow: '#f59e0b' }, // amber
+  { name: 'G4', freq: 392.0, color: '#34d399', glow: '#10b981' }, // emerald
+  { name: 'E4', freq: 329.63, color: '#60a5fa', glow: '#3b82f6' }, // blue
 ];
 
 // One waveform per column, left → right. Sine/triangle carry less harmonic
@@ -21,10 +21,10 @@ const NOTES = [
 // left two by 4×. Peak is clamped to 1.0 (the limiter bus catches the rest).
 const BASE_GAIN = 0.22;
 const WAVES = [
-  { type: "sine", gain: 4 },
-  { type: "triangle", gain: 4 },
-  { type: "sawtooth", gain: 1 },
-  { type: "square", gain: 1 },
+  { type: 'sine', gain: 4 },
+  { type: 'triangle', gain: 4 },
+  { type: 'sawtooth', gain: 1 },
+  { type: 'square', gain: 1 },
 ];
 const COLS = WAVES.length;
 
@@ -55,7 +55,8 @@ const makeRec = (r, c, dur) => ({
   wave: WAVES[c],
   color: NOTES[r].color,
 });
-const serializeSteps = (steps) => steps.map((s) => s.map((rec) => ({ r: rec.r, c: rec.c, dur: rec.dur })));
+const serializeSteps = (steps) =>
+  steps.map((s) => s.map((rec) => ({ r: rec.r, c: rec.c, dur: rec.dur })));
 const hydrateSteps = (steps) =>
   Array.isArray(steps) && steps.length === STEPS
     ? steps.map((s) => (Array.isArray(s) ? s.map((t) => makeRec(t.r, t.c, t.dur ?? 0.3)) : []))
@@ -123,13 +124,13 @@ function buildVoice(ctx, wave, freq) {
   main.connect(env);
   oscs.push(main);
 
-  if (wave.type === "sine") {
+  if (wave.type === 'sine') {
     const partial = ctx.createGain();
     partial.gain.value = 2 / 3;
     partial.connect(env);
     gains.push(partial);
     const oct = ctx.createOscillator();
-    oct.type = "sine";
+    oct.type = 'sine';
     oct.frequency.value = freq * 2;
     oct.connect(partial);
     oscs.push(oct);
@@ -169,8 +170,8 @@ export default function BloomMachine() {
 
   // Persistence. Auto _id is roughly temporal, so descending = newest first —
   // saved patterns load back in insertion order with no extra sort field.
-  const { database, useLiveQuery } = useFireproof("bloom-machine");
-  const { docs: savedDocs } = useLiveQuery("_id", { descending: true });
+  const { database, useLiveQuery } = useFireproof('bloom-machine');
+  const { docs: savedDocs } = useLiveQuery('_id', { descending: true });
 
   // Lazily create the AudioContext + a limiter bus on first touch (autoplay policy).
   const ensureCtx = useCallback(() => {
@@ -215,7 +216,7 @@ export default function BloomMachine() {
       fxNodesRef.current = { shaper, delay, delaySend, delayFb, delay2, delaySend2, delayFb2 };
       applyFx(fxNodesRef.current, ctx, fxRef.current, bpmRef.current);
     }
-    if (ctxRef.current.state !== "running") ctxRef.current.resume();
+    if (ctxRef.current.state !== 'running') ctxRef.current.resume();
     return ctxRef.current;
   }, []);
 
@@ -225,7 +226,7 @@ export default function BloomMachine() {
   // every gesture so audio recovers after the tab is backgrounded/locked.
   const unlockAudio = useCallback(() => {
     const ctx = ensureCtx();
-    if (ctx.state !== "running") {
+    if (ctx.state !== 'running') {
       ctx.resume();
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
@@ -366,7 +367,7 @@ export default function BloomMachine() {
   const savePattern = async (id) => {
     const pat = patternsRef.current.find((p) => p.id === id);
     if (!pat) return;
-    const doc = { type: "pattern", steps: serializeSteps(pat.steps) };
+    const doc = { type: 'pattern', steps: serializeSteps(pat.steps) };
     if (pat.docId) doc._id = pat.docId;
     try {
       const res = await database.put(doc);
@@ -374,14 +375,16 @@ export default function BloomMachine() {
       // start a fresh empty row on top and pause, ready for the next pattern.
       const addFresh = !isEmpty(patternsRef.current[0]);
       setPatterns((prev) => {
-        const next = prev.map((p) => (p.id === id ? { ...p, saved: true, dirty: false, docId: p.docId || res.id } : p));
+        const next = prev.map((p) =>
+          p.id === id ? { ...p, saved: true, dirty: false, docId: p.docId || res.id } : p
+        );
         return addFresh ? [emptyPattern(), ...next] : next;
       });
       // Note: deliberately do NOT stop the transport — whatever's playing keeps
       // playing; the fresh empty row just waits on top.
     } catch (err) {
       // Leave the row in "save" mode so the unsaved edit isn't lost.
-      console.error("save failed (sign in to save?)", err);
+      console.error('save failed (sign in to save?)', err);
     }
   };
 
@@ -392,7 +395,7 @@ export default function BloomMachine() {
       try {
         await database.del(pat.docId);
       } catch (err) {
-        console.error("delete failed", err);
+        console.error('delete failed', err);
       }
     }
     setPatterns((prev) => {
@@ -406,7 +409,11 @@ export default function BloomMachine() {
   // Tap a dot to clear that step on its row (marks the row dirty).
   const clearStep = (id, i) =>
     setPatterns((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, dirty: true, steps: p.steps.map((s, idx) => (idx === i ? [] : s)) } : p))
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, dirty: true, steps: p.steps.map((s, idx) => (idx === i ? [] : s)) }
+          : p
+      )
     );
 
   useEffect(
@@ -431,8 +438,14 @@ export default function BloomMachine() {
     setPatterns((prev) => {
       const have = new Set(prev.map((p) => p.docId).filter(Boolean));
       const incoming = savedDocs
-        .filter((d) => d.type === "pattern" && !have.has(d._id))
-        .map((d) => ({ id: nextId++, docId: d._id, steps: hydrateSteps(d.steps), saved: true, dirty: false }));
+        .filter((d) => d.type === 'pattern' && !have.has(d._id))
+        .map((d) => ({
+          id: nextId++,
+          docId: d._id,
+          steps: hydrateSteps(d.steps),
+          saved: true,
+          dirty: false,
+        }));
       return incoming.length ? [...prev, ...incoming] : prev;
     });
   }, [savedDocs]);
@@ -462,7 +475,9 @@ export default function BloomMachine() {
     const rec = { freq: note.freq, wave, r, c, color: note.color, dur: 0.5 };
     setPatterns((prev) =>
       prev.map((p) =>
-        p.id === targetId ? { ...p, dirty: true, steps: p.steps.map((s, idx) => (idx === at ? [...s, rec] : s)) } : p
+        p.id === targetId
+          ? { ...p, dirty: true, steps: p.steps.map((s, idx) => (idx === at ? [...s, rec] : s)) }
+          : p
       )
     );
     const v = voicesRef.current[key];
@@ -503,10 +518,20 @@ export default function BloomMachine() {
               style={styles.bpmInput}
             />
             <div style={styles.spin}>
-              <button type="button" aria-label="increase bpm" onClick={() => bumpBpm(1)} style={styles.spinBtn}>
+              <button
+                type="button"
+                aria-label="increase bpm"
+                onClick={() => bumpBpm(1)}
+                style={styles.spinBtn}
+              >
                 ▲
               </button>
-              <button type="button" aria-label="decrease bpm" onClick={() => bumpBpm(-1)} style={styles.spinBtn}>
+              <button
+                type="button"
+                aria-label="decrease bpm"
+                onClick={() => bumpBpm(-1)}
+                style={styles.spinBtn}
+              >
                 ▼
               </button>
             </div>
@@ -545,10 +570,12 @@ export default function BloomMachine() {
                   onContextMenu={(e) => e.preventDefault()}
                   style={{
                     ...styles.pad,
-                    background: on ? note.color : "rgba(255,255,255,0.07)",
-                    borderColor: on ? `${note.color}aa` : "rgba(255,255,255,0.14)",
-                    boxShadow: on ? `0 0 22px 4px ${note.glow}, inset 0 0 12px ${note.color}` : "none",
-                    transform: on ? "scale(1.08)" : "scale(1)",
+                    background: on ? note.color : 'rgba(255,255,255,0.07)',
+                    borderColor: on ? `${note.color}aa` : 'rgba(255,255,255,0.14)',
+                    boxShadow: on
+                      ? `0 0 22px 4px ${note.glow}, inset 0 0 12px ${note.color}`
+                      : 'none',
+                    transform: on ? 'scale(1.08)' : 'scale(1)',
                   }}
                 />
               );
@@ -565,17 +592,17 @@ export default function BloomMachine() {
               <div key={p.id} style={styles.row}>
                 <button
                   type="button"
-                  aria-label={isActive ? "stop" : "play"}
+                  aria-label={isActive ? 'stop' : 'play'}
                   onClick={() => togglePlay(p.id)}
                   style={{
                     ...styles.round,
-                    background: isActive ? "#e9e7ff" : "rgba(255,255,255,0.07)",
-                    color: isActive ? "#1e1b4b" : "#e9e7ff",
-                    borderColor: isActive ? "#e9e7ff" : "rgba(255,255,255,0.14)",
-                    boxShadow: isActive ? "0 0 16px 3px rgba(233,231,255,0.45)" : "none",
+                    background: isActive ? '#e9e7ff' : 'rgba(255,255,255,0.07)',
+                    color: isActive ? '#1e1b4b' : '#e9e7ff',
+                    borderColor: isActive ? '#e9e7ff' : 'rgba(255,255,255,0.14)',
+                    boxShadow: isActive ? '0 0 16px 3px rgba(233,231,255,0.45)' : 'none',
                   }}
                 >
-                  <span style={{ fontSize: 15, lineHeight: 1 }}>{isActive ? "❚❚" : "▶"}</span>
+                  <span style={{ fontSize: 15, lineHeight: 1 }}>{isActive ? '❚❚' : '▶'}</span>
                 </button>
 
                 <div style={styles.dotsWrap}>
@@ -583,12 +610,12 @@ export default function BloomMachine() {
                     {p.steps.map((tones, i) => {
                       const cols = distinctColors(tones);
                       const active = isActive && step === i;
-                      let background = "rgba(255,255,255,0.18)";
+                      let background = 'rgba(255,255,255,0.18)';
                       if (cols.length === 1) {
                         background = cols[0];
                       } else if (cols.length > 1) {
                         const slice = 360 / cols.length;
-                        background = `conic-gradient(${cols.map((col, k) => `${col} ${k * slice}deg ${(k + 1) * slice}deg`).join(", ")})`;
+                        background = `conic-gradient(${cols.map((col, k) => `${col} ${k * slice}deg ${(k + 1) * slice}deg`).join(', ')})`;
                       }
                       return (
                         <button
@@ -599,8 +626,8 @@ export default function BloomMachine() {
                           style={{
                             ...styles.dot,
                             background,
-                            boxShadow: active ? "0 0 10px 2px rgba(233,231,255,0.85)" : "none",
-                            transform: active ? "scale(1.4)" : "scale(1)",
+                            boxShadow: active ? '0 0 10px 2px rgba(233,231,255,0.85)' : 'none',
+                            transform: active ? 'scale(1.4)' : 'scale(1)',
                           }}
                         />
                       );
@@ -610,16 +637,16 @@ export default function BloomMachine() {
 
                 <button
                   type="button"
-                  aria-label={saveMode ? "save pattern" : "delete pattern"}
+                  aria-label={saveMode ? 'save pattern' : 'delete pattern'}
                   onClick={() => (saveMode ? savePattern(p.id) : deletePattern(p.id))}
                   style={{
                     ...styles.round,
-                    background: saveMode ? "rgba(52,211,153,0.18)" : "rgba(244,114,182,0.14)",
-                    color: "#e9e7ff",
-                    borderColor: saveMode ? "rgba(52,211,153,0.6)" : "rgba(244,114,182,0.5)",
+                    background: saveMode ? 'rgba(52,211,153,0.18)' : 'rgba(244,114,182,0.14)',
+                    color: '#e9e7ff',
+                    borderColor: saveMode ? 'rgba(52,211,153,0.6)' : 'rgba(244,114,182,0.5)',
                   }}
                 >
-                  <span style={{ fontSize: 16, lineHeight: 1 }}>{saveMode ? "💾" : "🗑"}</span>
+                  <span style={{ fontSize: 16, lineHeight: 1 }}>{saveMode ? '💾' : '🗑'}</span>
                 </button>
               </div>
             );
@@ -632,107 +659,113 @@ export default function BloomMachine() {
 
 const styles = {
   screen: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "center",
-    background: "linear-gradient(160deg,#1e1b4b 0%,#312e81 45%,#4c1d95 100%)",
-    fontFamily: "Inter, system-ui, sans-serif",
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    background: 'linear-gradient(160deg,#1e1b4b 0%,#312e81 45%,#4c1d95 100%)',
+    fontFamily: 'Inter, system-ui, sans-serif',
     padding: 20,
-    boxSizing: "border-box",
+    boxSizing: 'border-box',
     // Text selection is never useful here and only gets in the way of tapping
     // and holding pads — disable it for the whole app.
-    userSelect: "none",
-    WebkitUserSelect: "none",
-    MozUserSelect: "none",
-    msUserSelect: "none",
-    WebkitTouchCallout: "none",
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    MozUserSelect: 'none',
+    msUserSelect: 'none',
+    WebkitTouchCallout: 'none',
   },
-  frame: { width: "100%", maxWidth: 360, color: "#e9e7ff" },
-  topbar: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
-  bpm: { display: "flex", alignItems: "center", gap: 8 },
+  frame: { width: '100%', maxWidth: 360, color: '#e9e7ff' },
+  topbar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  bpm: { display: 'flex', alignItems: 'center', gap: 8 },
   bpmLabel: { fontSize: 12, opacity: 0.7, letterSpacing: 0.5 },
   bpmInput: {
     width: 48,
-    padding: "6px 8px",
+    padding: '6px 8px',
     fontSize: 15,
-    textAlign: "center",
-    fontVariantNumeric: "tabular-nums",
-    color: "#e9e7ff",
-    background: "rgba(255,255,255,0.07)",
-    border: "1px solid rgba(255,255,255,0.18)",
+    textAlign: 'center',
+    fontVariantNumeric: 'tabular-nums',
+    color: '#e9e7ff',
+    background: 'rgba(255,255,255,0.07)',
+    border: '1px solid rgba(255,255,255,0.18)',
     borderRadius: 10,
   },
-  fx: { display: "flex", alignItems: "center", gap: 8 },
-  fxSlider: { width: 104, accentColor: "#f472b6", cursor: "pointer" },
-  spin: { display: "flex", flexDirection: "column", gap: 2 },
+  fx: { display: 'flex', alignItems: 'center', gap: 8 },
+  fxSlider: { width: 104, accentColor: '#f472b6', cursor: 'pointer' },
+  spin: { display: 'flex', flexDirection: 'column', gap: 2 },
   spinBtn: {
     width: 24,
     height: 17,
     padding: 0,
     fontSize: 9,
     lineHeight: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#e9e7ff",
-    background: "rgba(255,255,255,0.07)",
-    border: "1px solid rgba(255,255,255,0.18)",
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#e9e7ff',
+    background: 'rgba(255,255,255,0.07)',
+    border: '1px solid rgba(255,255,255,0.18)',
     borderRadius: 6,
-    cursor: "pointer",
-    WebkitTapHighlightColor: "transparent",
-    touchAction: "manipulation",
+    cursor: 'pointer',
+    WebkitTapHighlightColor: 'transparent',
+    touchAction: 'manipulation',
   },
-  grid: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 },
   pad: {
-    aspectRatio: "1 / 1",
+    aspectRatio: '1 / 1',
     borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.14)",
-    cursor: "pointer",
+    border: '1px solid rgba(255,255,255,0.14)',
+    cursor: 'pointer',
     padding: 0,
-    transition: "transform 90ms ease, background 90ms ease, box-shadow 90ms ease",
-    WebkitTapHighlightColor: "transparent",
-    touchAction: "none",
-    userSelect: "none",
-    WebkitUserSelect: "none",
+    transition: 'transform 90ms ease, background 90ms ease, box-shadow 90ms ease',
+    WebkitTapHighlightColor: 'transparent',
+    touchAction: 'none',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
   },
-  list: { display: "flex", flexDirection: "column", gap: 14, marginTop: 18 },
-  row: { display: "flex", alignItems: "center", gap: 10 },
-  dotsWrap: { flex: 1, display: "flex", justifyContent: "center" },
+  list: { display: 'flex', flexDirection: 'column', gap: 14, marginTop: 18 },
+  row: { display: 'flex', alignItems: 'center', gap: 10 },
+  dotsWrap: { flex: 1, display: 'flex', justifyContent: 'center' },
   dots: {
-    display: "grid",
+    display: 'grid',
     gridTemplateColumns: `repeat(${DOT_COLS}, 17px)`,
-    gap: "13px 16px",
-    alignContent: "center",
-    justifyContent: "center",
+    gap: '13px 16px',
+    alignContent: 'center',
+    justifyContent: 'center',
   },
   dot: {
     width: 17,
     height: 17,
-    borderRadius: "50%",
-    border: "none",
+    borderRadius: '50%',
+    border: 'none',
     padding: 0,
-    cursor: "pointer",
-    background: "rgba(255,255,255,0.18)",
-    transition: "box-shadow 80ms ease, transform 80ms ease",
-    WebkitTapHighlightColor: "transparent",
-    touchAction: "manipulation",
+    cursor: 'pointer',
+    background: 'rgba(255,255,255,0.18)',
+    transition: 'box-shadow 80ms ease, transform 80ms ease',
+    WebkitTapHighlightColor: 'transparent',
+    touchAction: 'manipulation',
   },
   round: {
     width: 45, // 75% of the previous 60px play button
     height: 45,
     flexShrink: 0,
-    borderRadius: "50%",
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.07)",
-    color: "#e9e7ff",
-    cursor: "pointer",
+    borderRadius: '50%',
+    border: '1px solid rgba(255,255,255,0.14)',
+    background: 'rgba(255,255,255,0.07)',
+    color: '#e9e7ff',
+    cursor: 'pointer',
     padding: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "background 120ms ease, box-shadow 120ms ease, color 120ms ease, transform 90ms ease",
-    WebkitTapHighlightColor: "transparent",
-    touchAction: "manipulation",
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition:
+      'background 120ms ease, box-shadow 120ms ease, color 120ms ease, transform 90ms ease',
+    WebkitTapHighlightColor: 'transparent',
+    touchAction: 'manipulation',
   },
 };

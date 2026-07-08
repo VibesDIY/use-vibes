@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback } from 'react';
 
 // ── Bloom ────────────────────────────────────────────────────────────────────
 // The root music starter: just a 4×4 grid of tones you can play. Each row is a
@@ -10,20 +10,20 @@ import React, { useRef, useState, useCallback } from "react";
 
 // One row per pitch (top = highest); each note owns a distinct colour.
 const NOTES = [
-  { name: "C5", freq: 523.25, color: "#f472b6", glow: "#ec4899" }, // pink
-  { name: "A4", freq: 440.0, color: "#fbbf24", glow: "#f59e0b" }, // amber
-  { name: "G4", freq: 392.0, color: "#34d399", glow: "#10b981" }, // emerald
-  { name: "E4", freq: 329.63, color: "#60a5fa", glow: "#3b82f6" }, // blue
+  { name: 'C5', freq: 523.25, color: '#f472b6', glow: '#ec4899' }, // pink
+  { name: 'A4', freq: 440.0, color: '#fbbf24', glow: '#f59e0b' }, // amber
+  { name: 'G4', freq: 392.0, color: '#34d399', glow: '#10b981' }, // emerald
+  { name: 'E4', freq: 329.63, color: '#60a5fa', glow: '#3b82f6' }, // blue
 ];
 
 // One waveform per column, left → right; the left two are boosted so the four
 // columns sit at a similar loudness despite their harmonic content.
 const BASE_GAIN = 0.22;
 const WAVES = [
-  { type: "sine", gain: 4 },
-  { type: "triangle", gain: 4 },
-  { type: "sawtooth", gain: 1 },
-  { type: "square", gain: 1 },
+  { type: 'sine', gain: 4 },
+  { type: 'triangle', gain: 4 },
+  { type: 'sawtooth', gain: 1 },
+  { type: 'square', gain: 1 },
 ];
 const COLS = WAVES.length;
 
@@ -38,13 +38,13 @@ function buildVoice(ctx, wave, freq) {
   main.frequency.value = freq;
   main.connect(env);
   oscs.push(main);
-  if (wave.type === "sine") {
+  if (wave.type === 'sine') {
     const partial = ctx.createGain();
     partial.gain.value = 2 / 3;
     partial.connect(env);
     gains.push(partial);
     const oct = ctx.createOscillator();
-    oct.type = "sine";
+    oct.type = 'sine';
     oct.frequency.value = freq * 2;
     oct.connect(partial);
     oscs.push(oct);
@@ -70,7 +70,7 @@ export default function Bloom() {
       ctxRef.current = ctx;
       masterRef.current = master;
     }
-    if (ctxRef.current.state !== "running") ctxRef.current.resume();
+    if (ctxRef.current.state !== 'running') ctxRef.current.resume();
     return ctxRef.current;
   }, []);
 
@@ -78,7 +78,7 @@ export default function Bloom() {
   // real (silent) sound here; re-check state every gesture (suspends on lock).
   const unlockAudio = useCallback(() => {
     const ctx = ensureCtx();
-    if (ctx.state !== "running") {
+    if (ctx.state !== 'running') {
       ctx.resume();
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
@@ -160,10 +160,12 @@ export default function Bloom() {
                   onContextMenu={(e) => e.preventDefault()}
                   style={{
                     ...styles.pad,
-                    background: on ? note.color : "rgba(255,255,255,0.07)",
-                    borderColor: on ? `${note.color}aa` : "rgba(255,255,255,0.14)",
-                    boxShadow: on ? `0 0 22px 4px ${note.glow}, inset 0 0 12px ${note.color}` : "none",
-                    transform: on ? "scale(1.08)" : "scale(1)",
+                    background: on ? note.color : 'rgba(255,255,255,0.07)',
+                    borderColor: on ? `${note.color}aa` : 'rgba(255,255,255,0.14)',
+                    boxShadow: on
+                      ? `0 0 22px 4px ${note.glow}, inset 0 0 12px ${note.color}`
+                      : 'none',
+                    transform: on ? 'scale(1.08)' : 'scale(1)',
                   }}
                 />
               );
@@ -171,10 +173,16 @@ export default function Bloom() {
           )}
         </div>
         <footer style={styles.credit}>
-          With thanks to ambient pioneer Brian Eno and musician &amp; software designer Peter Chilvers, whose{" "}
-          <a href="https://generativemusic.com/bloom.html" target="_blank" rel="noreferrer" style={styles.creditLink}>
+          With thanks to ambient pioneer Brian Eno and musician &amp; software designer Peter
+          Chilvers, whose{' '}
+          <a
+            href="https://generativemusic.com/bloom.html"
+            target="_blank"
+            rel="noreferrer"
+            style={styles.creditLink}
+          >
             Bloom
-          </a>{" "}
+          </a>{' '}
           inspired this.
         </footer>
       </div>
@@ -184,37 +192,37 @@ export default function Bloom() {
 
 const styles = {
   screen: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "center",
-    background: "linear-gradient(160deg,#1e1b4b 0%,#312e81 45%,#4c1d95 100%)",
-    fontFamily: "Inter, system-ui, sans-serif",
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    background: 'linear-gradient(160deg,#1e1b4b 0%,#312e81 45%,#4c1d95 100%)',
+    fontFamily: 'Inter, system-ui, sans-serif',
     padding: 20,
-    boxSizing: "border-box",
-    userSelect: "none",
-    WebkitUserSelect: "none",
-    MozUserSelect: "none",
-    msUserSelect: "none",
-    WebkitTouchCallout: "none",
+    boxSizing: 'border-box',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    MozUserSelect: 'none',
+    msUserSelect: 'none',
+    WebkitTouchCallout: 'none',
   },
-  frame: { width: "100%", maxWidth: 360, color: "#e9e7ff" },
+  frame: { width: '100%', maxWidth: 360, color: '#e9e7ff' },
   header: { marginBottom: 16 },
   title: { fontSize: 26, fontWeight: 800, margin: 0, letterSpacing: -0.5 },
-  subtitle: { opacity: 0.7, fontSize: 13, margin: "4px 0 0" },
-  grid: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 },
+  subtitle: { opacity: 0.7, fontSize: 13, margin: '4px 0 0' },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 },
   credit: { marginTop: 22, fontSize: 12, lineHeight: 1.5, opacity: 0.6 },
-  creditLink: { color: "#c4b5fd", textDecoration: "underline" },
+  creditLink: { color: '#c4b5fd', textDecoration: 'underline' },
   pad: {
-    aspectRatio: "1 / 1",
+    aspectRatio: '1 / 1',
     borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.14)",
-    cursor: "pointer",
+    border: '1px solid rgba(255,255,255,0.14)',
+    cursor: 'pointer',
     padding: 0,
-    transition: "transform 90ms ease, background 90ms ease, box-shadow 90ms ease",
-    WebkitTapHighlightColor: "transparent",
-    touchAction: "none",
-    userSelect: "none",
-    WebkitUserSelect: "none",
+    transition: 'transform 90ms ease, background 90ms ease, box-shadow 90ms ease',
+    WebkitTapHighlightColor: 'transparent',
+    touchAction: 'none',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
   },
 };

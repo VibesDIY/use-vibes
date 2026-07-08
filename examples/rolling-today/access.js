@@ -12,13 +12,13 @@ export default function (doc, oldDoc, user, ctx) {
 
   // Every write needs a real account. Logged-out favorites/notes never reach the
   // cloud — they live in localStorage and migrate in on first sign-in.
-  if (!user) throw { forbidden: "authentication required" };
+  if (!user) throw { forbidden: 'authentication required' };
 
   // Favorites are public-read (cheap to serve the "friends rolling" piles), but the
   // app only *displays* your own + your friends' picks. Owner-only writes.
-  if (type === "favorite") {
-    if (ownerId !== user.userHandle) throw { forbidden: "not owner" };
-    return { channels: ["favorites"], grant: { public: ["favorites"] } };
+  if (type === 'favorite') {
+    if (ownerId !== user.userHandle) throw { forbidden: 'not owner' };
+    return { channels: ['favorites'], grant: { public: ['favorites'] } };
   }
 
   // Calendar-subscription token: the random capability that makes the user's
@@ -26,23 +26,23 @@ export default function (doc, oldDoc, user, ctx) {
   // backend's scheduled lane reads it unfiltered regardless. Owner-only write;
   // created only when the user asks for a calendar link (opt-in), revoked by
   // deleting the doc.
-  if (type === "caltoken") {
-    if (ownerId !== user.userHandle) throw { forbidden: "not owner" };
+  if (type === 'caltoken') {
+    if (ownerId !== user.userHandle) throw { forbidden: 'not owner' };
     const ch = `user-${ownerId}`;
     return { channels: [ch], grant: { users: { [ownerId]: [ch] } } };
   }
 
   // Notes are private to their owner.
-  if (type === "note") {
-    if (ownerId !== user.userHandle) throw { forbidden: "not owner" };
+  if (type === 'note') {
+    if (ownerId !== user.userHandle) throw { forbidden: 'not owner' };
     const ch = `user-${ownerId}`;
     return { channels: [ch], grant: { users: { [ownerId]: [ch] } } };
   }
 
   // A friend edge is visible to both endpoints so following resolves in both
   // directions.
-  if (type === "friend") {
-    if (ownerId !== user.userHandle) throw { forbidden: "not owner" };
+  if (type === 'friend') {
+    if (ownerId !== user.userHandle) throw { forbidden: 'not owner' };
     const friendSlug = doc.friendSlug != null ? doc.friendSlug : oldDoc && oldDoc.friendSlug;
     const myChannel = `user-${ownerId}`;
     const theirChannel = `user-${friendSlug}`;
@@ -56,5 +56,5 @@ export default function (doc, oldDoc, user, ctx) {
   // write but route it to an unreadable channel — one with no grant, so nobody can
   // read it back. Throwing here would surface as an error toast and, worse, fail the
   // whole anonymousLocal migration on every load if a single stray doc slips through.
-  return { channels: ["discard"], grant: {} };
+  return { channels: ['discard'], grant: {} };
 }
