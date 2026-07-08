@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 
 // ── Bloom Says ───────────────────────────────────────────────────────────────
 // A Simon-says memory game on the Bloom grid (fork of system/bloom-machine).
@@ -8,19 +8,19 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
 
 // One row per pitch (top = highest); each note owns a distinct colour.
 const NOTES = [
-  { name: "C5", freq: 523.25, color: "#f472b6", glow: "#ec4899" }, // pink
-  { name: "A4", freq: 440.0, color: "#fbbf24", glow: "#f59e0b" }, // amber
-  { name: "G4", freq: 392.0, color: "#34d399", glow: "#10b981" }, // emerald
-  { name: "E4", freq: 329.63, color: "#60a5fa", glow: "#3b82f6" }, // blue
+  { name: 'C5', freq: 523.25, color: '#f472b6', glow: '#ec4899' }, // pink
+  { name: 'A4', freq: 440.0, color: '#fbbf24', glow: '#f59e0b' }, // amber
+  { name: 'G4', freq: 392.0, color: '#34d399', glow: '#10b981' }, // emerald
+  { name: 'E4', freq: 329.63, color: '#60a5fa', glow: '#3b82f6' }, // blue
 ];
 
 // One waveform per column, left → right; left two boosted to match loudness.
 const BASE_GAIN = 0.22;
 const WAVES = [
-  { type: "sine", gain: 4 },
-  { type: "triangle", gain: 4 },
-  { type: "sawtooth", gain: 1 },
-  { type: "square", gain: 1 },
+  { type: 'sine', gain: 4 },
+  { type: 'triangle', gain: 4 },
+  { type: 'sawtooth', gain: 1 },
+  { type: 'square', gain: 1 },
 ];
 const COLS = WAVES.length;
 const PADS = NOTES.length * COLS; // 16
@@ -41,13 +41,13 @@ function buildVoice(ctx, wave, freq) {
   main.frequency.value = freq;
   main.connect(env);
   oscs.push(main);
-  if (wave.type === "sine") {
+  if (wave.type === 'sine') {
     const partial = ctx.createGain();
     partial.gain.value = 2 / 3;
     partial.connect(env);
     gains.push(partial);
     const oct = ctx.createOscillator();
-    oct.type = "sine";
+    oct.type = 'sine';
     oct.frequency.value = freq * 2;
     oct.connect(partial);
     oscs.push(oct);
@@ -58,14 +58,14 @@ function buildVoice(ctx, wave, freq) {
 export default function BloomSays() {
   const [lit, setLit] = useState({}); // index → true while a pad flashes
   const [sequence, setSequence] = useState([]); // pad indices to repeat
-  const [phase, setPhase] = useState("idle"); // idle | watch | repeat | fail
+  const [phase, setPhase] = useState('idle'); // idle | watch | repeat | fail
   const [failFlash, setFailFlash] = useState(false);
 
   const ctxRef = useRef(null);
   const masterRef = useRef(null);
   const seqRef = useRef([]);
   const inputRef = useRef(0); // how many correct taps so far this turn
-  const phaseRef = useRef("idle");
+  const phaseRef = useRef('idle');
   const genRef = useRef(0); // bumps to cancel in-flight playback
   const timersRef = useRef([]);
 
@@ -89,7 +89,7 @@ export default function BloomSays() {
       ctxRef.current = ctx;
       masterRef.current = master;
     }
-    if (ctxRef.current.state !== "running") ctxRef.current.resume();
+    if (ctxRef.current.state !== 'running') ctxRef.current.resume();
     return ctxRef.current;
   }, []);
 
@@ -97,7 +97,7 @@ export default function BloomSays() {
   // real (silent) sound here; re-check state every gesture (suspends on lock).
   const unlockAudio = useCallback(() => {
     const ctx = ensureCtx();
-    if (ctx.state !== "running") {
+    if (ctx.state !== 'running') {
       ctx.resume();
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
@@ -146,7 +146,7 @@ export default function BloomSays() {
     env.connect(masterRef.current);
     const oscs = [110, 116.5].map((freq) => {
       const o = ctx.createOscillator();
-      o.type = "sawtooth";
+      o.type = 'sawtooth';
       o.frequency.value = freq;
       o.connect(env);
       o.start(t);
@@ -174,7 +174,7 @@ export default function BloomSays() {
   const playSequence = useCallback(
     async (seq) => {
       const myGen = genRef.current;
-      setPhaseBoth("watch");
+      setPhaseBoth('watch');
       await sleep(START_DELAY);
       for (const idx of seq) {
         if (genRef.current !== myGen) return; // cancelled (restart/unmount)
@@ -183,7 +183,7 @@ export default function BloomSays() {
       }
       if (genRef.current !== myGen) return;
       inputRef.current = 0;
-      setPhaseBoth("repeat");
+      setPhaseBoth('repeat');
     },
     [flashBeep]
   );
@@ -207,7 +207,7 @@ export default function BloomSays() {
 
   const fail = useCallback(() => {
     genRef.current += 1; // cancel any in-flight playback
-    setPhaseBoth("fail");
+    setPhaseBoth('fail');
     setFailFlash(true);
     playBuzz();
     timersRef.current.push(setTimeout(() => setFailFlash(false), 500));
@@ -221,7 +221,7 @@ export default function BloomSays() {
 
   const onPadDown = (idx) => {
     unlockAudio();
-    if (phaseRef.current !== "repeat") return;
+    if (phaseRef.current !== 'repeat') return;
     const expected = seqRef.current[inputRef.current];
     if (idx !== expected) {
       fail();
@@ -230,7 +230,7 @@ export default function BloomSays() {
     flashBeep(idx, 300);
     inputRef.current += 1;
     if (inputRef.current === seqRef.current.length) {
-      setPhaseBoth("watch"); // lock input while we extend + replay
+      setPhaseBoth('watch'); // lock input while we extend + replay
       timersRef.current.push(setTimeout(() => extend(), 700));
     }
   };
@@ -244,13 +244,13 @@ export default function BloomSays() {
   );
 
   const status =
-    phase === "idle"
-      ? "Tap a pad — watch, then repeat"
-      : phase === "watch"
-        ? "Watch…"
-        : phase === "repeat"
-          ? "Your turn"
-          : "Miss! Starting over…";
+    phase === 'idle'
+      ? 'Tap a pad — watch, then repeat'
+      : phase === 'watch'
+        ? 'Watch…'
+        : phase === 'repeat'
+          ? 'Your turn'
+          : 'Miss! Starting over…';
 
   return (
     <div style={styles.screen}>
@@ -260,7 +260,7 @@ export default function BloomSays() {
           <p style={styles.status}>{status}</p>
         </header>
 
-        <div style={{ ...styles.grid, opacity: phase === "watch" || phase === "fail" ? 0.9 : 1 }}>
+        <div style={{ ...styles.grid, opacity: phase === 'watch' || phase === 'fail' ? 0.9 : 1 }}>
           {Array.from({ length: PADS }).map((_, idx) => {
             const { r } = padOf(idx);
             const note = NOTES[r];
@@ -274,10 +274,20 @@ export default function BloomSays() {
                 onContextMenu={(e) => e.preventDefault()}
                 style={{
                   ...styles.pad,
-                  background: on ? note.color : failFlash ? "rgba(239,68,68,0.25)" : "rgba(255,255,255,0.07)",
-                  borderColor: on ? `${note.color}aa` : failFlash ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.14)",
-                  boxShadow: on ? `0 0 22px 4px ${note.glow}, inset 0 0 12px ${note.color}` : "none",
-                  transform: on ? "scale(1.08)" : "scale(1)",
+                  background: on
+                    ? note.color
+                    : failFlash
+                      ? 'rgba(239,68,68,0.25)'
+                      : 'rgba(255,255,255,0.07)',
+                  borderColor: on
+                    ? `${note.color}aa`
+                    : failFlash
+                      ? 'rgba(239,68,68,0.5)'
+                      : 'rgba(255,255,255,0.14)',
+                  boxShadow: on
+                    ? `0 0 22px 4px ${note.glow}, inset 0 0 12px ${note.color}`
+                    : 'none',
+                  transform: on ? 'scale(1.08)' : 'scale(1)',
                 }}
               />
             );
@@ -285,7 +295,7 @@ export default function BloomSays() {
         </div>
 
         <div style={styles.footer}>
-          {phase === "idle" ? (
+          {phase === 'idle' ? (
             <button type="button" onClick={startGame} style={styles.startBtn}>
               ▶ Start
             </button>
@@ -300,49 +310,60 @@ export default function BloomSays() {
 
 const styles = {
   screen: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "center",
-    background: "linear-gradient(160deg,#1e1b4b 0%,#312e81 45%,#4c1d95 100%)",
-    fontFamily: "Inter, system-ui, sans-serif",
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    background: 'linear-gradient(160deg,#1e1b4b 0%,#312e81 45%,#4c1d95 100%)',
+    fontFamily: 'Inter, system-ui, sans-serif',
     padding: 20,
-    boxSizing: "border-box",
-    userSelect: "none",
-    WebkitUserSelect: "none",
-    MozUserSelect: "none",
-    msUserSelect: "none",
-    WebkitTouchCallout: "none",
+    boxSizing: 'border-box',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    MozUserSelect: 'none',
+    msUserSelect: 'none',
+    WebkitTouchCallout: 'none',
   },
-  frame: { width: "100%", maxWidth: 360, color: "#e9e7ff" },
+  frame: { width: '100%', maxWidth: 360, color: '#e9e7ff' },
   header: { marginBottom: 16 },
   title: { fontSize: 26, fontWeight: 800, margin: 0, letterSpacing: -0.5 },
-  status: { opacity: 0.7, fontSize: 13, margin: "4px 0 0", minHeight: 16 },
-  grid: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, transition: "opacity 150ms ease" },
-  pad: {
-    aspectRatio: "1 / 1",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.14)",
-    cursor: "pointer",
-    padding: 0,
-    transition: "transform 90ms ease, background 90ms ease, box-shadow 90ms ease",
-    WebkitTapHighlightColor: "transparent",
-    touchAction: "none",
-    userSelect: "none",
-    WebkitUserSelect: "none",
+  status: { opacity: 0.7, fontSize: 13, margin: '4px 0 0', minHeight: 16 },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4,1fr)',
+    gap: 12,
+    transition: 'opacity 150ms ease',
   },
-  footer: { display: "flex", alignItems: "center", justifyContent: "center", minHeight: 48, marginTop: 18 },
+  pad: {
+    aspectRatio: '1 / 1',
+    borderRadius: 14,
+    border: '1px solid rgba(255,255,255,0.14)',
+    cursor: 'pointer',
+    padding: 0,
+    transition: 'transform 90ms ease, background 90ms ease, box-shadow 90ms ease',
+    WebkitTapHighlightColor: 'transparent',
+    touchAction: 'none',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+  },
+  footer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    marginTop: 18,
+  },
   startBtn: {
-    padding: "12px 28px",
+    padding: '12px 28px',
     fontSize: 15,
     fontWeight: 700,
-    color: "#1e1b4b",
-    background: "#e9e7ff",
-    border: "none",
+    color: '#1e1b4b',
+    background: '#e9e7ff',
+    border: 'none',
     borderRadius: 12,
-    cursor: "pointer",
-    WebkitTapHighlightColor: "transparent",
-    touchAction: "manipulation",
+    cursor: 'pointer',
+    WebkitTapHighlightColor: 'transparent',
+    touchAction: 'manipulation',
   },
-  level: { fontSize: 14, fontWeight: 600, opacity: 0.85, fontVariantNumeric: "tabular-nums" },
+  level: { fontSize: 14, fontWeight: 600, opacity: 0.85, fontVariantNumeric: 'tabular-nums' },
 };

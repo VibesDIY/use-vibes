@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import RideCard from "./RideCard.jsx";
-import { c } from "./styles.js";
-import { prettyDate, rideKey } from "./calendar-utils.js";
+import React, { useState } from 'react';
+import RideCard from './RideCard.jsx';
+import { c } from './styles.js';
+import { prettyDate, rideKey } from './calendar-utils.js';
 
 // Live calendar subscription buttons. The URL carries a per-user random
 // token (opt-in — created only when the user asks), so it's unguessable and
@@ -41,7 +41,7 @@ function SubscribeBar({ subscribePath }) {
         title="Copy the subscription URL — paste into Google Calendar (From URL) or send to a friend"
         aria-label="Copy subscription link"
       >
-        {copied ? "✓" : "📋"}
+        {copied ? '✓' : '📋'}
       </button>
     </div>
   );
@@ -80,7 +80,7 @@ export default function FavoritesView({
             <div className={c.dayHead}>
               <span>{prettyDate(date)}</span>
               <span className={c.dayHeadCount}>
-                {rides.length} ride{rides.length === 1 ? "" : "s"}
+                {rides.length} ride{rides.length === 1 ? '' : 's'}
               </span>
             </div>
             <div className={c.list}>

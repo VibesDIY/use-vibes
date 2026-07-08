@@ -1,6 +1,6 @@
-import React from "react";
-import { fmtTime, fmtDate } from "./festival-utils.js";
-import { lineupTag, eventCardStyle, eventCardBg } from "./styles.js";
+import React from 'react';
+import { fmtTime, fmtDate } from './festival-utils.js';
+import { lineupTag, eventCardStyle, eventCardBg } from './styles.js';
 
 export default function FavoritesView({
   favoriteEvents,
@@ -20,7 +20,7 @@ export default function FavoritesView({
       <div className="mb-1.5 p-2 bg-[#BACD32] dark:bg-[#2c3510] rounded-2xl m-0.5 ">
         <div className="flex items-center justify-between mb-[3px] flex-wrap gap-0.5">
           <h3 className={`text-lg font-black ${c.bodyText}`}>
-            {viewingUser ? `Viewing ${viewingUser}'s picks` : "Pickers (tap to view their picks)"}
+            {viewingUser ? `Viewing ${viewingUser}'s picks` : 'Pickers (tap to view their picks)'}
           </h3>
           {viewingUser && (
             <button onClick={() => setViewingUser(null)} className={c.btnCyan}>
@@ -33,8 +33,8 @@ export default function FavoritesView({
             <button
               key={u.userId}
               onClick={() => setViewingUser(u.userId === userId ? null : u.userId)}
-              className={`flex items-center gap-0.5 p-[1px] rounded-full m-0.5  transition-all ${viewingUser === u.userId || (!viewingUser && u.userId === userId) ? "bg-[#CD6C0C]" : "bg-white dark:bg-[#22252d] hover:bg-[#71AD44] dark:hover:bg-[#1d3015]"}`}
-              title={`${u.count} pick${u.count === 1 ? "" : "s"}`}
+              className={`flex items-center gap-0.5 p-[1px] rounded-full m-0.5  transition-all ${viewingUser === u.userId || (!viewingUser && u.userId === userId) ? 'bg-[#CD6C0C]' : 'bg-white dark:bg-[#22252d] hover:bg-[#71AD44] dark:hover:bg-[#1d3015]'}`}
+              title={`${u.count} pick${u.count === 1 ? '' : 's'}`}
             >
               <ViewerTag userHandle={u.userId} />
               <span className={`pr-[3px] font-bold text-sm ${c.bodyText}`}>{u.count}</span>

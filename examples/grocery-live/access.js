@@ -23,13 +23,14 @@
 // name MUST match the database name ("grocery").
 export function grocery(doc, oldDoc, user, ctx) {
   const safeId = (id) => {
-    if (typeof id !== "string" || !/^[A-Za-z0-9_-]+$/.test(id)) throw { forbidden: "Invalid id" };
+    if (typeof id !== 'string' || !/^[A-Za-z0-9_-]+$/.test(id)) throw { forbidden: 'Invalid id' };
     return id;
   };
 
-  if (!user?.userHandle) throw { forbidden: "Sign in to make changes" };
+  if (!user?.userHandle) throw { forbidden: 'Sign in to make changes' };
   const type = doc.type || (oldDoc && oldDoc.type);
-  if (oldDoc && oldDoc.type && doc.type && doc.type !== oldDoc.type) throw { forbidden: "type is immutable" };
+  if (oldDoc && oldDoc.type && doc.type && doc.type !== oldDoc.type)
+    throw { forbidden: 'type is immutable' };
 
   const myHome = user.userHandle;
   // oldDoc is AUTHORITATIVE whenever it exists — a tombstone (or update) must
@@ -39,17 +40,23 @@ export function grocery(doc, oldDoc, user, ctx) {
   // householdId is rejected, not accepted-with-loss (a doc that shed its
   // household would re-home to the next writer's home channel). The oldDoc
   // fallback is for tombstones only.
-  if (oldDoc && !doc._deleted && !user.isOwner && oldDoc.householdId !== undefined && doc.householdId !== oldDoc.householdId) {
-    throw { forbidden: "householdId is immutable" };
+  if (
+    oldDoc &&
+    !doc._deleted &&
+    !user.isOwner &&
+    oldDoc.householdId !== undefined &&
+    doc.householdId !== oldDoc.householdId
+  ) {
+    throw { forbidden: 'householdId is immutable' };
   }
-  const chan = "home:" + safeId(householdId);
+  const chan = 'home:' + safeId(householdId);
   // The founder's grant is re-issued by every household write; members carry
   // theirs on their member doc.
   const withFounderGrant = { channels: [chan], grant: { users: { [householdId]: [chan] } } };
 
   switch (type) {
-    case "item":
-    case "store": {
+    case 'item':
+    case 'store': {
       if (!user.isOwner && householdId !== myHome) ctx.requireAccess(chan);
       if (
         oldDoc &&
@@ -58,16 +65,16 @@ export function grocery(doc, oldDoc, user, ctx) {
         oldDoc.authorHandle !== undefined &&
         doc.authorHandle !== oldDoc.authorHandle
       ) {
-        throw { forbidden: "authorHandle is immutable" };
+        throw { forbidden: 'authorHandle is immutable' };
       }
       return withFounderGrant;
     }
-    case "member": {
+    case 'member': {
       // oldDoc-first: a delete's identity comes from the STORED doc, so a
       // forged doc.userHandle can't claim the self-removal carve-out
       // (CharlieHelps, #3081).
       const memberHandle = (oldDoc && oldDoc.userHandle) || doc.userHandle;
-      if (oldDoc && !doc._deleted) throw { forbidden: "Membership grants are immutable" };
+      if (oldDoc && !doc._deleted) throw { forbidden: 'Membership grants are immutable' };
       if (doc._deleted) {
         // The founder may remove members; a member may remove themself.
         if (!user.isOwner && householdId !== myHome && memberHandle !== user.userHandle) {
@@ -79,11 +86,16 @@ export function grocery(doc, oldDoc, user, ctx) {
       // coarse grant that unlocks everything the household owns, so handing
       // out invite rights transitively is more blast radius than a starter
       // wants. Items/stores stay any-member.
-      if (householdId !== myHome && !user.isOwner) throw { forbidden: "Only the household's founder can invite" };
-      if (doc.addedBy !== user.userHandle && !user.isOwner) throw { forbidden: "addedBy must be you" };
-      return { channels: [chan], grant: { users: { [householdId]: [chan], [safeId(memberHandle)]: [chan] } } };
+      if (householdId !== myHome && !user.isOwner)
+        throw { forbidden: "Only the household's founder can invite" };
+      if (doc.addedBy !== user.userHandle && !user.isOwner)
+        throw { forbidden: 'addedBy must be you' };
+      return {
+        channels: [chan],
+        grant: { users: { [householdId]: [chan], [safeId(memberHandle)]: [chan] } },
+      };
     }
     default:
-      throw { forbidden: "Unknown doc type" };
+      throw { forbidden: 'Unknown doc type' };
   }
 }

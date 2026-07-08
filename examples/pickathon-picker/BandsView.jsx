@@ -1,8 +1,18 @@
-import React from "react";
-import { fmtDate, fmtTime } from "./festival-utils.js";
-import { eventCardBg } from "./styles.js";
+import React from 'react';
+import { fmtDate, fmtTime } from './festival-utils.js';
+import { eventCardBg } from './styles.js';
 
-export default function BandsView({ bandsList, myFavIds, canWrite, toggleFavorite, favCounts, superMode, c, database, userId }) {
+export default function BandsView({
+  bandsList,
+  myFavIds,
+  canWrite,
+  toggleFavorite,
+  favCounts,
+  superMode,
+  c,
+  database,
+  userId,
+}) {
   const toggleAllBand = async (band) => {
     const allFaved = band.events.every((e) => myFavIds.has(e.eventId));
     if (allFaved) {
@@ -15,7 +25,7 @@ export default function BandsView({ bandsList, myFavIds, canWrite, toggleFavorit
         if (!myFavIds.has(e.eventId)) {
           await database.put({
             _id: `favorite-${userId}-${e.eventId}`,
-            type: "favorite",
+            type: 'favorite',
             eventId: e.eventId,
             userId,
           });
@@ -27,21 +37,21 @@ export default function BandsView({ bandsList, myFavIds, canWrite, toggleFavorit
   // Preferred display order for the lineup categories the feed ships (music/djs/family/
   // wellness/curation/literary as of 2026). Any *other* category the feed adds later is
   // still rendered — appended after these — so nothing silently drops off the page.
-  const LINEUP_ORDER = ["music", "djs", "family", "wellness", "curation", "literary"];
+  const LINEUP_ORDER = ['music', 'djs', 'family', 'wellness', 'curation', 'literary'];
   const LINEUP_LABELS = {
-    music: "Music",
-    djs: "DJs",
-    family: "Family",
-    wellness: "Wellness",
-    curation: "Curation",
-    literary: "Literary",
+    music: 'Music',
+    djs: 'DJs',
+    family: 'Family',
+    wellness: 'Wellness',
+    curation: 'Curation',
+    literary: 'Literary',
   };
   const titleCase = (s) => s.replace(/(^|[\s-])\w/g, (m) => m.toUpperCase());
   const labelFor = (key) => LINEUP_LABELS[key] || titleCase(key);
 
   const grouped = {};
   for (const band of bandsList) {
-    const key = band.lineup?.id || "music";
+    const key = band.lineup?.id || 'music';
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(band);
   }
@@ -61,11 +71,15 @@ export default function BandsView({ bandsList, myFavIds, canWrite, toggleFavorit
         {orderedKeys.map((key) => (
           <button
             key={`nav-${key}`}
-            onClick={() => document.getElementById(`lineup-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onClick={() =>
+              document
+                .getElementById(`lineup-${key}`)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
             className="px-2 py-1.5 rounded-xl m-0.5  font-black text-sm cursor-pointer hover:opacity-80 transition-all"
             style={{
-              backgroundColor: grouped[key][0].lineup?.color || "#d7c57d",
-              color: grouped[key][0].lineup?.textColor || "#000",
+              backgroundColor: grouped[key][0].lineup?.color || '#d7c57d',
+              color: grouped[key][0].lineup?.textColor || '#000',
             }}
           >
             {labelFor(key)} ({grouped[key].length})
@@ -77,8 +91,8 @@ export default function BandsView({ bandsList, myFavIds, canWrite, toggleFavorit
           <h3
             className="text-lg font-black mb-[3px] px-2 py-1.5 rounded-xl m-0.5  inline-block"
             style={{
-              backgroundColor: grouped[key][0].lineup?.color || "#d7c57d",
-              color: grouped[key][0].lineup?.textColor || "#000",
+              backgroundColor: grouped[key][0].lineup?.color || '#d7c57d',
+              color: grouped[key][0].lineup?.textColor || '#000',
             }}
           >
             {labelFor(key)} ({grouped[key].length})
@@ -87,22 +101,22 @@ export default function BandsView({ bandsList, myFavIds, canWrite, toggleFavorit
             {grouped[key].map((band) => {
               const allFaved = band.events.every((e) => myFavIds.has(e.eventId));
               const anyFav = band.events.some((e) => myFavIds.has(e.eventId));
-              const lineupLabel = band.lineup?.id || "music";
-              const lineupColor = band.lineup?.color || "#d7c57d";
-              const lineupText = band.lineup?.textColor || "#000";
+              const lineupLabel = band.lineup?.id || 'music';
+              const lineupColor = band.lineup?.color || '#d7c57d';
+              const lineupText = band.lineup?.textColor || '#000';
               return (
                 <div
                   key={band.title}
                   className={`rounded-[16px] m-0.5 p-2 shadow-lg ${eventCardBg}`}
-                  style={{ "--lineup": lineupColor }}
+                  style={{ '--lineup': lineupColor }}
                 >
                   <div className="flex items-start gap-[3px]">
                     {canWrite && (
                       <button
                         onClick={() => toggleAllBand(band)}
-                        className={`shrink-0 text-2xl p-1.5 rounded-2xl m-0.5  font-bold transition-all ${allFaved ? "bg-[#CD6C0C] text-white hover:opacity-90" : anyFav ? "bg-[#CD6C0C]/40 text-white hover:opacity-90" : "bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#BACD32] dark:hover:bg-[#2c3510]"}`}
+                        className={`shrink-0 text-2xl p-1.5 rounded-2xl m-0.5  font-bold transition-all ${allFaved ? 'bg-[#CD6C0C] text-white hover:opacity-90' : anyFav ? 'bg-[#CD6C0C]/40 text-white hover:opacity-90' : 'bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#BACD32] dark:hover:bg-[#2c3510]'}`}
                       >
-                        {allFaved ? "♥" : anyFav ? "◐" : "♡"}
+                        {allFaved ? '♥' : anyFav ? '◐' : '♡'}
                       </button>
                     )}
                     <div className="flex-1 min-w-0">
@@ -117,8 +131,11 @@ export default function BandsView({ bandsList, myFavIds, canWrite, toggleFavorit
                           </span>
                         )}
                       </div>
-                      <p className={`text-sm font-bold mb-0.5 text-[#4A4A4A]/70 dark:text-[#e9e9e9]/70`}>
-                        {band.venueList.join(" · ")} · {band.events.length} set{band.events.length > 1 ? "s" : ""}
+                      <p
+                        className={`text-sm font-bold mb-0.5 text-[#4A4A4A]/70 dark:text-[#e9e9e9]/70`}
+                      >
+                        {band.venueList.join(' · ')} · {band.events.length} set
+                        {band.events.length > 1 ? 's' : ''}
                       </p>
                       <div className="space-y-[1px]">
                         {band.events.map((e) => (
@@ -126,13 +143,14 @@ export default function BandsView({ bandsList, myFavIds, canWrite, toggleFavorit
                             {canWrite && (
                               <button
                                 onClick={() => toggleFavorite(e)}
-                                className={`text-sm px-0.5 py-[0.5px] rounded-lg m-0.5  font-bold transition-all ${myFavIds.has(e.eventId) ? "bg-[#CD6C0C] text-white" : "bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#BACD32] dark:hover:bg-[#2c3510]"}`}
+                                className={`text-sm px-0.5 py-[0.5px] rounded-lg m-0.5  font-bold transition-all ${myFavIds.has(e.eventId) ? 'bg-[#CD6C0C] text-white' : 'bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#BACD32] dark:hover:bg-[#2c3510]'}`}
                               >
-                                {myFavIds.has(e.eventId) ? "♥" : "♡"}
+                                {myFavIds.has(e.eventId) ? '♥' : '♡'}
                               </button>
                             )}
                             <span className={`text-sm font-bold ${c.bodyText}`}>
-                              {fmtDate(e.start)} · {fmtTime(e.start)}–{fmtTime(e.end)} · {e.venueTitle}
+                              {fmtDate(e.start)} · {fmtTime(e.start)}–{fmtTime(e.end)} ·{' '}
+                              {e.venueTitle}
                             </span>
                           </div>
                         ))}

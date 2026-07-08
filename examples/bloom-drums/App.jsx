@@ -1,5 +1,5 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
-import { useFireproof } from "use-vibes";
+import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { useFireproof } from 'use-vibes';
 
 // ── Bloom Drums ──────────────────────────────────────────────────────────────
 // An evolution of the pattern sequencer (system/bloom-machine) — reached via its
@@ -14,10 +14,44 @@ import { useFireproof } from "use-vibes";
 // envelope so it sounds like a real hit, not a sustained noise wash). Each owns a
 // colour and a level trim so the kit sits balanced.
 const DRUMS = [
-  { name: "hat", kind: "hat", color: "#cdd6dd", glow: "#eef3f7", gain: 0.5, cutoff: 9000, decay: 0.05 }, // steel
-  { name: "clap", kind: "clap", color: "#c9a94e", glow: "#e6cf7a", gain: 1.0, cutoff: 1600, decay: 0.14 }, // brass
-  { name: "snare", kind: "snare", color: "#b87333", glow: "#e0954a", gain: 1.0, cutoff: 1900, decay: 0.18, body: 190 }, // copper
-  { name: "kick", kind: "kick", color: "#7d8893", glow: "#9fb0bd", gain: 1.6, decay: 0.34, pitch: 150, drop: 48 }, // gunmetal steel
+  {
+    name: 'hat',
+    kind: 'hat',
+    color: '#cdd6dd',
+    glow: '#eef3f7',
+    gain: 0.5,
+    cutoff: 9000,
+    decay: 0.05,
+  }, // steel
+  {
+    name: 'clap',
+    kind: 'clap',
+    color: '#c9a94e',
+    glow: '#e6cf7a',
+    gain: 1.0,
+    cutoff: 1600,
+    decay: 0.14,
+  }, // brass
+  {
+    name: 'snare',
+    kind: 'snare',
+    color: '#b87333',
+    glow: '#e0954a',
+    gain: 1.0,
+    cutoff: 1900,
+    decay: 0.18,
+    body: 190,
+  }, // copper
+  {
+    name: 'kick',
+    kind: 'kick',
+    color: '#7d8893',
+    glow: '#9fb0bd',
+    gain: 1.6,
+    decay: 0.34,
+    pitch: 150,
+    drop: 48,
+  }, // gunmetal steel
 ];
 
 // One variant per column, left → right: shifts brightness (cutoff / kick pitch)
@@ -52,7 +86,8 @@ const isEmpty = (p) => p.steps.every((s) => s.length === 0);
 // A recorded hit only needs (row, col, dur) persisted — drum/variant/colour
 // derive from the row/column. Keeps the stored doc small and reconstructable.
 const makeRec = (r, c, dur) => ({ r, c, dur, color: DRUMS[r].color });
-const serializeSteps = (steps) => steps.map((s) => s.map((rec) => ({ r: rec.r, c: rec.c, dur: rec.dur })));
+const serializeSteps = (steps) =>
+  steps.map((s) => s.map((rec) => ({ r: rec.r, c: rec.c, dur: rec.dur })));
 const hydrateSteps = (steps) =>
   Array.isArray(steps) && steps.length === STEPS
     ? steps.map((s) => (Array.isArray(s) ? s.map((t) => makeRec(t.r, t.c, t.dur ?? 0.3)) : []))
@@ -135,9 +170,9 @@ function buildVoice(ctx, noise, drum, variant) {
     gains.push(f);
   };
 
-  if (drum.kind === "kick") {
+  if (drum.kind === 'kick') {
     const osc = ctx.createOscillator();
-    osc.type = "sine";
+    osc.type = 'sine';
     osc.frequency.setValueAtTime(drum.pitch * (0.85 + variant.cutoffMul * 0.25), t);
     osc.frequency.exponentialRampToValueAtTime(drum.drop, t + drum.decay * 0.6);
     osc.connect(shape);
@@ -147,7 +182,7 @@ function buildVoice(ctx, noise, drum, variant) {
     click.buffer = noise;
     click.loop = true;
     const hp = ctx.createBiquadFilter();
-    hp.type = "highpass";
+    hp.type = 'highpass';
     hp.frequency.value = 3000;
     const clickGain = ctx.createGain();
     clickGain.gain.setValueAtTime(0.6, t);
@@ -155,10 +190,10 @@ function buildVoice(ctx, noise, drum, variant) {
     click.connect(hp).connect(clickGain).connect(shape);
     oscs.push(click);
     gains.push(hp, clickGain);
-  } else if (drum.kind === "snare") {
-    noiseSrc("highpass", drum.cutoff * variant.cutoffMul); // the noise crack
+  } else if (drum.kind === 'snare') {
+    noiseSrc('highpass', drum.cutoff * variant.cutoffMul); // the noise crack
     const body = ctx.createOscillator(); // a bit of tonal body
-    body.type = "triangle";
+    body.type = 'triangle';
     body.frequency.value = drum.body;
     const bodyGain = ctx.createGain();
     bodyGain.gain.value = 0.5;
@@ -168,9 +203,9 @@ function buildVoice(ctx, noise, drum, variant) {
   } else {
     // hat (highpass) / clap (bandpass) — filtered noise burst
     noiseSrc(
-      drum.kind === "hat" ? "highpass" : "bandpass",
+      drum.kind === 'hat' ? 'highpass' : 'bandpass',
       drum.cutoff * variant.cutoffMul,
-      drum.kind === "clap" ? 1.2 : undefined
+      drum.kind === 'clap' ? 1.2 : undefined
     );
   }
 
@@ -209,8 +244,8 @@ export default function BloomDrums() {
 
   // Persistence. Auto _id is roughly temporal, so descending = newest first —
   // saved patterns load back in insertion order with no extra sort field.
-  const { database, useLiveQuery } = useFireproof("bloom-drums");
-  const { docs: savedDocs } = useLiveQuery("_id", { descending: true });
+  const { database, useLiveQuery } = useFireproof('bloom-drums');
+  const { docs: savedDocs } = useLiveQuery('_id', { descending: true });
 
   // Lazily create the AudioContext + a limiter bus on first touch (autoplay policy).
   const ensureCtx = useCallback(() => {
@@ -244,7 +279,7 @@ export default function BloomDrums() {
       fxNodesRef.current = { shaper, delay, delaySend, delayFb };
       applyFx(fxNodesRef.current, ctx, fxRef.current, bpmRef.current);
     }
-    if (ctxRef.current.state !== "running") ctxRef.current.resume();
+    if (ctxRef.current.state !== 'running') ctxRef.current.resume();
     return ctxRef.current;
   }, []);
 
@@ -254,7 +289,7 @@ export default function BloomDrums() {
   // every gesture so audio recovers after the tab is backgrounded/locked.
   const unlockAudio = useCallback(() => {
     const ctx = ensureCtx();
-    if (ctx.state !== "running") {
+    if (ctx.state !== 'running') {
       ctx.resume();
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
@@ -395,7 +430,7 @@ export default function BloomDrums() {
   const savePattern = async (id) => {
     const pat = patternsRef.current.find((p) => p.id === id);
     if (!pat) return;
-    const doc = { type: "pattern", steps: serializeSteps(pat.steps) };
+    const doc = { type: 'pattern', steps: serializeSteps(pat.steps) };
     if (pat.docId) doc._id = pat.docId;
     try {
       const res = await database.put(doc);
@@ -403,14 +438,16 @@ export default function BloomDrums() {
       // start a fresh empty row on top, ready for the next pattern.
       const addFresh = !isEmpty(patternsRef.current[0]);
       setPatterns((prev) => {
-        const next = prev.map((p) => (p.id === id ? { ...p, saved: true, dirty: false, docId: p.docId || res.id } : p));
+        const next = prev.map((p) =>
+          p.id === id ? { ...p, saved: true, dirty: false, docId: p.docId || res.id } : p
+        );
         return addFresh ? [emptyPattern(), ...next] : next;
       });
       // Note: deliberately do NOT stop the transport — whatever's playing keeps
       // playing; the fresh empty row just waits on top.
     } catch (err) {
       // Leave the row in "save" mode so the unsaved edit isn't lost.
-      console.error("save failed (sign in to save?)", err);
+      console.error('save failed (sign in to save?)', err);
     }
   };
 
@@ -421,7 +458,7 @@ export default function BloomDrums() {
       try {
         await database.del(pat.docId);
       } catch (err) {
-        console.error("delete failed", err);
+        console.error('delete failed', err);
       }
     }
     setPatterns((prev) => {
@@ -435,7 +472,11 @@ export default function BloomDrums() {
   // Tap a dot to clear that step on its row (marks the row dirty).
   const clearStep = (id, i) =>
     setPatterns((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, dirty: true, steps: p.steps.map((s, idx) => (idx === i ? [] : s)) } : p))
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, dirty: true, steps: p.steps.map((s, idx) => (idx === i ? [] : s)) }
+          : p
+      )
     );
 
   useEffect(
@@ -460,8 +501,14 @@ export default function BloomDrums() {
     setPatterns((prev) => {
       const have = new Set(prev.map((p) => p.docId).filter(Boolean));
       const incoming = savedDocs
-        .filter((d) => d.type === "pattern" && !have.has(d._id))
-        .map((d) => ({ id: nextId++, docId: d._id, steps: hydrateSteps(d.steps), saved: true, dirty: false }));
+        .filter((d) => d.type === 'pattern' && !have.has(d._id))
+        .map((d) => ({
+          id: nextId++,
+          docId: d._id,
+          steps: hydrateSteps(d.steps),
+          saved: true,
+          dirty: false,
+        }));
       return incoming.length ? [...prev, ...incoming] : prev;
     });
   }, [savedDocs]);
@@ -490,7 +537,9 @@ export default function BloomDrums() {
     const rec = { r, c, color: drum.color, dur: 0.5 };
     setPatterns((prev) =>
       prev.map((p) =>
-        p.id === targetId ? { ...p, dirty: true, steps: p.steps.map((s, idx) => (idx === at ? [...s, rec] : s)) } : p
+        p.id === targetId
+          ? { ...p, dirty: true, steps: p.steps.map((s, idx) => (idx === at ? [...s, rec] : s)) }
+          : p
       )
     );
     const v = voicesRef.current[key];
@@ -531,10 +580,20 @@ export default function BloomDrums() {
               style={styles.bpmInput}
             />
             <div style={styles.spin}>
-              <button type="button" aria-label="increase bpm" onClick={() => bumpBpm(1)} style={styles.spinBtn}>
+              <button
+                type="button"
+                aria-label="increase bpm"
+                onClick={() => bumpBpm(1)}
+                style={styles.spinBtn}
+              >
                 ▲
               </button>
-              <button type="button" aria-label="decrease bpm" onClick={() => bumpBpm(-1)} style={styles.spinBtn}>
+              <button
+                type="button"
+                aria-label="decrease bpm"
+                onClick={() => bumpBpm(-1)}
+                style={styles.spinBtn}
+              >
                 ▼
               </button>
             </div>
@@ -573,10 +632,12 @@ export default function BloomDrums() {
                   onContextMenu={(e) => e.preventDefault()}
                   style={{
                     ...styles.pad,
-                    background: on ? drum.color : "rgba(255,255,255,0.07)",
-                    borderColor: on ? `${drum.color}aa` : "rgba(255,255,255,0.14)",
-                    boxShadow: on ? `0 0 22px 4px ${drum.glow}, inset 0 0 12px ${drum.color}` : "none",
-                    transform: on ? "scale(1.08)" : "scale(1)",
+                    background: on ? drum.color : 'rgba(255,255,255,0.07)',
+                    borderColor: on ? `${drum.color}aa` : 'rgba(255,255,255,0.14)',
+                    boxShadow: on
+                      ? `0 0 22px 4px ${drum.glow}, inset 0 0 12px ${drum.color}`
+                      : 'none',
+                    transform: on ? 'scale(1.08)' : 'scale(1)',
                   }}
                 />
               );
@@ -593,17 +654,17 @@ export default function BloomDrums() {
               <div key={p.id} style={styles.row}>
                 <button
                   type="button"
-                  aria-label={isActive ? "stop" : "play"}
+                  aria-label={isActive ? 'stop' : 'play'}
                   onClick={() => togglePlay(p.id)}
                   style={{
                     ...styles.round,
-                    background: isActive ? "#ece6da" : "rgba(255,255,255,0.07)",
-                    color: isActive ? "#1b1a17" : "#ece6da",
-                    borderColor: isActive ? "#ece6da" : "rgba(255,255,255,0.14)",
-                    boxShadow: isActive ? "0 0 16px 3px rgba(236,230,218,0.45)" : "none",
+                    background: isActive ? '#ece6da' : 'rgba(255,255,255,0.07)',
+                    color: isActive ? '#1b1a17' : '#ece6da',
+                    borderColor: isActive ? '#ece6da' : 'rgba(255,255,255,0.14)',
+                    boxShadow: isActive ? '0 0 16px 3px rgba(236,230,218,0.45)' : 'none',
                   }}
                 >
-                  <span style={{ fontSize: 15, lineHeight: 1 }}>{isActive ? "❚❚" : "▶"}</span>
+                  <span style={{ fontSize: 15, lineHeight: 1 }}>{isActive ? '❚❚' : '▶'}</span>
                 </button>
 
                 <div style={styles.dotsWrap}>
@@ -611,12 +672,12 @@ export default function BloomDrums() {
                     {p.steps.map((tones, i) => {
                       const cols = distinctColors(tones);
                       const active = isActive && step === i;
-                      let background = "rgba(255,255,255,0.18)";
+                      let background = 'rgba(255,255,255,0.18)';
                       if (cols.length === 1) {
                         background = cols[0];
                       } else if (cols.length > 1) {
                         const slice = 360 / cols.length;
-                        background = `conic-gradient(${cols.map((col, k) => `${col} ${k * slice}deg ${(k + 1) * slice}deg`).join(", ")})`;
+                        background = `conic-gradient(${cols.map((col, k) => `${col} ${k * slice}deg ${(k + 1) * slice}deg`).join(', ')})`;
                       }
                       return (
                         <button
@@ -627,8 +688,8 @@ export default function BloomDrums() {
                           style={{
                             ...styles.dot,
                             background,
-                            boxShadow: active ? "0 0 10px 2px rgba(236,230,218,0.85)" : "none",
-                            transform: active ? "scale(1.4)" : "scale(1)",
+                            boxShadow: active ? '0 0 10px 2px rgba(236,230,218,0.85)' : 'none',
+                            transform: active ? 'scale(1.4)' : 'scale(1)',
                           }}
                         />
                       );
@@ -638,16 +699,16 @@ export default function BloomDrums() {
 
                 <button
                   type="button"
-                  aria-label={saveMode ? "save pattern" : "delete pattern"}
+                  aria-label={saveMode ? 'save pattern' : 'delete pattern'}
                   onClick={() => (saveMode ? savePattern(p.id) : deletePattern(p.id))}
                   style={{
                     ...styles.round,
-                    background: saveMode ? "rgba(52,211,153,0.18)" : "rgba(244,114,182,0.14)",
-                    color: "#ece6da",
-                    borderColor: saveMode ? "rgba(52,211,153,0.6)" : "rgba(244,114,182,0.5)",
+                    background: saveMode ? 'rgba(52,211,153,0.18)' : 'rgba(244,114,182,0.14)',
+                    color: '#ece6da',
+                    borderColor: saveMode ? 'rgba(52,211,153,0.6)' : 'rgba(244,114,182,0.5)',
                   }}
                 >
-                  <span style={{ fontSize: 16, lineHeight: 1 }}>{saveMode ? "💾" : "🗑"}</span>
+                  <span style={{ fontSize: 16, lineHeight: 1 }}>{saveMode ? '💾' : '🗑'}</span>
                 </button>
               </div>
             );
@@ -660,107 +721,113 @@ export default function BloomDrums() {
 
 const styles = {
   screen: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "center",
-    background: "linear-gradient(160deg,#20242a 0%,#2c2824 45%,#3a2c20 100%)", // steel → bronze
-    fontFamily: "Inter, system-ui, sans-serif",
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    background: 'linear-gradient(160deg,#20242a 0%,#2c2824 45%,#3a2c20 100%)', // steel → bronze
+    fontFamily: 'Inter, system-ui, sans-serif',
     padding: 20,
-    boxSizing: "border-box",
+    boxSizing: 'border-box',
     // Text selection is never useful here and only gets in the way of tapping
     // and holding pads — disable it for the whole app.
-    userSelect: "none",
-    WebkitUserSelect: "none",
-    MozUserSelect: "none",
-    msUserSelect: "none",
-    WebkitTouchCallout: "none",
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    MozUserSelect: 'none',
+    msUserSelect: 'none',
+    WebkitTouchCallout: 'none',
   },
-  frame: { width: "100%", maxWidth: 360, color: "#ece6da" },
-  topbar: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
-  bpm: { display: "flex", alignItems: "center", gap: 8 },
+  frame: { width: '100%', maxWidth: 360, color: '#ece6da' },
+  topbar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  bpm: { display: 'flex', alignItems: 'center', gap: 8 },
   bpmLabel: { fontSize: 12, opacity: 0.7, letterSpacing: 0.5 },
   bpmInput: {
     width: 48,
-    padding: "6px 8px",
+    padding: '6px 8px',
     fontSize: 15,
-    textAlign: "center",
-    fontVariantNumeric: "tabular-nums",
-    color: "#ece6da",
-    background: "rgba(255,255,255,0.07)",
-    border: "1px solid rgba(255,255,255,0.18)",
+    textAlign: 'center',
+    fontVariantNumeric: 'tabular-nums',
+    color: '#ece6da',
+    background: 'rgba(255,255,255,0.07)',
+    border: '1px solid rgba(255,255,255,0.18)',
     borderRadius: 10,
   },
-  fx: { display: "flex", alignItems: "center", gap: 8 },
-  fxSlider: { width: 104, accentColor: "#c9a94e", cursor: "pointer" },
-  spin: { display: "flex", flexDirection: "column", gap: 2 },
+  fx: { display: 'flex', alignItems: 'center', gap: 8 },
+  fxSlider: { width: 104, accentColor: '#c9a94e', cursor: 'pointer' },
+  spin: { display: 'flex', flexDirection: 'column', gap: 2 },
   spinBtn: {
     width: 24,
     height: 17,
     padding: 0,
     fontSize: 9,
     lineHeight: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#ece6da",
-    background: "rgba(255,255,255,0.07)",
-    border: "1px solid rgba(255,255,255,0.18)",
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#ece6da',
+    background: 'rgba(255,255,255,0.07)',
+    border: '1px solid rgba(255,255,255,0.18)',
     borderRadius: 6,
-    cursor: "pointer",
-    WebkitTapHighlightColor: "transparent",
-    touchAction: "manipulation",
+    cursor: 'pointer',
+    WebkitTapHighlightColor: 'transparent',
+    touchAction: 'manipulation',
   },
-  grid: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 },
   pad: {
-    aspectRatio: "1 / 1",
+    aspectRatio: '1 / 1',
     borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.14)",
-    cursor: "pointer",
+    border: '1px solid rgba(255,255,255,0.14)',
+    cursor: 'pointer',
     padding: 0,
-    transition: "transform 90ms ease, background 90ms ease, box-shadow 90ms ease",
-    WebkitTapHighlightColor: "transparent",
-    touchAction: "none",
-    userSelect: "none",
-    WebkitUserSelect: "none",
+    transition: 'transform 90ms ease, background 90ms ease, box-shadow 90ms ease',
+    WebkitTapHighlightColor: 'transparent',
+    touchAction: 'none',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
   },
-  list: { display: "flex", flexDirection: "column", gap: 14, marginTop: 18 },
-  row: { display: "flex", alignItems: "center", gap: 10 },
-  dotsWrap: { flex: 1, display: "flex", justifyContent: "center" },
+  list: { display: 'flex', flexDirection: 'column', gap: 14, marginTop: 18 },
+  row: { display: 'flex', alignItems: 'center', gap: 10 },
+  dotsWrap: { flex: 1, display: 'flex', justifyContent: 'center' },
   dots: {
-    display: "grid",
+    display: 'grid',
     gridTemplateColumns: `repeat(${DOT_COLS}, 17px)`,
-    gap: "13px 16px",
-    alignContent: "center",
-    justifyContent: "center",
+    gap: '13px 16px',
+    alignContent: 'center',
+    justifyContent: 'center',
   },
   dot: {
     width: 17,
     height: 17,
-    borderRadius: "50%",
-    border: "none",
+    borderRadius: '50%',
+    border: 'none',
     padding: 0,
-    cursor: "pointer",
-    background: "rgba(255,255,255,0.18)",
-    transition: "box-shadow 80ms ease, transform 80ms ease",
-    WebkitTapHighlightColor: "transparent",
-    touchAction: "manipulation",
+    cursor: 'pointer',
+    background: 'rgba(255,255,255,0.18)',
+    transition: 'box-shadow 80ms ease, transform 80ms ease',
+    WebkitTapHighlightColor: 'transparent',
+    touchAction: 'manipulation',
   },
   round: {
     width: 45, // 75% of the previous 60px play button
     height: 45,
     flexShrink: 0,
-    borderRadius: "50%",
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.07)",
-    color: "#ece6da",
-    cursor: "pointer",
+    borderRadius: '50%',
+    border: '1px solid rgba(255,255,255,0.14)',
+    background: 'rgba(255,255,255,0.07)',
+    color: '#ece6da',
+    cursor: 'pointer',
     padding: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "background 120ms ease, box-shadow 120ms ease, color 120ms ease, transform 90ms ease",
-    WebkitTapHighlightColor: "transparent",
-    touchAction: "manipulation",
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition:
+      'background 120ms ease, box-shadow 120ms ease, color 120ms ease, transform 90ms ease',
+    WebkitTapHighlightColor: 'transparent',
+    touchAction: 'manipulation',
   },
 };

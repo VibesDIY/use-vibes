@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from "react";
-import { useFireproof } from "use-fireproof";
-import { useViewer, useVibe } from "use-vibes";
-import { callAI } from "call-ai";
+import React, { useState, useMemo } from 'react';
+import { useFireproof } from 'use-fireproof';
+import { useViewer, useVibe } from 'use-vibes';
+import { callAI } from 'call-ai';
 
 // ── Grocery Live (system/grocery-live) ───────────────────────────────────────
 // The grocery branch of the /start Productive lane (#3080): lists become
@@ -21,26 +21,26 @@ import { callAI } from "call-ai";
 // localStorage store while logged out, migrating into the cloud (and your
 // implicit household) on first sign-in.
 
-const DB = "grocery";
+const DB = 'grocery';
 
 const INGREDIENTS_SCHEMA = {
   properties: {
     ingredients: {
-      type: "array",
+      type: 'array',
       items: {
-        type: "object",
+        type: 'object',
         properties: {
-          name: { type: "string" },
-          quantity: { type: "string" },
+          name: { type: 'string' },
+          quantity: { type: 'string' },
         },
-        required: ["name"],
+        required: ['name'],
       },
     },
   },
 };
 
 const normName = (s) =>
-  String(s || "")
+  String(s || '')
     .trim()
     .toLowerCase();
 
@@ -48,7 +48,8 @@ const normName = (s) =>
 // re-home onto the new user's implicit household. Members can't exist
 // pre-login — drop strays.
 const migrateGroceryDoc = (doc, handle) => {
-  if (doc.type === "item" || doc.type === "store") return { ...doc, householdId: handle, authorHandle: handle };
+  if (doc.type === 'item' || doc.type === 'store')
+    return { ...doc, householdId: handle, authorHandle: handle };
   return null;
 };
 
@@ -62,34 +63,34 @@ export default function App() {
 
   const signedIn = !!viewer?.userHandle;
   const myHandle = me?.userHandle || viewer?.userHandle;
-  const myHome = myHandle || "anon";
+  const myHome = myHandle || 'anon';
 
-  const { doc: draft, merge: mergeDraft } = useDocument({ text: "" });
-  const { doc: recipeDraft, merge: mergeRecipe } = useDocument({ q: "" });
-  const { docs: itemDocs } = useLiveQuery("type", { key: "item" });
-  const { docs: storeDocs } = useLiveQuery("type", { key: "store" });
-  const { docs: memberDocs } = useLiveQuery("type", { key: "member" });
+  const { doc: draft, merge: mergeDraft } = useDocument({ text: '' });
+  const { doc: recipeDraft, merge: mergeRecipe } = useDocument({ q: '' });
+  const { docs: itemDocs } = useLiveQuery('type', { key: 'item' });
+  const { docs: storeDocs } = useLiveQuery('type', { key: 'store' });
+  const { docs: memberDocs } = useLiveQuery('type', { key: 'member' });
 
   // Which household? Yours, unless you've been invited elsewhere and switched.
   const [homeChoice, setHomeChoiceState] = useState(() => {
     try {
-      return localStorage.getItem("grocery-live-home") || "mine";
+      return localStorage.getItem('grocery-live-home') || 'mine';
     } catch {
-      return "mine";
+      return 'mine';
     }
   });
   // Which store? "default" is the built-in Groceries store (no doc).
   const [storeChoice, setStoreChoiceState] = useState(() => {
     try {
-      return localStorage.getItem("grocery-live-store") || "default";
+      return localStorage.getItem('grocery-live-store') || 'default';
     } catch {
-      return "default";
+      return 'default';
     }
   });
   const [sheetOpen, setSheetOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
-  const [newStoreName, setNewStoreName] = useState("");
-  const [renameDraft, setRenameDraft] = useState("");
+  const [newStoreName, setNewStoreName] = useState('');
+  const [renameDraft, setRenameDraft] = useState('');
   const [deleteArmed, setDeleteArmed] = useState(false);
   const [notice, setNotice] = useState(null);
   const [suggesting, setSuggesting] = useState(false);
@@ -98,39 +99,46 @@ export default function App() {
   const sharedHouseholds = useMemo(() => {
     const ids = new Set();
     for (const m of memberDocs) {
-      if (myHandle && m.userHandle === myHandle && m.householdId && m.householdId !== myHome) ids.add(m.householdId);
+      if (myHandle && m.userHandle === myHandle && m.householdId && m.householdId !== myHome)
+        ids.add(m.householdId);
     }
     return [...ids].sort();
   }, [memberDocs, myHandle, myHome]);
 
-  const activeHouseholdId = homeChoice === "mine" || !sharedHouseholds.includes(homeChoice) ? myHome : homeChoice;
+  const activeHouseholdId =
+    homeChoice === 'mine' || !sharedHouseholds.includes(homeChoice) ? myHome : homeChoice;
   const isMyHousehold = activeHouseholdId === myHome;
 
   const householdStores = [...storeDocs]
     .filter((s) => (s.householdId || myHome) === activeHouseholdId)
     .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  const stores = [{ _id: "default", name: "Groceries" }, ...householdStores];
+  const stores = [{ _id: 'default', name: 'Groceries' }, ...householdStores];
   const activeStoreDoc = householdStores.find((s) => s._id === storeChoice);
-  const activeStoreId = storeChoice === "default" || activeStoreDoc ? storeChoice : "default";
-  const storeName = stores.find((s) => s._id === activeStoreId)?.name || "Groceries";
-  const isRealStore = !!activeStoreDoc && activeStoreId !== "default";
+  const activeStoreId = storeChoice === 'default' || activeStoreDoc ? storeChoice : 'default';
+  const storeName = stores.find((s) => s._id === activeStoreId)?.name || 'Groceries';
+  const isRealStore = !!activeStoreDoc && activeStoreId !== 'default';
 
   const householdItems = useMemo(
     () => itemDocs.filter((i) => (i.householdId || myHome) === activeHouseholdId),
     [itemDocs, activeHouseholdId, myHome]
   );
-  const storeItems = householdItems.filter((i) => (i.storeId || "default") === activeStoreId);
-  const openItems = storeItems.filter((i) => !i.checked).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  const cartItems = storeItems.filter((i) => i.checked).sort((a, b) => (b.checkedAt || 0) - (a.checkedAt || 0));
-  const itemCountFor = (id) => householdItems.filter((i) => !i.checked && (i.storeId || "default") === id).length;
+  const storeItems = householdItems.filter((i) => (i.storeId || 'default') === activeStoreId);
+  const openItems = storeItems
+    .filter((i) => !i.checked)
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  const cartItems = storeItems
+    .filter((i) => i.checked)
+    .sort((a, b) => (b.checkedAt || 0) - (a.checkedAt || 0));
+  const itemCountFor = (id) =>
+    householdItems.filter((i) => !i.checked && (i.storeId || 'default') === id).length;
   const householdMembers = memberDocs.filter((m) => m.householdId === activeHouseholdId);
 
   function switchHome(choice) {
     setHomeChoiceState(choice);
-    setStoreChoiceState("default");
+    setStoreChoiceState('default');
     try {
-      localStorage.setItem("grocery-live-home", choice);
-      localStorage.setItem("grocery-live-store", "default");
+      localStorage.setItem('grocery-live-home', choice);
+      localStorage.setItem('grocery-live-store', 'default');
     } catch {
       /* per-device nicety only */
     }
@@ -139,9 +147,9 @@ export default function App() {
 
   function switchStore(id, knownName) {
     setStoreChoiceState(id);
-    setRenameDraft(knownName || stores.find((s) => s._id === id)?.name || "Groceries");
+    setRenameDraft(knownName || stores.find((s) => s._id === id)?.name || 'Groceries');
     try {
-      localStorage.setItem("grocery-live-store", id);
+      localStorage.setItem('grocery-live-store', id);
     } catch {
       /* per-device nicety only */
     }
@@ -155,7 +163,9 @@ export default function App() {
   }
 
   const createVerdict =
-    signedIn && ready ? can.create({ type: "item", householdId: activeHouseholdId, authorHandle: myHandle }) : null;
+    signedIn && ready
+      ? can.create({ type: 'item', householdId: activeHouseholdId, authorHandle: myHandle })
+      : null;
   const canWrite = signedIn ? !!createVerdict?.ok : true;
   // Invites are founder-only (access.js) — the verdict returns false when
   // you're visiting another household, and the UI hides the form. Probe with
@@ -163,7 +173,12 @@ export default function App() {
   // probe would throw instead of answering.
   const canInvite =
     signedIn && ready
-      ? !!can.create({ type: "member", householdId: activeHouseholdId, userHandle: myHandle, addedBy: myHandle }).ok
+      ? !!can.create({
+          type: 'member',
+          householdId: activeHouseholdId,
+          userHandle: myHandle,
+          addedBy: myHandle,
+        }).ok
       : false;
 
   async function guarded(write) {
@@ -171,13 +186,17 @@ export default function App() {
       setNotice(null);
       await write();
     } catch (e) {
-      setNotice(signedIn ? e?.message || "That change was not allowed." : "Sign in to keep using your list on this device.");
+      setNotice(
+        signedIn
+          ? e?.message || 'That change was not allowed.'
+          : 'Sign in to keep using your list on this device.'
+      );
     }
   }
 
   async function putItem(fields) {
     return database.put({
-      type: "item",
+      type: 'item',
       checked: false,
       storeId: activeStoreId,
       householdId: activeHouseholdId,
@@ -191,13 +210,15 @@ export default function App() {
     e.preventDefault();
     const name = draft.text.trim();
     if (!name || !canWrite) return;
-    mergeDraft({ text: "" });
+    mergeDraft({ text: '' });
     await guarded(() => putItem({ name }));
   }
 
   async function toggleItem(item) {
     if (!canWrite) return;
-    await guarded(() => database.put({ ...item, checked: !item.checked, checkedAt: item.checked ? 0 : Date.now() }));
+    await guarded(() =>
+      database.put({ ...item, checked: !item.checked, checkedAt: item.checked ? 0 : Date.now() })
+    );
   }
 
   async function deleteItem(item) {
@@ -225,19 +246,26 @@ export default function App() {
       );
       const parsed = JSON.parse(raw);
       const have = new Set(openItems.map((i) => normName(i.name)));
-      const fresh = (parsed.ingredients || []).filter((ing) => ing?.name && !have.has(normName(ing.name)));
+      const fresh = (parsed.ingredients || []).filter(
+        (ing) => ing?.name && !have.has(normName(ing.name))
+      );
       for (const ing of fresh) {
         have.add(normName(ing.name));
         const fields = { name: ing.name.trim(), suggestedFrom: q };
-        if (ing.quantity && String(ing.quantity).trim()) fields.quantity = String(ing.quantity).trim();
+        if (ing.quantity && String(ing.quantity).trim())
+          fields.quantity = String(ing.quantity).trim();
         await putItem(fields);
       }
-      mergeRecipe({ q: "" });
-      setLastRecipe({ q, added: fresh.length, skipped: (parsed.ingredients || []).length - fresh.length });
+      mergeRecipe({ q: '' });
+      setLastRecipe({
+        q,
+        added: fresh.length,
+        skipped: (parsed.ingredients || []).length - fresh.length,
+      });
     } catch (err) {
       setNotice(
         signedIn
-          ? `Couldn't get suggestions: ${err?.message || "try again"}`
+          ? `Couldn't get suggestions: ${err?.message || 'try again'}`
           : "Couldn't get suggestions — sign in and try again."
       );
     } finally {
@@ -249,10 +277,10 @@ export default function App() {
     e.preventDefault();
     const name = newStoreName.trim();
     if (!name || !canWrite) return;
-    setNewStoreName("");
+    setNewStoreName('');
     await guarded(async () => {
       const res = await database.put({
-        type: "store",
+        type: 'store',
         name,
         householdId: activeHouseholdId,
         createdAt: Date.now(),
@@ -277,9 +305,11 @@ export default function App() {
       return;
     }
     if (!activeStoreDoc || !canWrite) return;
-    const doomed = householdItems.filter((i) => (i.storeId || "default") === activeStoreId);
-    switchStore("default");
-    await guarded(() => Promise.all([...doomed.map((d) => database.del(d._id)), database.del(activeStoreDoc._id)]));
+    const doomed = householdItems.filter((i) => (i.storeId || 'default') === activeStoreId);
+    switchStore('default');
+    await guarded(() =>
+      Promise.all([...doomed.map((d) => database.del(d._id)), database.del(activeStoreDoc._id)])
+    );
   }
 
   // `handle` arrives pre-sanitized from HandleInput (picked handles are real
@@ -289,7 +319,7 @@ export default function App() {
     if (handle === myHandle || householdMembers.some((m) => m.userHandle === handle)) return;
     await guarded(() =>
       database.put({
-        type: "member",
+        type: 'member',
         householdId: activeHouseholdId,
         userHandle: handle,
         addedBy: myHandle,
@@ -309,16 +339,18 @@ export default function App() {
         onClick={() => toggleItem(item)}
       >
         <span
-          className={`shrink-0 w-7 h-7 border-4 border-[#242424] flex items-center justify-center text-base font-bold ${item.checked ? "bg-[#e9ff70]" : "bg-[#ffffff]"}`}
+          className={`shrink-0 w-7 h-7 border-4 border-[#242424] flex items-center justify-center text-base font-bold ${item.checked ? 'bg-[#e9ff70]' : 'bg-[#ffffff]'}`}
         >
-          {item.checked ? "✓" : ""}
+          {item.checked ? '✓' : ''}
         </span>
         <span className="flex-1 min-w-0">
           <span
-            className={`block font-bold text-[#242424] text-base leading-tight ${item.checked ? "line-through opacity-50" : ""}`}
+            className={`block font-bold text-[#242424] text-base leading-tight ${item.checked ? 'line-through opacity-50' : ''}`}
           >
             {item.name}
-            {item.quantity ? <span className="font-normal opacity-60 text-sm"> · {item.quantity}</span> : null}
+            {item.quantity ? (
+              <span className="font-normal opacity-60 text-sm"> · {item.quantity}</span>
+            ) : null}
           </span>
           {item.suggestedFrom && (
             <span className="inline-block mt-1 text-[0.6rem] font-bold text-[#242424] bg-[#e9ff70] border-2 border-[#242424] px-1.5 py-0.5">
@@ -354,7 +386,7 @@ export default function App() {
         <header className="mb-3 flex items-end justify-between px-1">
           <button onClick={openSheet} className="text-left">
             <span className="block text-[0.6rem] uppercase tracking-widest font-bold text-[#242424] opacity-60">
-              Grocery Live{isMyHousehold ? "" : ` · @${activeHouseholdId}'s home`}
+              Grocery Live{isMyHousehold ? '' : ` · @${activeHouseholdId}'s home`}
             </span>
             <h1 className="text-xl md:text-3xl font-bold text-[#242424] leading-tight">
               {storeName} <span className="text-sm md:text-xl align-middle">▾</span>
@@ -367,7 +399,10 @@ export default function App() {
 
         {/* The recipe box — the lane's callAI showcase. */}
         {canWrite && (
-          <form onSubmit={suggestIngredients} className="bg-[#ffd670] border-4 border-[#242424] p-3 mb-3">
+          <form
+            onSubmit={suggestIngredients}
+            className="bg-[#ffd670] border-4 border-[#242424] p-3 mb-3"
+          >
             <span className="block text-[0.6rem] uppercase tracking-widest font-bold text-[#242424] opacity-60 mb-1">
               Recipe box — what are you cooking?
             </span>
@@ -384,20 +419,24 @@ export default function App() {
                 disabled={suggesting}
                 className="min-h-[48px] bg-[#e9ff70] border-4 border-[#242424] px-4 font-bold text-[#242424] active:bg-[#70d6ff] disabled:opacity-60"
               >
-                {suggesting ? "..." : "✨ Add"}
+                {suggesting ? '...' : '✨ Add'}
               </button>
             </div>
             {lastRecipe && (
               <p className="text-xs font-bold text-[#242424] mt-2">
-                Added {lastRecipe.added} ingredient{lastRecipe.added === 1 ? "" : "s"} for "{lastRecipe.q}"
-                {lastRecipe.skipped > 0 ? ` (${lastRecipe.skipped} already on the list)` : ""}
+                Added {lastRecipe.added} ingredient{lastRecipe.added === 1 ? '' : 's'} for "
+                {lastRecipe.q}"
+                {lastRecipe.skipped > 0 ? ` (${lastRecipe.skipped} already on the list)` : ''}
               </p>
             )}
           </form>
         )}
 
         {canWrite ? (
-          <form onSubmit={addItem} className="bg-[#ffffff] border-4 border-[#242424] p-3 mb-3 flex gap-2">
+          <form
+            onSubmit={addItem}
+            className="bg-[#ffffff] border-4 border-[#242424] p-3 mb-3 flex gap-2"
+          >
             <input
               type="text"
               placeholder={`Add to ${storeName}...`}
@@ -417,8 +456,8 @@ export default function App() {
             <div className="bg-[#ffffff] border-4 border-[#242424] p-3 mb-3 text-center">
               <p className="font-bold text-[#242424] text-sm">
                 {signedIn
-                  ? createVerdict?.reason || "Read-only — ask a household member to add you."
-                  : "Households are private — sign in to see and edit yours."}
+                  ? createVerdict?.reason || 'Read-only — ask a household member to add you.'
+                  : 'Households are private — sign in to see and edit yours.'}
               </p>
             </div>
           )
@@ -434,7 +473,7 @@ export default function App() {
           className="min-h-[30vh] p-3 border-4 border-[#242424] bg-[#ffffff] bg-opacity-50"
           style={{
             backgroundImage: `radial-gradient(circle at 20px 20px, #242424 3px, transparent 3px)`,
-            backgroundSize: "40px 40px",
+            backgroundSize: '40px 40px',
           }}
         >
           {openItems.length === 0 && (
@@ -456,7 +495,7 @@ export default function App() {
               className="w-full min-h-[48px] px-3 font-bold text-left text-[#242424] flex items-center justify-between"
             >
               <span>🛒 In the cart ({cartItems.length})</span>
-              <span>{cartOpen ? "▾" : "▸"}</span>
+              <span>{cartOpen ? '▾' : '▸'}</span>
             </button>
             {cartOpen && (
               <div className="p-3 pt-0">
@@ -477,8 +516,14 @@ export default function App() {
         )}
 
         <div className="flex justify-between items-center px-1 pt-2 pb-20">
-          <span className="text-xs font-bold text-[#242424] opacity-70">Tap the title for stores &amp; household</span>
-          {!signedIn && <span className="text-xs font-bold text-[#242424] opacity-70">On this device — sign in to share</span>}
+          <span className="text-xs font-bold text-[#242424] opacity-70">
+            Tap the title for stores &amp; household
+          </span>
+          {!signedIn && (
+            <span className="text-xs font-bold text-[#242424] opacity-70">
+              On this device — sign in to share
+            </span>
+          )}
         </div>
       </div>
 
@@ -489,13 +534,16 @@ export default function App() {
           <div className="fixed inset-0 z-40" onPointerDown={() => setSheetOpen(false)} />
           <div
             className="fixed inset-x-0 bottom-0 z-50 md:inset-x-auto md:left-1/2 md:bottom-10 md:w-[380px] md:-translate-x-1/2 bg-[#ffffff] border-t-4 md:border-4 border-[#242424] p-4 pb-16 md:pb-4 space-y-2 max-h-[70vh] overflow-y-auto"
-            style={{ boxShadow: "0 -6px 0 #242424" }}
+            style={{ boxShadow: '0 -6px 0 #242424' }}
           >
             {!signedIn && (
               <>
-                <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest">Share the shopping</h3>
+                <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest">
+                  Share the shopping
+                </h3>
                 <p className="text-sm font-bold text-[#242424]">
-                  Your list lives on this device. Sign in to sync it and share one household list with everyone at home.
+                  Your list lives on this device. Sign in to sync it and share one household list
+                  with everyone at home.
                 </p>
                 <div className="flex justify-center py-1">
                   <ViewerTag />
@@ -505,12 +553,14 @@ export default function App() {
             {signedIn && canWrite && (
               <>
                 <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest">
-                  {isMyHousehold ? "My household" : `@${activeHouseholdId}'s household`}
+                  {isMyHousehold ? 'My household' : `@${activeHouseholdId}'s household`}
                 </h3>
                 {/* ONE membership for everything — deliberately coarser than
                     per-list friends. */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-bold text-[#242424] opacity-60 uppercase tracking-widest">Household</span>
+                  <span className="text-xs font-bold text-[#242424] opacity-60 uppercase tracking-widest">
+                    Household
+                  </span>
                   <span className="text-sm font-bold text-[#242424]">@{activeHouseholdId}</span>
                   {householdMembers.map((m) => (
                     <span
@@ -519,7 +569,11 @@ export default function App() {
                     >
                       @{m.userHandle}
                       {(canInvite || m.userHandle === myHandle) && (
-                        <button aria-label={`Remove @${m.userHandle}`} onClick={() => removeMember(m)} className="font-bold">
+                        <button
+                          aria-label={`Remove @${m.userHandle}`}
+                          onClick={() => removeMember(m)}
+                          className="font-bold"
+                        >
                           ✕
                         </button>
                       )}
@@ -535,15 +589,23 @@ export default function App() {
                     value={null}
                     onChange={addMember}
                     placeholder="Add someone to the household..."
-                    style={{ display: "block", "--border": "#242424", "--card-bg": "#ffffff", "--text": "#242424", "--muted": "#5c5c5c" }}
+                    style={{
+                      display: 'block',
+                      '--border': '#242424',
+                      '--card-bg': '#ffffff',
+                      '--text': '#242424',
+                      '--muted': '#5c5c5c',
+                    }}
                   />
                 )}
                 {sharedHouseholds.length > 0 && (
                   <>
-                    <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest pt-1">Households</h3>
+                    <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest pt-1">
+                      Households
+                    </h3>
                     <button
-                      onClick={() => switchHome("mine")}
-                      className={`w-full min-h-[44px] px-3 border-4 border-[#242424] font-bold text-left text-[#242424] ${isMyHousehold ? "bg-[#e9ff70]" : "bg-[#ffffff]"}`}
+                      onClick={() => switchHome('mine')}
+                      className={`w-full min-h-[44px] px-3 border-4 border-[#242424] font-bold text-left text-[#242424] ${isMyHousehold ? 'bg-[#e9ff70]' : 'bg-[#ffffff]'}`}
                     >
                       My household
                     </button>
@@ -551,7 +613,7 @@ export default function App() {
                       <button
                         key={id}
                         onClick={() => switchHome(id)}
-                        className={`w-full min-h-[44px] px-3 border-4 border-[#242424] font-bold text-left text-[#242424] ${activeHouseholdId === id ? "bg-[#e9ff70]" : "bg-[#ffffff]"}`}
+                        className={`w-full min-h-[44px] px-3 border-4 border-[#242424] font-bold text-left text-[#242424] ${activeHouseholdId === id ? 'bg-[#e9ff70]' : 'bg-[#ffffff]'}`}
                       >
                         @{id}'s household
                       </button>
@@ -560,7 +622,9 @@ export default function App() {
                 )}
               </>
             )}
-            <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest pt-1">Stores</h3>
+            <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest pt-1">
+              Stores
+            </h3>
             {canWrite && isRealStore && (
               <form onSubmit={renameStore} className="flex gap-2">
                 <input
@@ -569,7 +633,10 @@ export default function App() {
                   placeholder="Store name"
                   className="flex-1 min-w-0 min-h-[44px] p-2 border-4 border-[#242424] text-[#242424] font-bold"
                 />
-                <button type="submit" className="min-h-[44px] px-3 bg-[#70d6ff] border-4 border-[#242424] font-bold text-[#242424]">
+                <button
+                  type="submit"
+                  className="min-h-[44px] px-3 bg-[#70d6ff] border-4 border-[#242424] font-bold text-[#242424]"
+                >
                   Rename
                 </button>
               </form>
@@ -582,7 +649,10 @@ export default function App() {
                   placeholder="New store (Costco, farmers market...)"
                   className="flex-1 min-w-0 min-h-[44px] p-2 border-4 border-[#242424] text-[#242424] placeholder-[#242424] placeholder-opacity-50"
                 />
-                <button type="submit" className="min-h-[44px] px-4 bg-[#e9ff70] border-4 border-[#242424] font-bold text-[#242424]">
+                <button
+                  type="submit"
+                  className="min-h-[44px] px-4 bg-[#e9ff70] border-4 border-[#242424] font-bold text-[#242424]"
+                >
                   Create
                 </button>
               </form>
@@ -591,20 +661,22 @@ export default function App() {
               <button
                 key={s._id}
                 onClick={() => switchStore(s._id)}
-                className={`w-full min-h-[44px] px-3 border-4 border-[#242424] font-bold text-left text-[#242424] ${s._id === activeStoreId ? "bg-[#e9ff70]" : "bg-[#ffffff]"}`}
+                className={`w-full min-h-[44px] px-3 border-4 border-[#242424] font-bold text-left text-[#242424] ${s._id === activeStoreId ? 'bg-[#e9ff70]' : 'bg-[#ffffff]'}`}
               >
                 {s.name}
-                <span className="float-right text-xs opacity-60 font-normal">{itemCountFor(s._id)}</span>
+                <span className="float-right text-xs opacity-60 font-normal">
+                  {itemCountFor(s._id)}
+                </span>
               </button>
             ))}
             {canWrite && isRealStore && (
               <button
                 onClick={deleteStore}
-                className={`w-full min-h-[44px] px-3 border-2 font-bold text-sm ${deleteArmed ? "bg-[#d94f3d] text-white border-[#242424]" : "border-[#d94f3d] text-[#d94f3d] bg-[#ffffff]"}`}
+                className={`w-full min-h-[44px] px-3 border-2 font-bold text-sm ${deleteArmed ? 'bg-[#d94f3d] text-white border-[#242424]' : 'border-[#d94f3d] text-[#d94f3d] bg-[#ffffff]'}`}
               >
                 {deleteArmed
                   ? `Really delete "${storeName}" and its ${storeItems.length} item(s)?`
-                  : "Delete this store"}
+                  : 'Delete this store'}
               </button>
             )}
           </div>

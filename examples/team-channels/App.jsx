@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect, Fragment } from "react";
-import { useFireproof } from "use-fireproof";
-import { useViewer, useVibe } from "use-vibes";
+import React, { useState, useRef, useEffect, Fragment } from 'react';
+import { useFireproof } from 'use-fireproof';
+import { useViewer, useVibe } from 'use-vibes';
 
-const DB = "teamChannels";
+const DB = 'teamChannels';
 const URL_RE = /(https?:\/\/[^\s]+)/g;
 
 function LinkedText({ text }) {
@@ -30,14 +30,19 @@ function LinkedText({ text }) {
 
 function ChannelPreview({ channel, onPick }) {
   const { useLiveQuery } = useFireproof(DB);
-  const { docs } = useLiveQuery((d) => (d.type === "message" ? [d.channelId, d.timestamp] : undefined), {
-    prefix: [channel._id],
-    descending: true,
-    limit: 5,
-  });
+  const { docs } = useLiveQuery(
+    (d) => (d.type === 'message' ? [d.channelId, d.timestamp] : undefined),
+    {
+      prefix: [channel._id],
+      descending: true,
+      limit: 5,
+    }
+  );
   const last = docs[0];
   const avatars = [
-    ...new Map(docs.filter((m) => m.authorAvatarUrl).map((m) => [m.authorHandle, m.authorAvatarUrl])).values(),
+    ...new Map(
+      docs.filter((m) => m.authorAvatarUrl).map((m) => [m.authorHandle, m.authorAvatarUrl])
+    ).values(),
   ].slice(0, 4);
 
   return (
@@ -49,19 +54,29 @@ function ChannelPreview({ channel, onPick }) {
         <span className="font-semibold text-[oklch(1_0_0)]"># {channel.name}</span>
         <div className="flex items-center gap-1">
           {avatars.map((url) => (
-            <img key={url} src={url} alt="" className="w-6 h-6 rounded-full ring-1 ring-[oklch(0.31_0.005_285)]" />
+            <img
+              key={url}
+              src={url}
+              alt=""
+              className="w-6 h-6 rounded-full ring-1 ring-[oklch(0.31_0.005_285)]"
+            />
           ))}
           {last?.timestamp && (
             <span className="text-xs text-[oklch(0.55_0.02_261)] ml-2">
-              {new Date(last.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {new Date(last.timestamp).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
             </span>
           )}
         </div>
       </div>
       {last ? (
         <p className="text-sm text-[oklch(0.71_0.02_261)] truncate">
-          <span className="text-[oklch(0.87_0.01_258)]">{last.authorDisplayName || last.authorHandle || "someone"}: </span>
-          {last._files?.image ? "📷 image" : last.text}
+          <span className="text-[oklch(0.87_0.01_258)]">
+            {last.authorDisplayName || last.authorHandle || 'someone'}:{' '}
+          </span>
+          {last._files?.image ? '📷 image' : last.text}
         </p>
       ) : (
         <p className="text-sm text-[oklch(0.55_0.02_261)] italic">No messages yet</p>
@@ -90,32 +105,41 @@ function ChannelHome({ channels, onPick }) {
 function ChannelView({ channel, viewer }) {
   const { useLiveQuery, database } = useFireproof(DB);
   const { can, ready, me } = useVibe(DB);
-  const { docs: messages } = useLiveQuery((d) => (d.type === "message" ? [d.channelId, d.timestamp] : undefined), {
-    prefix: [channel._id],
-    descending: false,
-    limit: 200,
-  });
-  const [text, setText] = useState("");
+  const { docs: messages } = useLiveQuery(
+    (d) => (d.type === 'message' ? [d.channelId, d.timestamp] : undefined),
+    {
+      prefix: [channel._id],
+      descending: false,
+      limit: 200,
+    }
+  );
+  const [text, setText] = useState('');
   const [pendingImage, setPendingImage] = useState(null);
   const fileRef = useRef(null);
   const prevCountRef = useRef(messages.length);
   const bottomRef = useRef(null);
 
   // useVibe().can previews the access function — the same gate the server runs.
-  const writeVerdict = ready ? can.create({ type: "message", channelId: channel._id, authorHandle: me?.userHandle }) : null;
+  const writeVerdict = ready
+    ? can.create({ type: 'message', channelId: channel._id, authorHandle: me?.userHandle })
+    : null;
 
   // Scroll to bottom on new messages
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
   // Browser notifications for new messages while tab is hidden
   useEffect(() => {
     if (messages.length > prevCountRef.current) {
       const last = messages[messages.length - 1];
-      if (document.hidden && Notification.permission === "granted" && last?.authorHandle !== viewer?.userHandle) {
+      if (
+        document.hidden &&
+        Notification.permission === 'granted' &&
+        last?.authorHandle !== viewer?.userHandle
+      ) {
         new Notification(`#${channel.name}`, {
-          body: `${last.authorDisplayName || "someone"}: ${last._files?.image ? "📷 sent an image" : last.text}`,
+          body: `${last.authorDisplayName || 'someone'}: ${last._files?.image ? '📷 sent an image' : last.text}`,
           icon: last.authorAvatarUrl || undefined,
         });
       }
@@ -128,18 +152,18 @@ function ChannelView({ channel, viewer }) {
     const trimmed = text.trim();
     if ((!trimmed && !pendingImage) || !me) return;
     const entry = {
-      type: "message",
+      type: 'message',
       channelId: channel._id,
-      text: trimmed || "",
+      text: trimmed || '',
       timestamp: Date.now(),
       authorHandle: me.userHandle,
       authorDisplayName: viewer?.displayName || me.userHandle,
       authorAvatarUrl: viewer?.avatarUrl,
     };
     if (pendingImage) entry._files = { image: pendingImage };
-    setText("");
+    setText('');
     setPendingImage(null);
-    if (fileRef.current) fileRef.current.value = "";
+    if (fileRef.current) fileRef.current.value = '';
     await database.put(entry);
   }
 
@@ -151,19 +175,29 @@ function ChannelView({ channel, viewer }) {
     <>
       <ul className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
         {messages.length === 0 ? (
-          <li className="text-sm text-[oklch(0.71_0.02_261)] italic">No messages yet. Be the first.</li>
+          <li className="text-sm text-[oklch(0.71_0.02_261)] italic">
+            No messages yet. Be the first.
+          </li>
         ) : (
           messages.map((m) => (
             <li key={m._id} className="text-sm text-[oklch(0.87_0.01_258)] flex gap-3 group">
-              {m.authorAvatarUrl && <img src={m.authorAvatarUrl} alt="" className="w-8 h-8 rounded-full shrink-0" />}
+              {m.authorAvatarUrl && (
+                <img src={m.authorAvatarUrl} alt="" className="w-8 h-8 rounded-full shrink-0" />
+              )}
               <div className="min-w-0 flex-1">
-                <span className="font-semibold text-[oklch(1_0_0)]">{m.authorDisplayName || m.authorHandle || "anonymous"}</span>
+                <span className="font-semibold text-[oklch(1_0_0)]">
+                  {m.authorDisplayName || m.authorHandle || 'anonymous'}
+                </span>
                 <span className="ml-2 text-xs text-[oklch(0.71_0.02_261)]">
-                  {m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : ""}
+                  {m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : ''}
                 </span>
                 {m._files?.image?.url && (
                   <div className="mt-1 max-w-xs">
-                    <img src={m._files.image.url} alt="uploaded image" className="rounded max-h-48 object-contain" />
+                    <img
+                      src={m._files.image.url}
+                      alt="uploaded image"
+                      className="rounded max-h-48 object-contain"
+                    />
                   </div>
                 )}
                 {m.text && (
@@ -186,20 +220,26 @@ function ChannelView({ channel, viewer }) {
         <li ref={bottomRef} />
       </ul>
       {!ready ? (
-        <div className="px-6 py-4 border-t border-[oklch(0.31_0.005_285)] text-sm text-[oklch(0.71_0.02_261)] italic">Loading…</div>
+        <div className="px-6 py-4 border-t border-[oklch(0.31_0.005_285)] text-sm text-[oklch(0.71_0.02_261)] italic">
+          Loading…
+        </div>
       ) : !writeVerdict.ok ? (
         <div className="px-6 py-4 border-t border-[oklch(0.31_0.005_285)] text-sm text-[oklch(0.71_0.02_261)] italic">
-          {writeVerdict.reason || "Read-only — contact the owner for write access."}
+          {writeVerdict.reason || 'Read-only — contact the owner for write access.'}
         </div>
       ) : (
         <div className="border-t border-[oklch(0.31_0.005_285)]">
           {pendingImage && (
             <div className="px-6 pt-3 flex items-center gap-2">
-              <img src={URL.createObjectURL(pendingImage)} alt="preview" className="h-16 rounded object-cover" />
+              <img
+                src={URL.createObjectURL(pendingImage)}
+                alt="preview"
+                className="h-16 rounded object-cover"
+              />
               <button
                 onClick={() => {
                   setPendingImage(null);
-                  if (fileRef.current) fileRef.current.value = "";
+                  if (fileRef.current) fileRef.current.value = '';
                 }}
                 className="text-xs text-[oklch(0.71_0.02_261)] hover:text-[oklch(1_0_0)]"
               >
@@ -208,7 +248,10 @@ function ChannelView({ channel, viewer }) {
             </div>
           )}
           <div className="px-6 pt-2 text-xs text-[oklch(0.71_0.02_261)]">
-            Posting as <span className="text-[oklch(0.79_0.18_75)] font-medium">{viewer?.displayName || me?.userHandle}</span>
+            Posting as{' '}
+            <span className="text-[oklch(0.79_0.18_75)] font-medium">
+              {viewer?.displayName || me?.userHandle}
+            </span>
           </div>
           <form onSubmit={handleSubmit} className="px-6 py-3 flex gap-2 pr-20">
             <button
@@ -246,10 +289,16 @@ function ChannelView({ channel, viewer }) {
 
 function ChannelList({ channels, active, onPick, c }) {
   if (channels.length === 0) {
-    return <div className="px-4 py-2 text-xs text-[oklch(0.71_0.02_261)] italic">No channels yet.</div>;
+    return (
+      <div className="px-4 py-2 text-xs text-[oklch(0.71_0.02_261)] italic">No channels yet.</div>
+    );
   }
   return channels.map((ch) => (
-    <button key={ch._id} onClick={() => onPick(ch._id)} className={active === ch._id ? c.channelBtnActive : c.channelBtn}>
+    <button
+      key={ch._id}
+      onClick={() => onPick(ch._id)}
+      className={active === ch._id ? c.channelBtnActive : c.channelBtn}
+    >
       # {ch.name}
     </button>
   ));
@@ -258,22 +307,31 @@ function ChannelList({ channels, active, onPick, c }) {
 function AddChannelForm() {
   const { database } = useFireproof(DB);
   const { can, ready, me } = useVibe(DB);
-  const [name, setName] = useState("");
+  const [name, setName] = useState('');
 
   // Channel creation is owner-only — encoded in access.js and previewed here.
-  const verdict = ready ? can.create({ type: "channel", createdBy: me?.userHandle }) : null;
+  const verdict = ready ? can.create({ type: 'channel', createdBy: me?.userHandle }) : null;
   if (!ready || !verdict.ok) return null;
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const slug = name.trim().toLowerCase().replace(/\s+/g, "-");
+    const slug = name.trim().toLowerCase().replace(/\s+/g, '-');
     if (!slug) return;
-    setName("");
-    await database.put({ _id: "ch:" + slug, type: "channel", name: slug, createdBy: me?.userHandle, createdAt: Date.now() });
+    setName('');
+    await database.put({
+      _id: 'ch:' + slug,
+      type: 'channel',
+      name: slug,
+      createdBy: me?.userHandle,
+      createdAt: Date.now(),
+    });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="px-3 py-2 flex gap-1 border-t border-[oklch(0.25_0.005_285)]">
+    <form
+      onSubmit={handleSubmit}
+      className="px-3 py-2 flex gap-1 border-t border-[oklch(0.25_0.005_285)]"
+    >
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
@@ -293,31 +351,34 @@ function AddChannelForm() {
 export default function App() {
   const { viewer } = useViewer();
   const { useLiveQuery } = useFireproof(DB);
-  const { docs: channels } = useLiveQuery("type", { key: "channel" });
+  const { docs: channels } = useLiveQuery('type', { key: 'channel' });
   const [activeId, setActiveId] = useState(null);
   const activeChannel = channels.find((ch) => ch._id === activeId) || null;
 
   // Request notification permission once viewer is known
   useEffect(() => {
-    if (viewer && "Notification" in window && Notification.permission === "default") {
+    if (viewer && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
   }, [!!viewer]);
 
   const c = {
-    page: "min-h-screen flex bg-[oklch(0.18_0.005_285)] text-[oklch(1_0_0)] font-sans",
-    sidebar: "w-64 shrink-0 bg-[oklch(0.15_0.005_285)] border-r border-[oklch(0.31_0.005_285)] flex flex-col",
-    sidebarHeader: "px-4 py-4 border-b border-[oklch(0.31_0.005_285)]",
-    title: "text-lg font-bold text-[oklch(0.79_0.18_75)] cursor-pointer",
-    channelList: "flex-1 overflow-y-auto py-2",
-    channelBtn: "w-full text-left px-4 py-2 text-sm text-[oklch(0.87_0.01_258)] hover:bg-[oklch(0.25_0.005_285)] min-h-[44px]",
+    page: 'min-h-screen flex bg-[oklch(0.18_0.005_285)] text-[oklch(1_0_0)] font-sans',
+    sidebar:
+      'w-64 shrink-0 bg-[oklch(0.15_0.005_285)] border-r border-[oklch(0.31_0.005_285)] flex flex-col',
+    sidebarHeader: 'px-4 py-4 border-b border-[oklch(0.31_0.005_285)]',
+    title: 'text-lg font-bold text-[oklch(0.79_0.18_75)] cursor-pointer',
+    channelList: 'flex-1 overflow-y-auto py-2',
+    channelBtn:
+      'w-full text-left px-4 py-2 text-sm text-[oklch(0.87_0.01_258)] hover:bg-[oklch(0.25_0.005_285)] min-h-[44px]',
     channelBtnActive:
-      "w-full text-left px-4 py-2 text-sm bg-[oklch(0.25_0.005_285)] text-[oklch(0.79_0.18_75)] min-h-[44px] font-medium",
-    viewerBar: "px-4 py-3 border-t border-[oklch(0.31_0.005_285)] text-xs text-[oklch(0.71_0.02_261)] flex items-center gap-2",
-    main: "flex-1 flex flex-col bg-[oklch(0.25_0.005_285)] min-w-0",
-    header: "px-6 py-4 border-b border-[oklch(0.31_0.005_285)] bg-[oklch(0.22_0.005_285)]",
-    headerTitle: "text-base font-semibold text-[oklch(1_0_0)]",
-    section: "flex-1 flex flex-col overflow-hidden",
+      'w-full text-left px-4 py-2 text-sm bg-[oklch(0.25_0.005_285)] text-[oklch(0.79_0.18_75)] min-h-[44px] font-medium',
+    viewerBar:
+      'px-4 py-3 border-t border-[oklch(0.31_0.005_285)] text-xs text-[oklch(0.71_0.02_261)] flex items-center gap-2',
+    main: 'flex-1 flex flex-col bg-[oklch(0.25_0.005_285)] min-w-0',
+    header: 'px-6 py-4 border-b border-[oklch(0.31_0.005_285)] bg-[oklch(0.22_0.005_285)]',
+    headerTitle: 'text-base font-semibold text-[oklch(1_0_0)]',
+    section: 'flex-1 flex flex-col overflow-hidden',
   };
 
   return (
@@ -329,7 +390,9 @@ export default function App() {
           </h1>
         </div>
         <section id="channel-list" className={c.channelList}>
-          <div className="px-4 py-1 text-[10px] uppercase tracking-wider text-[oklch(0.71_0.02_261)]">Channels</div>
+          <div className="px-4 py-1 text-[10px] uppercase tracking-wider text-[oklch(0.71_0.02_261)]">
+            Channels
+          </div>
           <ChannelList channels={channels} active={activeId} onPick={setActiveId} c={c} />
           <AddChannelForm />
         </section>
@@ -342,7 +405,9 @@ export default function App() {
       </aside>
       <main className={c.main} id="app">
         <header className={c.header} id="app-header">
-          <h2 className={c.headerTitle}>{activeChannel ? `# ${activeChannel.name}` : "Team Channels"}</h2>
+          <h2 className={c.headerTitle}>
+            {activeChannel ? `# ${activeChannel.name}` : 'Team Channels'}
+          </h2>
         </header>
         <section id="channel-view" className={c.section}>
           {!activeChannel ? (

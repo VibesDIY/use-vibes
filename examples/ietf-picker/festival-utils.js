@@ -1,28 +1,28 @@
 // Swap these two (plus MEETING_126.dates below) and the picker follows the next
 // meeting: the feed URL, header text, and datatracker links all key off them.
 export const MEETING_NUMBER = 126;
-export const MEETING_TZ = "Europe/Vienna";
+export const MEETING_TZ = 'Europe/Vienna';
 
 export const AGENDA_URL = `https://datatracker.ietf.org/meeting/${MEETING_NUMBER}/agenda.json`;
 export const MEETING_URL = `https://www.ietf.org/meeting/${MEETING_NUMBER}/`;
 
 const hasExplicitTZ = (s) => /([+-]\d\d:\d\d|Z)$/.test(s);
-export const ensureT = (s = "") => (s.includes("T") ? s : s.replace(" ", "T"));
+export const ensureT = (s = '') => (s.includes('T') ? s : s.replace(' ', 'T'));
 
 // Intl.DateTimeFormat construction is expensive (tens of µs each). These helpers
 // run inside sort comparators and filters over hundreds of sessions every render,
 // so we build each formatter ONCE at module scope and memoize the results by their
 // input string — the agenda's date strings are a small, stable set parsed
 // thousands of times per render. This is the single biggest render-cost win.
-const _offsetFmt = new Intl.DateTimeFormat("en-US", {
+const _offsetFmt = new Intl.DateTimeFormat('en-US', {
   timeZone: MEETING_TZ,
-  hourCycle: "h23",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
+  hourCycle: 'h23',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
 });
 
 const tzOffsetMinutes = (date) => {
@@ -32,7 +32,7 @@ const tzOffsetMinutes = (date) => {
 };
 
 const parseInTZ = (naive) => {
-  const utcGuess = new Date(naive + "Z");
+  const utcGuess = new Date(naive + 'Z');
   if (isNaN(utcGuess)) return new Date(NaN);
   const offset = tzOffsetMinutes(utcGuess);
   return new Date(utcGuess.getTime() - offset * 60000);
@@ -54,26 +54,26 @@ export const toMeetingDate = (s) => {
 };
 
 export const MEETING_126 = {
-  dayOrder: ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+  dayOrder: ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
   dates: {
-    Saturday: "2026-07-18",
-    Sunday: "2026-07-19",
-    Monday: "2026-07-20",
-    Tuesday: "2026-07-21",
-    Wednesday: "2026-07-22",
-    Thursday: "2026-07-23",
-    Friday: "2026-07-24",
+    Saturday: '2026-07-18',
+    Sunday: '2026-07-19',
+    Monday: '2026-07-20',
+    Tuesday: '2026-07-21',
+    Wednesday: '2026-07-22',
+    Thursday: '2026-07-23',
+    Friday: '2026-07-24',
   },
-  fallbackStart: "2026-07-18T00:00:00",
+  fallbackStart: '2026-07-18T00:00:00',
 };
 
-const _dayPartsFmt = new Intl.DateTimeFormat("en-US", {
+const _dayPartsFmt = new Intl.DateTimeFormat('en-US', {
   timeZone: MEETING_TZ,
-  weekday: "long",
-  hourCycle: "h23",
-  hour: "2-digit",
+  weekday: 'long',
+  hourCycle: 'h23',
+  hour: '2-digit',
 });
-const _weekdayFmt = new Intl.DateTimeFormat("en-US", { timeZone: MEETING_TZ, weekday: "long" });
+const _weekdayFmt = new Intl.DateTimeFormat('en-US', { timeZone: MEETING_TZ, weekday: 'long' });
 const _dayForCache = new Map();
 // Side meetings and socials can run past midnight, so a session is grouped by the
 // *meeting day* it belongs to, not its raw calendar date: anything before 4 AM
@@ -94,11 +94,15 @@ export const meetingDayFor = (dateStr) => {
   return out;
 };
 
-const _timeFmt = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: MEETING_TZ });
-const _dateFmt = new Intl.DateTimeFormat("en-US", {
-  weekday: "long",
-  month: "short",
-  day: "numeric",
+const _timeFmt = new Intl.DateTimeFormat('en-US', {
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZone: MEETING_TZ,
+});
+const _dateFmt = new Intl.DateTimeFormat('en-US', {
+  weekday: 'long',
+  month: 'short',
+  day: 'numeric',
   timeZone: MEETING_TZ,
 });
 const _timeCache = new Map();
@@ -110,14 +114,14 @@ const _dateStrCache = new Map();
 export const fmtTime = (s) => {
   if (_timeCache.has(s)) return _timeCache.get(s);
   const d = toMeetingDate(s);
-  const out = isNaN(d) ? "" : _timeFmt.format(d);
+  const out = isNaN(d) ? '' : _timeFmt.format(d);
   _timeCache.set(s, out);
   return out;
 };
 export const fmtDate = (s) => {
   if (_dateStrCache.has(s)) return _dateStrCache.get(s);
   const d = toMeetingDate(s);
-  const out = isNaN(d) ? "" : _dateFmt.format(d);
+  const out = isNaN(d) ? '' : _dateFmt.format(d);
   _dateStrCache.set(s, out);
   return out;
 };
@@ -126,27 +130,27 @@ export const fmtDate = (s) => {
 // IRTF) its working group belongs to. Groups outside the area tree (teams, admin,
 // directorates) fall back to the neutral default.
 export const AREA_COLORS = {
-  art: "#8e44ad",
-  gen: "#566573",
-  int: "#2874a6",
-  ops: "#1e8449",
-  rtg: "#b03a2e",
-  sec: "#9a7d0a",
-  wit: "#6c3483",
-  irtf: "#515a5a",
+  art: '#8e44ad',
+  gen: '#566573',
+  int: '#2874a6',
+  ops: '#1e8449',
+  rtg: '#b03a2e',
+  sec: '#9a7d0a',
+  wit: '#6c3483',
+  irtf: '#515a5a',
 };
-export const DEFAULT_AREA_COLOR = "#34495e";
+export const DEFAULT_AREA_COLOR = '#34495e';
 
 // Session lengths arrive as "H:MM:SS" (the feed has no end timestamp).
 const parseDurationMs = (s) => {
-  const m = typeof s === "string" ? s.match(/^(\d+):([0-5]\d):([0-5]\d)$/) : null;
+  const m = typeof s === 'string' ? s.match(/^(\d+):([0-5]\d):([0-5]\d)$/) : null;
   return m ? ((+m[1] * 60 + +m[2]) * 60 + +m[3]) * 1000 : null;
 };
 // The datatracker stamps a duration on every scheduled session; if one ever arrives
 // blank, a nominal hour keeps the session on the board instead of vanishing.
 const DEFAULT_SESSION_MS = 60 * 60 * 1000;
 
-const isoUtc = (ms) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+const isoUtc = (ms) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 // agenda.json is { "<meeting number>": [assignment, ...] } — one flat list where
 // sessions share the array with room ("location") and area ("parent") records, and
@@ -158,13 +162,13 @@ export const flattenAgenda = (data) => {
     const assignments = data[key];
     if (!Array.isArray(assignments)) continue;
     for (const a of assignments) {
-      if (a.objtype !== "session" || a.status !== "sched") continue;
+      if (a.objtype !== 'session' || a.status !== 'sched') continue;
       const start = toMeetingDate(a.start);
       if (isNaN(start)) continue;
       const group = a.group || {};
       // Working groups hang off an area (`parent`); teams/admin/etc. only carry a
       // `type`. Either way the id labels the chip and picks the tint color.
-      const areaId = group.parent || group.type || "other";
+      const areaId = group.parent || group.type || 'other';
       list.push({
         // session_id is stable across reschedules (the assignment `id` is NOT), so
         // favorites keyed on it survive agenda shuffles.
@@ -174,8 +178,12 @@ export const flattenAgenda = (data) => {
         end: isoUtc(start.getTime() + (parseDurationMs(a.duration) ?? DEFAULT_SESSION_MS)),
         // Most sessions have no materials page yet; the group's about page is the
         // stable fallback link.
-        url: a.agenda || (group.acronym ? `https://datatracker.ietf.org/group/${group.acronym}/about/` : MEETING_URL),
-        venueTitle: a.location || "TBA",
+        url:
+          a.agenda ||
+          (group.acronym
+            ? `https://datatracker.ietf.org/group/${group.acronym}/about/`
+            : MEETING_URL),
+        venueTitle: a.location || 'TBA',
         acronym: group.acronym,
         groupName: group.name,
         isBof: Boolean(a.is_bof),
@@ -202,7 +210,11 @@ export const sessionsOnNow = (events, nowMs) =>
 // meeting, and at the end of a day it rolls forward to the next morning's first
 // sessions — while a room whose next session is a whole block away still drops off.
 // Capped to `perVenue` per room.
-export const upNextSessions = (events, nowMs, { waveMs = 2 * 60 * 60 * 1000, perVenue = 2 } = {}) => {
+export const upNextSessions = (
+  events,
+  nowMs,
+  { waveMs = 2 * 60 * 60 * 1000, perVenue = 2 } = {}
+) => {
   const upcoming = events
     .filter((e) => toMeetingDate(e.start).getTime() > nowMs)
     .sort((a, b) => toMeetingDate(a.start) - toMeetingDate(b.start));
@@ -232,8 +244,8 @@ export const scheduleIcsItems = ({ events = [], shifts = [], shiftStart, shiftEn
     // Trim here: the backend trims titles then rejects empties, so a
     // whitespace-only title must be dropped (or trimmed) before it can 400
     // the whole payload.
-    const title = typeof e.title === "string" ? e.title.trim() : "";
-    if (title === "" || isNaN(toMeetingDate(e.start)) || isNaN(toMeetingDate(e.end))) continue;
+    const title = typeof e.title === 'string' ? e.title.trim() : '';
+    if (title === '' || isNaN(toMeetingDate(e.start)) || isNaN(toMeetingDate(e.end))) continue;
     const item = { id: `event-${e.eventId}`, title, start: e.start, end: e.end };
     if (e.venueTitle) item.location = e.venueTitle;
     if (e.url) item.url = e.url;
@@ -250,8 +262,8 @@ export const scheduleIcsItems = ({ events = [], shifts = [], shiftStart, shiftEn
     if (toMeetingDate(end).getTime() === toMeetingDate(start).getTime()) continue;
     // Trimmed-or-default: a whitespace-only kind is truthy, so `s.kind || "Shift"`
     // would ship "   " and the backend's trim-then-reject would 400 the export.
-    const kind = typeof s.kind === "string" ? s.kind.trim() : "";
-    items.push({ id: `shift-${s._id}`, title: kind === "" ? "Shift" : kind, start, end });
+    const kind = typeof s.kind === 'string' ? s.kind.trim() : '';
+    items.push({ id: `shift-${s._id}`, title: kind === '' ? 'Shift' : kind, start, end });
   }
   return items;
 };

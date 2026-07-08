@@ -34,25 +34,25 @@
 // This file runs ALONE in the backend isolate — no import resolution — so the
 // few festival-utils timezone helpers it needs are duplicated here on purpose.
 
-export const config = { scheduled: { interval: "1m" } };
+export const config = { scheduled: { interval: '1m' } };
 
-const FESTIVAL_TZ = "America/Los_Angeles";
+const FESTIVAL_TZ = 'America/Los_Angeles';
 
 const hasExplicitTZ = (s) => /([+-]\d\d:\d\d|Z)$/.test(s);
-const ensureT = (s = "") => (s.includes("T") ? s : s.replace(" ", "T"));
+const ensureT = (s = '') => (s.includes('T') ? s : s.replace(' ', 'T'));
 
 // Same offset trick as festival-utils.js: format the instant in the festival
 // zone, re-read it as if it were UTC, and the difference is the zone offset.
 // Handles DST correctly for any date (festival is PDT, but don't hardcode -7).
-const _offsetFmt = new Intl.DateTimeFormat("en-US", {
+const _offsetFmt = new Intl.DateTimeFormat('en-US', {
   timeZone: FESTIVAL_TZ,
-  hourCycle: "h23",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
+  hourCycle: 'h23',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
 });
 const tzOffsetMinutes = (date) => {
   const p = Object.fromEntries(_offsetFmt.formatToParts(date).map((x) => [x.type, x.value]));
@@ -61,20 +61,20 @@ const tzOffsetMinutes = (date) => {
 };
 
 const parseToDate = (s) => {
-  if (typeof s !== "string" || s === "") return null;
+  if (typeof s !== 'string' || s === '') return null;
   const t = ensureT(s);
   let d;
   if (hasExplicitTZ(t)) {
     d = new Date(t);
   } else {
-    const utcGuess = new Date(t + "Z");
+    const utcGuess = new Date(t + 'Z');
     if (isNaN(utcGuess)) return null;
     d = new Date(utcGuess.getTime() - tzOffsetMinutes(utcGuess) * 60000);
   }
   return isNaN(d) ? null : d;
 };
 
-const epochToIcs = (ms) => new Date(ms).toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
+const epochToIcs = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
 
 // A schedule string (naive festival-local like "2026-07-31T13:00:00", or with an
 // explicit offset/Z) → ICS UTC basic format "20260731T200000Z", or null if it
@@ -89,10 +89,10 @@ export const toIcsUtc = (s) => {
 // the escapes it just produced.
 export const escapeIcsText = (s) =>
   String(s)
-    .replace(/\\/g, "\\\\")
-    .replace(/;/g, "\\;")
-    .replace(/,/g, "\\,")
-    .replace(/\r\n|\r|\n/g, "\\n");
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r\n|\r|\n/g, '\\n');
 
 // RFC 5545 §3.1 line folding: content lines cap at 75 OCTETS (not chars), and a
 // continuation line's leading space counts toward its own 75. Folding must not
@@ -103,14 +103,14 @@ const utf8Octets = (ch) => {
 };
 export const foldIcsLine = (line) => {
   const parts = [];
-  let cur = "";
+  let cur = '';
   let bytes = 0;
   let budget = 75; // continuations get 74: the leading fold space spends one octet
   for (const ch of line) {
     const len = utf8Octets(ch);
     if (bytes + len > budget) {
       parts.push(cur);
-      cur = "";
+      cur = '';
       bytes = 0;
       budget = 74;
     }
@@ -118,7 +118,7 @@ export const foldIcsLine = (line) => {
     bytes += len;
   }
   parts.push(cur);
-  return parts.join("\r\n ");
+  return parts.join('\r\n ');
 };
 
 // Caps: strict enough that a forged payload can't make us stream megabytes back,
@@ -132,13 +132,13 @@ const MAX_ID = 200;
 // that structure the calendar (title, start, end); silently drops decorations
 // that are merely unusable (non-http url).
 export const validateFavesItem = (it) => {
-  if (it === null || typeof it !== "object") return { ok: false, error: "must be an object" };
-  const title = typeof it.title === "string" ? it.title.trim() : "";
-  if (title === "") return { ok: false, error: "title must be a non-empty string" };
+  if (it === null || typeof it !== 'object') return { ok: false, error: 'must be an object' };
+  const title = typeof it.title === 'string' ? it.title.trim() : '';
+  if (title === '') return { ok: false, error: 'title must be a non-empty string' };
   const startDate = parseToDate(it.start);
-  if (startDate === null) return { ok: false, error: "start is not a parseable time" };
+  if (startDate === null) return { ok: false, error: 'start is not a parseable time' };
   const endDate = parseToDate(it.end);
-  if (endDate === null) return { ok: false, error: "end is not a parseable time" };
+  if (endDate === null) return { ok: false, error: 'end is not a parseable time' };
   let endMs = endDate.getTime();
   // RFC 5545 requires DTEND strictly later than DTSTART. end === start is a
   // meaningless entry — reject it. end BEFORE start is a real shape, not junk:
@@ -146,39 +146,48 @@ export const validateFavesItem = (it) => {
   // overnight shift (22:00 → 01:00) arrives as same-day strings — normalize it
   // to end the next day. (+24h in absolute time; festival dates never straddle
   // a DST change, so local wall time is preserved.)
-  if (endMs === startDate.getTime()) return { ok: false, error: "has zero duration (end equals start)" };
+  if (endMs === startDate.getTime())
+    return { ok: false, error: 'has zero duration (end equals start)' };
   if (endMs < startDate.getTime()) endMs += 24 * 60 * 60 * 1000;
   // Still not after start ⇒ end was more than a day early — corrupt, not overnight.
-  if (endMs <= startDate.getTime()) return { ok: false, error: "end is before its start" };
-  const item = { title: title.slice(0, MAX_TEXT), start: epochToIcs(startDate.getTime()), end: epochToIcs(endMs) };
-  if (typeof it.location === "string" && it.location.trim() !== "") {
+  if (endMs <= startDate.getTime()) return { ok: false, error: 'end is before its start' };
+  const item = {
+    title: title.slice(0, MAX_TEXT),
+    start: epochToIcs(startDate.getTime()),
+    end: epochToIcs(endMs),
+  };
+  if (typeof it.location === 'string' && it.location.trim() !== '') {
     item.location = it.location.trim().slice(0, MAX_TEXT);
   }
   // URL is a URI-valued property emitted VERBATIM (no TEXT escaping — see
   // buildFavesCalendar), so beyond the scheme check it must contain no
   // whitespace or control chars: an embedded CR/LF would inject ICS lines.
-  if (typeof it.url === "string" && /^https?:\/\/[^\s\x00-\x1f\x7f]+$/i.test(it.url) && it.url.length <= MAX_URL) {
+  if (
+    typeof it.url === 'string' &&
+    /^https?:\/\/[^\s\x00-\x1f\x7f]+$/i.test(it.url) &&
+    it.url.length <= MAX_URL
+  ) {
     item.url = it.url;
   }
-  if (typeof it.id === "string" && it.id !== "") item.id = it.id.slice(0, MAX_ID);
+  if (typeof it.id === 'string' && it.id !== '') item.id = it.id.slice(0, MAX_ID);
   return { ok: true, item };
 };
 
 // STRICT, all-or-nothing — the POST download lane, where the client authored
 // the payload and deserves a precise index-named rejection.
 export const parseFavesItems = (payload) => {
-  if (payload === null || typeof payload !== "object" || !Array.isArray(payload.items)) {
-    return { ok: false, error: "body must be { items: [...] }" };
+  if (payload === null || typeof payload !== 'object' || !Array.isArray(payload.items)) {
+    return { ok: false, error: 'body must be { items: [...] }' };
   }
   const raw = payload.items;
-  if (raw.length === 0) return { ok: false, error: "no items to export" };
+  if (raw.length === 0) return { ok: false, error: 'no items to export' };
   if (raw.length > MAX_ITEMS) return { ok: false, error: `too many items (max ${MAX_ITEMS})` };
   const items = [];
   for (let i = 0; i < raw.length; i++) {
     const r = validateFavesItem(raw[i]);
     if (!r.ok) {
       // Field-scoped errors read as items[i].field…, item-level ones as items[i] …
-      const sep = /^(title|start|end)\b/.test(r.error) ? "." : " ";
+      const sep = /^(title|start|end)\b/.test(r.error) ? '.' : ' ';
       return { ok: false, error: `items[${i}]${sep}${r.error}` };
     }
     items.push(r.item);
@@ -198,18 +207,21 @@ export const sanitizeFavesItems = (rows) =>
 
 // ── Subscription (GET) lane ──────────────────────────────────────────────────
 
-export const SCHEDULE_URL = "https://pickathon.com/wp-content/plugins/pickathon/schedule.php";
+export const SCHEDULE_URL = 'https://pickathon.com/wp-content/plugins/pickathon/schedule.php';
 
 // The feed HTML-entity-encodes titles ("Skills &amp; Games"). The frontend
 // decodes with a <textarea>; there's no DOM in the isolate, so decode the
 // named entities the feed actually uses plus numeric forms. Unknown entities
 // pass through as literal text — harmless in SUMMARY once TEXT-escaped.
 export const decodeFeedEntities = (s) => {
-  if (typeof s !== "string" || !s.includes("&")) return s;
-  const named = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+  if (typeof s !== 'string' || !s.includes('&')) return s;
+  const named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
   return s.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (m, body) => {
-    if (body[0] === "#") {
-      const code = body[1] === "x" || body[1] === "X" ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+    if (body[0] === '#') {
+      const code =
+        body[1] === 'x' || body[1] === 'X'
+          ? parseInt(body.slice(2), 16)
+          : parseInt(body.slice(1), 10);
       return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : m;
     }
     return named[body.toLowerCase()] ?? m;
@@ -219,11 +231,11 @@ export const decodeFeedEntities = (s) => {
 // Festival day → calendar date, for legacy shift docs stored without absolute
 // start/end (they carry day + startTime/endTime only). Mirrors FESTIVAL_2026.
 const FESTIVAL_DATES = {
-  Thursday: "2026-07-30",
-  Friday: "2026-07-31",
-  Saturday: "2026-08-01",
-  Sunday: "2026-08-02",
-  Monday: "2026-08-03",
+  Thursday: '2026-07-30',
+  Friday: '2026-07-31',
+  Saturday: '2026-08-01',
+  Sunday: '2026-08-02',
+  Monday: '2026-08-03',
 };
 
 // The cross-lane cache: written by `scheduled` (the only lane that may read
@@ -234,14 +246,17 @@ export const __resetSubCacheForTests = () => {
   subCache = null;
 };
 
-const shiftStartOf = (s) => s.start ?? (FESTIVAL_DATES[s.day] && s.startTime ? `${FESTIVAL_DATES[s.day]}T${s.startTime}:00` : null);
-const shiftEndOf = (s) => s.end ?? (FESTIVAL_DATES[s.day] && s.endTime ? `${FESTIVAL_DATES[s.day]}T${s.endTime}:00` : null);
+const shiftStartOf = (s) =>
+  s.start ??
+  (FESTIVAL_DATES[s.day] && s.startTime ? `${FESTIVAL_DATES[s.day]}T${s.startTime}:00` : null);
+const shiftEndOf = (s) =>
+  s.end ?? (FESTIVAL_DATES[s.day] && s.endTime ? `${FESTIVAL_DATES[s.day]}T${s.endTime}:00` : null);
 
 // 1-minute aggregation tick (tiny db; a short interval keeps the post-deploy/post-eviction cold window — where adding a NEW subscription fails with iOS's "Validation failed" — under a minute). Admin-lane read (unfiltered), so THIS code chooses
 // what becomes link-visible: favorite eventIds always (that's the feature),
 // shifts only when the user marked them shareWithFriends, notes never.
 export async function scheduled(event, ctx) {
-  const docs = await ctx.db.query({ db: "pickathon" });
+  const docs = await ctx.db.query({ db: 'pickathon' });
   const users = new Map();
   const tokens = new Map();
   const entryFor = (handle) => {
@@ -251,17 +266,21 @@ export async function scheduled(event, ctx) {
   };
   for (const d of docs) {
     if (!d || !d.userId) continue;
-    if (d.type === "caltoken") {
-      if (typeof d.token === "string" && /^[A-Za-z0-9_-]{16,64}$/.test(d.token)) {
+    if (d.type === 'caltoken') {
+      if (typeof d.token === 'string' && /^[A-Za-z0-9_-]{16,64}$/.test(d.token)) {
         tokens.set(d.token, String(d.userId).toLowerCase());
       }
-    } else if (d.type === "favorite" && d.eventId != null) {
+    } else if (d.type === 'favorite' && d.eventId != null) {
       entryFor(d.userId).eventIds.push(String(d.eventId));
-    } else if (d.type === "shift" && d.shareWithFriends) {
+    } else if (d.type === 'shift' && d.shareWithFriends) {
       const start = shiftStartOf(d);
       const end = shiftEndOf(d);
       if (start && end)
-        entryFor(d.userId).shifts.push([typeof d.kind === "string" && d.kind.trim() !== "" ? d.kind.trim() : "Shift", start, end]);
+        entryFor(d.userId).shifts.push([
+          typeof d.kind === 'string' && d.kind.trim() !== '' ? d.kind.trim() : 'Shift',
+          start,
+          end,
+        ]);
     }
   }
   // Opt-in means opt-in: keep aggregates ONLY for handles holding a token —
@@ -274,7 +293,12 @@ export async function scheduled(event, ctx) {
     entry.eventIds.sort();
     entry.shifts.sort((a, b) => (a[1] < b[1] ? -1 : 1));
   }
-  subCache = { at: Date.parse(event?.scheduledTime) || Date.now(), users, tokens, truncated: docs.length >= 2000 };
+  subCache = {
+    at: Date.parse(event?.scheduledTime) || Date.now(),
+    users,
+    tokens,
+    truncated: docs.length >= 2000,
+  };
 }
 
 // Fetch the live schedule feed and project the requested event ids into items.
@@ -282,7 +306,7 @@ export async function scheduled(event, ctx) {
 // exported handler, not the global (module scope shadows the isolate global).
 export const fetchScheduleItems = async (ids) => {
   const wanted = new Set(ids);
-  const res = await globalThis.fetch(SCHEDULE_URL, { headers: { accept: "application/json" } });
+  const res = await globalThis.fetch(SCHEDULE_URL, { headers: { accept: 'application/json' } });
   if (!res.ok) throw new Error(`schedule feed ${res.status}`);
   const data = await res.json();
   const items = [];
@@ -293,11 +317,11 @@ export const fetchScheduleItems = async (ids) => {
       if (!wanted.has(String(ev.id))) continue;
       items.push({
         id: `event-${ev.id}`,
-        title: decodeFeedEntities(String(ev.title ?? "")),
-        start: String(ev.start ?? ""),
-        end: String(ev.end ?? ""),
-        location: decodeFeedEntities(String(venue.title ?? "")),
-        ...(typeof ev.url === "string" ? { url: ev.url } : {}),
+        title: decodeFeedEntities(String(ev.title ?? '')),
+        start: String(ev.start ?? ''),
+        end: String(ev.end ?? ''),
+        location: decodeFeedEntities(String(venue.title ?? '')),
+        ...(typeof ev.url === 'string' ? { url: ev.url } : {}),
       });
     }
   }
@@ -309,29 +333,30 @@ export const fetchScheduleItems = async (ids) => {
 // shift-<_id>); fall back to title+start for a hand-rolled payload.
 const icsUid = (item) => {
   const key = item.id || `${item.title}-${item.start}`;
-  return `${key.replace(/[^A-Za-z0-9._-]/g, "-")}@pickathon-picker.vibes.diy`;
+  return `${key.replace(/[^A-Za-z0-9._-]/g, '-')}@pickathon-picker.vibes.diy`;
 };
 
 // items are parseFavesItems output (start/end already in ICS UTC form).
 // `now` is injectable for deterministic tests; DTSTAMP is generation time.
 // `calName` labels the calendar in subscribing clients (e.g. per-handle feeds).
 export const buildFavesCalendar = (items, { now, calName } = {}) => {
-  const dtstamp = (now ? new Date(now) : new Date()).toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
+  const dtstamp =
+    (now ? new Date(now) : new Date()).toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
   const lines = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//vibes.diy//pickathon-picker//EN",
-    "CALSCALE:GREGORIAN",
-    "METHOD:PUBLISH",
-    `X-WR-CALNAME:${escapeIcsText(calName || "My Pickathon Picks")}`,
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//vibes.diy//pickathon-picker//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${escapeIcsText(calName || 'My Pickathon Picks')}`,
     `X-WR-TIMEZONE:${FESTIVAL_TZ}`,
     // Subscription refresh hints (Apple/Google honor these where supported).
-    "REFRESH-INTERVAL;VALUE=DURATION:PT6H",
-    "X-PUBLISHED-TTL:PT6H",
+    'REFRESH-INTERVAL;VALUE=DURATION:PT6H',
+    'X-PUBLISHED-TTL:PT6H',
   ];
   const sorted = [...items].sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
   for (const item of sorted) {
-    lines.push("BEGIN:VEVENT");
+    lines.push('BEGIN:VEVENT');
     lines.push(`UID:${escapeIcsText(icsUid(item))}`);
     lines.push(`DTSTAMP:${dtstamp}`);
     lines.push(`DTSTART:${item.start}`);
@@ -342,10 +367,10 @@ export const buildFavesCalendar = (items, { now, calName } = {}) => {
     // commas/semicolons would corrupt the link. parseFavesItems guarantees the
     // value has no whitespace/control chars, so verbatim emission is safe.
     if (item.url) lines.push(`URL:${item.url}`);
-    lines.push("END:VEVENT");
+    lines.push('END:VEVENT');
   }
-  lines.push("END:VCALENDAR");
-  return lines.map(foldIcsLine).join("\r\n") + "\r\n";
+  lines.push('END:VCALENDAR');
+  return lines.map(foldIcsLine).join('\r\n') + '\r\n';
 };
 
 const textResponse = (status, message, headers = {}) => new Response(message, { status, headers });
@@ -356,7 +381,7 @@ const handleDownload = async (request) => {
   try {
     payload = await request.json();
   } catch (e) {
-    return textResponse(400, "invalid JSON body");
+    return textResponse(400, 'invalid JSON body');
   }
   const parsed = parseFavesItems(payload);
   if (!parsed.ok) return textResponse(400, parsed.error);
@@ -364,9 +389,9 @@ const handleDownload = async (request) => {
   return new Response(ics, {
     status: 200,
     headers: {
-      "content-type": "text/calendar; charset=utf-8",
-      "content-disposition": 'attachment; filename="pickathon-faves.ics"',
-      "cache-control": "no-store",
+      'content-type': 'text/calendar; charset=utf-8',
+      'content-disposition': 'attachment; filename="pickathon-faves.ics"',
+      'cache-control': 'no-store',
     },
   });
 };
@@ -379,12 +404,12 @@ const handleDownload = async (request) => {
 // calendar, and it's real festival info.
 const ANCHOR_ITEMS = [
   {
-    id: "gates-open-2026",
-    title: "Gates Open",
-    start: "2026-07-30T09:00:00",
-    end: "2026-07-30T10:00:00",
-    location: "Pendarvis Farm, Happy Valley, OR",
-    url: "https://pickathon.com",
+    id: 'gates-open-2026',
+    title: 'Gates Open',
+    start: '2026-07-30T09:00:00',
+    end: '2026-07-30T10:00:00',
+    location: 'Pendarvis Farm, Happy Valley, OR',
+    url: 'https://pickathon.com',
   },
 ];
 
@@ -392,14 +417,17 @@ const ANCHOR_ITEMS = [
 // attachment) so calendar clients treat it as a feed; short shared cache so a
 // popular handle doesn't hammer the feed join.
 const handleSubscription = async (url) => {
-  const t = url.searchParams.get("t") ?? "";
+  const t = url.searchParams.get('t') ?? '';
   if (!/^[A-Za-z0-9_-]{16,64}$/.test(t)) {
-    return textResponse(400, "pass t=<calendar token> — open the app's My Faves tab to get your link");
+    return textResponse(
+      400,
+      "pass t=<calendar token> — open the app's My Faves tab to get your link"
+    );
   }
   // Display-only label: iOS captures the calendar NAME at subscribe time, and
   // a just-minted token often beats the tick — without this the calendar is
   // permanently named "@my". The token alone gates data; `n` labels it.
-  const nRaw = (url.searchParams.get("n") ?? "").toLowerCase();
+  const nRaw = (url.searchParams.get('n') ?? '').toLowerCase();
   const displayName = /^[a-z0-9][a-z0-9_-]{0,39}$/.test(nRaw) ? nRaw : null;
   // Cold cache (freshly booted isolate) AND unknown tokens serve the
   // anchor-only calendar rather than an error, so ADDING a subscription always
@@ -416,37 +444,53 @@ const handleSubscription = async (url) => {
     try {
       eventItems = await fetchScheduleItems(entry.eventIds);
     } catch (err) {
-      return textResponse(502, "schedule feed unavailable — try again later");
+      return textResponse(502, 'schedule feed unavailable — try again later');
     }
   }
-  const shiftRows = entry.shifts.map((r, i) => ({ id: `shift-${i}-${r[1]}`, title: r[0], start: r[1], end: r[2] }));
+  const shiftRows = entry.shifts.map((r, i) => ({
+    id: `shift-${i}-${r[1]}`,
+    title: r[0],
+    start: r[1],
+    end: r[2],
+  }));
   // LENIENT per-item validation: these rows come from the db aggregate and the
   // schedule feed — sources the subscriber doesn't control — so a malformed
   // legacy row drops out instead of 400ing the whole feed. A user with no
   // (valid) faves gets an EMPTY calendar, not an error.
-  const items = sanitizeFavesItems([...ANCHOR_ITEMS, ...eventItems, ...shiftRows]).slice(0, MAX_ITEMS);
-  return new Response(buildFavesCalendar(items, { calName: `@${handle ?? displayName ?? "my"} — Pickathon Picks` }), {
-    status: 200,
-    headers: {
-      "content-type": "text/calendar; charset=utf-8",
-      // A cold/unresolved (anchor-only) response must not linger in any shared
-      // cache past the tick that fills the real data.
-      "cache-control": cold || !handle ? "no-store" : "public, max-age=300",
-    },
-  });
+  const items = sanitizeFavesItems([...ANCHOR_ITEMS, ...eventItems, ...shiftRows]).slice(
+    0,
+    MAX_ITEMS
+  );
+  return new Response(
+    buildFavesCalendar(items, { calName: `@${handle ?? displayName ?? 'my'} — Pickathon Picks` }),
+    {
+      status: 200,
+      headers: {
+        'content-type': 'text/calendar; charset=utf-8',
+        // A cold/unresolved (anchor-only) response must not linger in any shared
+        // cache past the tick that fills the real data.
+        'cache-control': cold || !handle ? 'no-store' : 'public, max-age=300',
+      },
+    }
+  );
 };
 
 // The `_api` request arrives prefix-stripped (…/_api/faves.ics → /faves.ics).
 export async function fetch(request, ctx) {
   const url = new URL(request.url);
-  if (url.pathname !== "/faves.ics") {
-    return textResponse(404, "not found — /faves.ics (POST to download, GET ?t=<token> to subscribe)");
+  if (url.pathname !== '/faves.ics') {
+    return textResponse(
+      404,
+      'not found — /faves.ics (POST to download, GET ?t=<token> to subscribe)'
+    );
   }
-  if (request.method === "GET" || request.method === "HEAD") {
+  if (request.method === 'GET' || request.method === 'HEAD') {
     return handleSubscription(url);
   }
-  if (request.method !== "POST") {
-    return textResponse(405, "method not allowed — GET a subscription or POST schedule items", { allow: "GET, POST" });
+  if (request.method !== 'POST') {
+    return textResponse(405, 'method not allowed — GET a subscription or POST schedule items', {
+      allow: 'GET, POST',
+    });
   }
   return handleDownload(request);
 }

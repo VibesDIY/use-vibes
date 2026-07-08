@@ -1,6 +1,6 @@
-import React, { useState, useRef, useMemo, useEffect } from "react";
-import { useFireproof } from "use-fireproof";
-import { useViewer, useVibe, callAI } from "use-vibes";
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { useFireproof } from 'use-fireproof';
+import { useViewer, useVibe, callAI } from 'use-vibes';
 
 // ── Family Grocery (jchris/family-grocery) ───────────────────────────────────
 // One list per STORE, stores grouped into FAMILY GROUPS. Anyone can start a
@@ -21,22 +21,22 @@ import { useViewer, useVibe, callAI } from "use-vibes";
 // LOCAL-FIRST pre-invite: anonymousLocal runs everything against a local
 // store while logged out, migrating into your implicit group on sign-in.
 
-const DB = "groceries";
+const DB = 'groceries';
 
-const INK = "#2f2c27";
-const MUTED = "#8f8a80";
-const ACCENT = "#3e9b6d";
-const ACCENT_SOFT = "#e7f3ec";
-const DANGER = "#c05c4a";
-const LINE = "#e9e5da";
-const CARD_LINE = "#eeeae0";
-const CARD_SHADOW = "0 1px 2px rgba(44,40,33,0.05), 0 3px 10px rgba(44,40,33,0.06)";
-const LIFT_SHADOW = "0 10px 24px rgba(44,40,33,0.18), 0 2px 6px rgba(44,40,33,0.12)";
+const INK = '#2f2c27';
+const MUTED = '#8f8a80';
+const ACCENT = '#3e9b6d';
+const ACCENT_SOFT = '#e7f3ec';
+const DANGER = '#c05c4a';
+const LINE = '#e9e5da';
+const CARD_LINE = '#eeeae0';
+const CARD_SHADOW = '0 1px 2px rgba(44,40,33,0.05), 0 3px 10px rgba(44,40,33,0.06)';
+const LIFT_SHADOW = '0 10px 24px rgba(44,40,33,0.18), 0 2px 6px rgba(44,40,33,0.12)';
 
-const STORE_IDEAS = ["Supermarket", "Costco", "Farmers market", "Pharmacy"];
+const STORE_IDEAS = ['Supermarket', 'Costco', 'Farmers market', 'Pharmacy'];
 
 const STEP = 1000;
-const effPos = (i) => (typeof i.position === "number" ? i.position : (i.createdAt || 0) / 1000);
+const effPos = (i) => (typeof i.position === 'number' ? i.position : (i.createdAt || 0) / 1000);
 
 // Insertion position for dropping at `index` within `sorted` (dragged item excluded).
 function positionForIndex(sorted, index) {
@@ -52,8 +52,8 @@ function positionForIndex(sorted, index) {
 // re-home onto the new user's implicit group. Groups/members can't exist
 // pre-login — drop strays.
 const migrateGroceryDoc = (doc, handle) => {
-  if (doc.type === "item" || doc.type === "store") {
-    return { ...doc, groupId: "default-" + handle, authorHandle: handle };
+  if (doc.type === 'item' || doc.type === 'store') {
+    return { ...doc, groupId: 'default-' + handle, authorHandle: handle };
   }
   return null;
 };
@@ -62,9 +62,12 @@ function Check({ checked }) {
   return (
     <span
       className="shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center text-[13px] font-bold text-white transition-colors"
-      style={{ border: checked ? `2px solid ${ACCENT}` : "2px solid #d8d2c4", background: checked ? ACCENT : "transparent" }}
+      style={{
+        border: checked ? `2px solid ${ACCENT}` : '2px solid #d8d2c4',
+        background: checked ? ACCENT : 'transparent',
+      }}
     >
-      {checked ? "✓" : ""}
+      {checked ? '✓' : ''}
     </span>
   );
 }
@@ -78,7 +81,13 @@ function ItemRow({ item, canWrite, onPointerDown, onDelete }) {
       data-iid={item._id}
       onPointerDown={(e) => onPointerDown(e, item)}
       className="bg-white rounded-[12px] pl-[12px] pr-[8px] py-[10px] mb-[8px] flex items-center gap-[10px] select-none active:opacity-80"
-      style={{ boxShadow: CARD_SHADOW, border: `1px solid ${CARD_LINE}`, touchAction: "none", willChange: "transform", cursor: canWrite ? "grab" : "default" }}
+      style={{
+        boxShadow: CARD_SHADOW,
+        border: `1px solid ${CARD_LINE}`,
+        touchAction: 'none',
+        willChange: 'transform',
+        cursor: canWrite ? 'grab' : 'default',
+      }}
     >
       <Check checked={false} />
       <span className="flex-1 min-w-0 text-[15px] font-medium leading-snug" style={{ color: INK }}>
@@ -104,10 +113,13 @@ function CartRow({ item, canWrite, onToggle }) {
     <button
       onClick={() => canWrite && onToggle(item)}
       className="w-full text-left rounded-[10px] px-[10px] py-[7px] flex items-center gap-[10px]"
-      style={{ cursor: canWrite ? "pointer" : "default" }}
+      style={{ cursor: canWrite ? 'pointer' : 'default' }}
     >
       <Check checked />
-      <span className="flex-1 min-w-0 text-[14px] leading-snug line-through" style={{ color: MUTED }}>
+      <span
+        className="flex-1 min-w-0 text-[14px] leading-snug line-through"
+        style={{ color: MUTED }}
+      >
         {item.name}
       </span>
     </button>
@@ -115,20 +127,25 @@ function CartRow({ item, canWrite, onToggle }) {
 }
 
 function Placeholder() {
-  return <div className="h-[46px] rounded-[12px] mb-[8px]" style={{ border: "2px dashed #cdc6b4", background: "rgba(255,255,255,0.5)" }} />;
+  return (
+    <div
+      className="h-[46px] rounded-[12px] mb-[8px]"
+      style={{ border: '2px dashed #cdc6b4', background: 'rgba(255,255,255,0.5)' }}
+    />
+  );
 }
 
 // Per-column composer with its own draft (defined top-level so typing never
 // remounts the input).
 function ColumnComposer({ onAdd }) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState('');
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         const name = text.trim();
         if (!name) return;
-        setText("");
+        setText('');
         onAdd(name);
       }}
       className="mt-[2px] flex gap-[8px]"
@@ -138,7 +155,7 @@ function ColumnComposer({ onAdd }) {
         onChange={(e) => setText(e.target.value)}
         placeholder="Add an item…"
         className="flex-1 min-w-0 min-h-[42px] px-[12px] rounded-[12px] text-[15px] bg-white outline-none focus:bg-white"
-        style={{ border: "1px dashed #d5cfc0", color: INK }}
+        style={{ border: '1px dashed #d5cfc0', color: INK }}
       />
       <button
         type="submit"
@@ -153,19 +170,25 @@ function ColumnComposer({ onAdd }) {
 }
 
 function NewStoreColumn({ onCreate, hasStores }) {
-  const [name, setName] = useState("");
+  const [name, setName] = useState('');
   return (
     <section className="snap-center shrink-0 w-[82vw] max-w-[300px] md:w-[280px]">
-      <div className="rounded-[18px] p-[16px]" style={{ border: "2px dashed #ddd6c5", background: "rgba(255,255,255,0.4)" }}>
-        <h3 className="text-[12px] font-semibold uppercase tracking-[0.12em] mb-[10px]" style={{ color: MUTED }}>
-          {hasStores ? "New store" : "Add your first store"}
+      <div
+        className="rounded-[18px] p-[16px]"
+        style={{ border: '2px dashed #ddd6c5', background: 'rgba(255,255,255,0.4)' }}
+      >
+        <h3
+          className="text-[12px] font-semibold uppercase tracking-[0.12em] mb-[10px]"
+          style={{ color: MUTED }}
+        >
+          {hasStores ? 'New store' : 'Add your first store'}
         </h3>
         <form
           onSubmit={(e) => {
             e.preventDefault();
             const n = name.trim();
             if (!n) return;
-            setName("");
+            setName('');
             onCreate(n);
           }}
           className="flex gap-[8px] mb-[12px]"
@@ -177,7 +200,11 @@ function NewStoreColumn({ onCreate, hasStores }) {
             className="flex-1 min-w-0 min-h-[42px] px-[12px] rounded-[12px] text-[15px] bg-white outline-none"
             style={{ border: `1px solid ${LINE}`, color: INK }}
           />
-          <button type="submit" className="shrink-0 min-h-[42px] px-[14px] rounded-[12px] text-[14px] font-semibold text-white active:opacity-80" style={{ background: ACCENT }}>
+          <button
+            type="submit"
+            className="shrink-0 min-h-[42px] px-[14px] rounded-[12px] text-[14px] font-semibold text-white active:opacity-80"
+            style={{ background: ACCENT }}
+          >
             Add
           </button>
         </form>
@@ -187,7 +214,7 @@ function NewStoreColumn({ onCreate, hasStores }) {
               key={s}
               onClick={() => onCreate(s)}
               className="px-[10px] py-[6px] rounded-full text-[13px] font-medium active:opacity-70"
-              style={{ background: "white", border: `1px solid ${LINE}`, color: INK }}
+              style={{ background: 'white', border: `1px solid ${LINE}`, color: INK }}
             >
               {s}
             </button>
@@ -227,7 +254,15 @@ function Column({
   const rows = [];
   visible.forEach((item, i) => {
     if (dragging && isOver && overIndex === i) rows.push(<Placeholder key="ph" />);
-    rows.push(<ItemRow key={item._id} item={item} canWrite={canWrite} onPointerDown={onPointerDown} onDelete={onDelete} />);
+    rows.push(
+      <ItemRow
+        key={item._id}
+        item={item}
+        canWrite={canWrite}
+        onPointerDown={onPointerDown}
+        onDelete={onDelete}
+      />
+    );
   });
   if (dragging && isOver && overIndex >= visible.length) rows.push(<Placeholder key="ph" />);
 
@@ -236,9 +271,11 @@ function Column({
       <div
         className="rounded-[18px] p-[12px] transition-shadow"
         style={{
-          background: "rgba(255,255,255,0.62)",
+          background: 'rgba(255,255,255,0.62)',
           border: `1px solid ${LINE}`,
-          boxShadow: isOver ? `0 0 0 2px ${ACCENT}, 0 8px 24px rgba(62,155,109,0.15)` : "0 1px 3px rgba(44,40,33,0.04)",
+          boxShadow: isOver
+            ? `0 0 0 2px ${ACCENT}, 0 8px 24px rgba(62,155,109,0.15)`
+            : '0 1px 3px rgba(44,40,33,0.04)',
         }}
       >
         <div className="flex items-center gap-[8px] px-[4px] pb-[10px]">
@@ -247,7 +284,10 @@ function Column({
           </h2>
           <span
             className="shrink-0 min-w-[24px] text-center text-[12px] font-semibold rounded-full px-[7px] py-[2px]"
-            style={{ background: open.length ? ACCENT_SOFT : "transparent", color: open.length ? ACCENT : MUTED }}
+            style={{
+              background: open.length ? ACCENT_SOFT : 'transparent',
+              color: open.length ? ACCENT : MUTED,
+            }}
           >
             {open.length}
           </span>
@@ -256,7 +296,7 @@ function Column({
               aria-label={`Store options for ${store.name}`}
               onClick={onMenuToggle}
               className="shrink-0 w-[30px] h-[30px] rounded-full text-[16px] leading-none opacity-50 hover:opacity-100"
-              style={{ color: INK, background: menuOpen ? ACCENT_SOFT : "transparent" }}
+              style={{ color: INK, background: menuOpen ? ACCENT_SOFT : 'transparent' }}
             >
               ⋯
             </button>
@@ -264,7 +304,10 @@ function Column({
         </div>
 
         {menuOpen && canWrite && (
-          <div className="rounded-[12px] p-[10px] mb-[10px] space-y-[8px]" style={{ background: "white", border: `1px solid ${CARD_LINE}` }}>
+          <div
+            className="rounded-[12px] p-[10px] mb-[10px] space-y-[8px]"
+            style={{ background: 'white', border: `1px solid ${CARD_LINE}` }}
+          >
             <form onSubmit={onRename} className="flex gap-[8px]">
               <input
                 value={renameDraft}
@@ -273,7 +316,11 @@ function Column({
                 className="flex-1 min-w-0 min-h-[38px] px-[10px] rounded-[10px] text-[14px] outline-none"
                 style={{ border: `1px solid ${LINE}`, color: INK }}
               />
-              <button type="submit" className="shrink-0 min-h-[38px] px-[12px] rounded-[10px] text-[13px] font-semibold text-white" style={{ background: ACCENT }}>
+              <button
+                type="submit"
+                className="shrink-0 min-h-[38px] px-[12px] rounded-[10px] text-[13px] font-semibold text-white"
+                style={{ background: ACCENT }}
+              >
                 Save
               </button>
             </form>
@@ -282,11 +329,13 @@ function Column({
               className="w-full min-h-[38px] rounded-[10px] text-[13px] font-semibold"
               style={
                 deleteArmed
-                  ? { background: DANGER, color: "white" }
-                  : { border: `1px solid ${DANGER}`, color: DANGER, background: "white" }
+                  ? { background: DANGER, color: 'white' }
+                  : { border: `1px solid ${DANGER}`, color: DANGER, background: 'white' }
               }
             >
-              {deleteArmed ? `Really delete "${store.name}" and its ${open.length + cart.length} item(s)?` : "Delete store"}
+              {deleteArmed
+                ? `Really delete "${store.name}" and its ${open.length + cart.length} item(s)?`
+                : 'Delete store'}
             </button>
           </div>
         )}
@@ -310,11 +359,18 @@ function Column({
         {cart.length > 0 && (
           <div className="mt-[12px] pt-[8px]" style={{ borderTop: `1px solid ${LINE}` }}>
             <div className="flex items-center justify-between px-[4px] pb-[4px]">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: MUTED }}>
+              <span
+                className="text-[11px] font-semibold uppercase tracking-[0.12em]"
+                style={{ color: MUTED }}
+              >
                 In the cart · {cart.length}
               </span>
               {canWrite && (
-                <button onClick={onClearCart} className="text-[12px] font-semibold opacity-70 hover:opacity-100" style={{ color: DANGER }}>
+                <button
+                  onClick={onClearCart}
+                  className="text-[12px] font-semibold opacity-70 hover:opacity-100"
+                  style={{ color: DANGER }}
+                >
                   Clear
                 </button>
               )}
@@ -334,7 +390,7 @@ function Column({
 // produce → farmers market, bulk → warehouse, etc.), reusing existing stores
 // from the current group when possible.
 function RecipeBar({ storeNames, existingNames, canWrite, onResult }) {
-  const [recipe, setRecipe] = useState("");
+  const [recipe, setRecipe] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -352,22 +408,22 @@ bulk/pantry staples → a warehouse store, medicine/toiletries → a pharmacy, e
 else → a general supermarket.
 
 Stores that already exist in this list (reuse these names exactly when they fit):
-${storeNames.length ? storeNames.map((s) => `- ${s}`).join("\n") : "(none yet)"}
+${storeNames.length ? storeNames.map((s) => `- ${s}`).join('\n') : '(none yet)'}
 
 Items already on the list (do not duplicate these):
-${existingNames.length ? existingNames.map((s) => `- ${s}`).join("\n") : "(none)"}
+${existingNames.length ? existingNames.map((s) => `- ${s}`).join('\n') : '(none)'}
 
 Return concise ingredient names (e.g. "Basil", not "1 bunch of fresh basil").`;
       const raw = await callAI(prompt, {
         schema: {
           properties: {
             items: {
-              type: "array",
+              type: 'array',
               items: {
-                type: "object",
+                type: 'object',
                 properties: {
-                  ingredient: { type: "string" },
-                  store: { type: "string" },
+                  ingredient: { type: 'string' },
+                  store: { type: 'string' },
                 },
               },
             },
@@ -381,9 +437,9 @@ Return concise ingredient names (e.g. "Basil", not "1 bunch of fresh basil").`;
         return;
       }
       await onResult(dish, items);
-      setRecipe("");
+      setRecipe('');
     } catch (err) {
-      setError("Something went wrong generating that recipe.");
+      setError('Something went wrong generating that recipe.');
     } finally {
       setLoading(false);
     }
@@ -393,9 +449,15 @@ Return concise ingredient names (e.g. "Basil", not "1 bunch of fresh basil").`;
 
   return (
     <div className="max-w-[1100px] mx-auto mb-[14px]">
-      <div className="rounded-[18px] p-[14px]" style={{ background: "white", border: `1px solid ${CARD_LINE}`, boxShadow: CARD_SHADOW }}>
+      <div
+        className="rounded-[18px] p-[14px]"
+        style={{ background: 'white', border: `1px solid ${CARD_LINE}`, boxShadow: CARD_SHADOW }}
+      >
         <div className="flex items-center gap-[8px] mb-[10px]">
-          <h3 className="text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: MUTED }}>
+          <h3
+            className="text-[12px] font-semibold uppercase tracking-[0.12em]"
+            style={{ color: MUTED }}
+          >
             Add a recipe
           </h3>
         </div>
@@ -416,14 +478,33 @@ Return concise ingredient names (e.g. "Basil", not "1 bunch of fresh basil").`;
           >
             {loading ? (
               <>
-                <svg width="16" height="16" viewBox="0 0 24 24" className="animate-spin" fill="none">
-                  <circle cx="12" cy="12" r="9" stroke="white" strokeWidth="3" strokeLinecap="round" opacity="0.35" />
-                  <path d="M12 3a9 9 0 0 1 9 9" stroke="white" strokeWidth="3" strokeLinecap="round" />
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  className="animate-spin"
+                  fill="none"
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="9"
+                    stroke="white"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    opacity="0.35"
+                  />
+                  <path
+                    d="M12 3a9 9 0 0 1 9 9"
+                    stroke="white"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                  />
                 </svg>
                 Working…
               </>
             ) : (
-              "Generate"
+              'Generate'
             )}
           </button>
         </form>
@@ -447,29 +528,29 @@ export default function App() {
 
   const signedIn = !!viewer?.userHandle;
   const myHandle = me?.userHandle || viewer?.userHandle;
-  const myDefault = "default-" + (myHandle || "anon");
+  const myDefault = 'default-' + (myHandle || 'anon');
 
-  const { docs: itemDocs } = useLiveQuery("type", { key: "item" });
-  const { docs: storeDocs } = useLiveQuery("type", { key: "store" });
-  const { docs: groupDocs } = useLiveQuery("type", { key: "group" });
-  const { docs: memberDocs } = useLiveQuery("type", { key: "member" });
+  const { docs: itemDocs } = useLiveQuery('type', { key: 'item' });
+  const { docs: storeDocs } = useLiveQuery('type', { key: 'store' });
+  const { docs: groupDocs } = useLiveQuery('type', { key: 'group' });
+  const { docs: memberDocs } = useLiveQuery('type', { key: 'member' });
 
   // Which group? "mine" is the implicit personal group. The choice is a
   // per-device nicety (localStorage).
   const [groupChoice, setGroupChoiceState] = useState(() => {
     try {
-      return localStorage.getItem("family-grocery-group") || "mine";
+      return localStorage.getItem('family-grocery-group') || 'mine';
     } catch {
-      return "mine";
+      return 'mine';
     }
   });
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [newGroupName, setNewGroupName] = useState("");
-  const [groupRename, setGroupRename] = useState("");
+  const [newGroupName, setNewGroupName] = useState('');
+  const [groupRename, setGroupRename] = useState('');
   const [groupDeleteArmed, setGroupDeleteArmed] = useState(false);
   const [notice, setNotice] = useState(null);
   const [menuStoreId, setMenuStoreId] = useState(null);
-  const [storeRename, setStoreRename] = useState("");
+  const [storeRename, setStoreRename] = useState('');
   const [storeDeleteArmed, setStoreDeleteArmed] = useState(false);
 
   // Groups I can open: mine, ones with a doc I can see (created or shared),
@@ -478,42 +559,71 @@ export default function App() {
   const groups = useMemo(() => {
     const map = new Map();
     for (const g of [...groupDocs].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))) {
-      map.set(g._id, g.name || "Family group");
+      map.set(g._id, g.name || 'Family group');
     }
     if (myHandle) {
       for (const m of memberDocs) {
-        if (m.userHandle !== myHandle || !m.groupId || m.groupId === myDefault || map.has(m.groupId)) continue;
-        map.set(m.groupId, m.groupId.startsWith("default-") ? `@${m.groupId.slice("default-".length)}'s family` : "Shared group");
+        if (
+          m.userHandle !== myHandle ||
+          !m.groupId ||
+          m.groupId === myDefault ||
+          map.has(m.groupId)
+        )
+          continue;
+        map.set(
+          m.groupId,
+          m.groupId.startsWith('default-')
+            ? `@${m.groupId.slice('default-'.length)}'s family`
+            : 'Shared group'
+        );
       }
     }
     return [...map.entries()].map(([id, name]) => ({ id, name }));
   }, [groupDocs, memberDocs, myHandle, myDefault]);
 
-  const activeGroupId = groupChoice === "mine" || !groups.some((g) => g.id === groupChoice) ? myDefault : groupChoice;
+  const activeGroupId =
+    groupChoice === 'mine' || !groups.some((g) => g.id === groupChoice) ? myDefault : groupChoice;
   const isMyGroup = activeGroupId === myDefault;
   const activeGroupDoc = groupDocs.find((g) => g._id === activeGroupId);
-  const groupName = isMyGroup ? "My family" : groups.find((g) => g.id === activeGroupId)?.name || "Family group";
+  const groupName = isMyGroup
+    ? 'My family'
+    : groups.find((g) => g.id === activeGroupId)?.name || 'Family group';
 
   const stores = useMemo(
-    () => storeDocs.filter((s) => (s.groupId || myDefault) === activeGroupId).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)),
+    () =>
+      storeDocs
+        .filter((s) => (s.groupId || myDefault) === activeGroupId)
+        .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)),
     [storeDocs, activeGroupId, myDefault]
   );
-  const groupItems = useMemo(() => itemDocs.filter((i) => (i.groupId || myDefault) === activeGroupId), [itemDocs, activeGroupId, myDefault]);
+  const groupItems = useMemo(
+    () => itemDocs.filter((i) => (i.groupId || myDefault) === activeGroupId),
+    [itemDocs, activeGroupId, myDefault]
+  );
   const groupMembers = memberDocs.filter((m) => m.groupId === activeGroupId);
-  const founderHandle = activeGroupId.startsWith("default-")
-    ? activeGroupId.slice("default-".length)
-    : activeGroupDoc?.creatorHandle || "?";
-  const openCountFor = (groupId) => itemDocs.filter((i) => !i.checked && (i.groupId || myDefault) === groupId).length;
+  const founderHandle = activeGroupId.startsWith('default-')
+    ? activeGroupId.slice('default-'.length)
+    : activeGroupDoc?.creatorHandle || '?';
+  const openCountFor = (groupId) =>
+    itemDocs.filter((i) => !i.checked && (i.groupId || myDefault) === groupId).length;
 
   // Per-GROUP write verdict — with access.js bound, the fn is the authority.
   // Anonymous runs local-only (anonymousLocal), so writes are real for them.
-  const createVerdict = signedIn && ready ? can.create({ type: "item", groupId: activeGroupId, authorHandle: myHandle }) : null;
+  const createVerdict =
+    signedIn && ready
+      ? can.create({ type: 'item', groupId: activeGroupId, authorHandle: myHandle })
+      : null;
   const canWrite = signedIn ? !!createVerdict?.ok : true;
   // Only the group's admin (creator, or you on your own default) may invite —
   // ask the access fn the exact question with a concrete member-doc shape.
   const canInvite =
     signedIn && ready
-      ? !!can.create({ type: "member", groupId: activeGroupId, userHandle: myHandle, addedBy: myHandle }).ok
+      ? !!can.create({
+          type: 'member',
+          groupId: activeGroupId,
+          userHandle: myHandle,
+          addedBy: myHandle,
+        }).ok
       : false;
 
   async function guarded(write) {
@@ -521,7 +631,11 @@ export default function App() {
       setNotice(null);
       await write();
     } catch (e) {
-      setNotice(signedIn ? e?.message || "That change was not allowed." : "Sign in to keep your lists and share them.");
+      setNotice(
+        signedIn
+          ? e?.message || 'That change was not allowed.'
+          : 'Sign in to keep your lists and share them.'
+      );
     }
   }
 
@@ -530,7 +644,7 @@ export default function App() {
     setMenuStoreId(null);
     setGroupDeleteArmed(false);
     try {
-      localStorage.setItem("family-grocery-group", choice);
+      localStorage.setItem('family-grocery-group', choice);
     } catch {
       /* per-device nicety only */
     }
@@ -538,7 +652,7 @@ export default function App() {
   }
 
   function openSheet() {
-    setGroupRename(activeGroupDoc?.name || "");
+    setGroupRename(activeGroupDoc?.name || '');
     setGroupDeleteArmed(false);
     setSheetOpen(true);
   }
@@ -549,7 +663,7 @@ export default function App() {
     const list = openByStore[storeId] || [];
     await guarded(() =>
       database.put({
-        type: "item",
+        type: 'item',
         name,
         storeId,
         groupId: activeGroupId,
@@ -563,7 +677,9 @@ export default function App() {
 
   async function toggleItem(item) {
     if (!canWrite) return;
-    await guarded(() => database.put({ ...item, checked: !item.checked, checkedAt: item.checked ? 0 : Date.now() }));
+    await guarded(() =>
+      database.put({ ...item, checked: !item.checked, checkedAt: item.checked ? 0 : Date.now() })
+    );
   }
 
   async function deleteItem(item) {
@@ -581,8 +697,8 @@ export default function App() {
   // fresh ones, skip ingredients already on the group's list, and keep
   // insertion order stable with incrementing timestamps.
   async function applyRecipe(dish, plan) {
-    const existingLower = new Set(groupItems.map((i) => (i.name || "").trim().toLowerCase()));
-    const byName = new Map(stores.map((s) => [(s.name || "").trim().toLowerCase(), s]));
+    const existingLower = new Set(groupItems.map((i) => (i.name || '').trim().toLowerCase()));
+    const byName = new Map(stores.map((s) => [(s.name || '').trim().toLowerCase(), s]));
     let base = Date.now();
     for (const { ingredient, store } of plan) {
       // Dedupe BEFORE store creation — a skipped duplicate must not leave
@@ -590,11 +706,11 @@ export default function App() {
       const nameKey = ingredient.trim().toLowerCase();
       if (existingLower.has(nameKey)) continue;
       existingLower.add(nameKey);
-      const key = (store || "").trim().toLowerCase();
+      const key = (store || '').trim().toLowerCase();
       let storeDoc = byName.get(key);
       if (!storeDoc) {
         const res = await database.put({
-          type: "store",
+          type: 'store',
           name: store.trim(),
           groupId: activeGroupId,
           authorHandle: myHandle,
@@ -604,7 +720,7 @@ export default function App() {
         byName.set(key, storeDoc);
       }
       await database.put({
-        type: "item",
+        type: 'item',
         name: ingredient.trim(),
         storeId: storeDoc._id,
         groupId: activeGroupId,
@@ -619,7 +735,13 @@ export default function App() {
   async function createStore(name) {
     if (!canWrite || !name) return;
     await guarded(() =>
-      database.put({ type: "store", name, groupId: activeGroupId, createdAt: Date.now(), authorHandle: myHandle })
+      database.put({
+        type: 'store',
+        name,
+        groupId: activeGroupId,
+        createdAt: Date.now(),
+        authorHandle: myHandle,
+      })
     );
   }
 
@@ -642,16 +764,23 @@ export default function App() {
     if (!doc || !canWrite) return;
     const doomed = groupItems.filter((i) => i.storeId === doc._id);
     setMenuStoreId(null);
-    await guarded(() => Promise.all([...doomed.map((d) => database.del(d._id)), database.del(doc._id)]));
+    await guarded(() =>
+      Promise.all([...doomed.map((d) => database.del(d._id)), database.del(doc._id)])
+    );
   }
 
   async function createGroup(e) {
     e.preventDefault();
     const name = newGroupName.trim();
     if (!name || !signedIn) return;
-    setNewGroupName("");
+    setNewGroupName('');
     await guarded(async () => {
-      const res = await database.put({ type: "group", name, createdAt: Date.now(), creatorHandle: myHandle });
+      const res = await database.put({
+        type: 'group',
+        name,
+        createdAt: Date.now(),
+        creatorHandle: myHandle,
+      });
       switchGroup(res.id);
     });
   }
@@ -671,13 +800,11 @@ export default function App() {
       return;
     }
     if (!activeGroupDoc || !canInvite) return;
-    const doomed = [
-      ...groupItems,
-      ...stores,
-      ...groupMembers,
-    ];
-    switchGroup("mine");
-    await guarded(() => Promise.all([...doomed.map((d) => database.del(d._id)), database.del(activeGroupDoc._id)]));
+    const doomed = [...groupItems, ...stores, ...groupMembers];
+    switchGroup('mine');
+    await guarded(() =>
+      Promise.all([...doomed.map((d) => database.del(d._id)), database.del(activeGroupDoc._id)])
+    );
   }
 
   // `handle` arrives pre-sanitized from HandleInput (picked handles are real
@@ -686,7 +813,13 @@ export default function App() {
     if (!handle || !canInvite) return;
     if (handle === myHandle || groupMembers.some((m) => m.userHandle === handle)) return;
     await guarded(() =>
-      database.put({ type: "member", groupId: activeGroupId, userHandle: handle, addedBy: myHandle, createdAt: Date.now() })
+      database.put({
+        type: 'member',
+        groupId: activeGroupId,
+        userHandle: handle,
+        addedBy: myHandle,
+        createdAt: Date.now(),
+      })
     );
   }
 
@@ -720,7 +853,7 @@ export default function App() {
   // plain scrollTo(0) gets overridden by the next re-snap. Remounting the
   // strip when stores first arrive (and on group switch) wipes the preserved
   // snap target and starts scroll state at the first store.
-  const stripKey = activeGroupId + (stores.length > 0 ? ":s" : ":e");
+  const stripKey = activeGroupId + (stores.length > 0 ? ':s' : ':e');
 
   const { openByStore, cartByStore } = useMemo(() => {
     const open = {};
@@ -748,7 +881,8 @@ export default function App() {
       const el = storeRefs.current[s._id];
       if (!el) continue;
       const r = el.getBoundingClientRect();
-      if (x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 90 && y <= r.bottom + 60) return s._id;
+      if (x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 90 && y <= r.bottom + 60)
+        return s._id;
     }
     return null;
   }
@@ -758,7 +892,7 @@ export default function App() {
   function locateIndex(storeId, y) {
     const el = storeRefs.current[storeId];
     if (!el) return 0;
-    const cards = [...el.querySelectorAll("[data-iid]")];
+    const cards = [...el.querySelectorAll('[data-iid]')];
     for (let i = 0; i < cards.length; i++) {
       const r = cards[i].getBoundingClientRect();
       if (y < r.top + r.height / 2) return i;
@@ -790,11 +924,11 @@ export default function App() {
     if (!dragging && canWrite && (dx > 5 || dy > 5)) {
       setDragging(true);
       setHasDragged(true);
-      document.body.style.userSelect = "none";
-      document.body.style.cursor = "grabbing";
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'grabbing';
       // Snap-mandatory fights programmatic edge scrolling — off while
       // dragging, restored after drop.
-      if (stripRef.current) stripRef.current.style.scrollSnapType = "none";
+      if (stripRef.current) stripRef.current.style.scrollSnapType = 'none';
     }
   }
 
@@ -843,12 +977,12 @@ export default function App() {
     setSnapshot(null);
     pointerIdRef.current = null;
     dropRef.current = { store: null, index: 0 };
-    document.body.style.userSelect = "";
-    document.body.style.cursor = "";
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
     if (stripRef.current) {
       const strip = stripRef.current;
       setTimeout(() => {
-        if (strip) strip.style.scrollSnapType = "";
+        if (strip) strip.style.scrollSnapType = '';
       }, 300);
     }
 
@@ -870,11 +1004,11 @@ export default function App() {
     if (!dragItem) return;
     const onMove = (e) => handlePointerMove(e);
     const onUp = () => handlePointerUp();
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp, { once: true });
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, { once: true });
     return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragItem, dragging, overStore, overIndex, hasDragged]);
@@ -887,7 +1021,7 @@ export default function App() {
           left: 0,
           top: 0,
           transform: `translate3d(${dragPos.x - dragOffset.x}px, ${dragPos.y - dragOffset.y}px, 0) rotate(2deg) scale(1.03)`,
-          willChange: "transform",
+          willChange: 'transform',
         }}
       >
         <div
@@ -895,7 +1029,10 @@ export default function App() {
           style={{ boxShadow: LIFT_SHADOW, border: `1px solid ${CARD_LINE}` }}
         >
           <Check checked={false} />
-          <span className="flex-1 min-w-0 text-[15px] font-medium leading-snug" style={{ color: INK }}>
+          <span
+            className="flex-1 min-w-0 text-[15px] font-medium leading-snug"
+            style={{ color: INK }}
+          >
             {dragItem.name}
           </span>
         </div>
@@ -907,22 +1044,28 @@ export default function App() {
   return (
     <div
       className="min-h-screen antialiased"
-      style={{ background: "linear-gradient(180deg, #f8f5ee 0%, #f1eee4 100%)", color: INK }}
+      style={{ background: 'linear-gradient(180deg, #f8f5ee 0%, #f1eee4 100%)', color: INK }}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
     >
       {overlay}
 
       <div className="p-[16px] md:p-[24px]">
-        <header id="app-header" className="max-w-[1100px] mx-auto mb-[14px] flex items-end justify-between px-[4px]">
+        <header
+          id="app-header"
+          className="max-w-[1100px] mx-auto mb-[14px] flex items-end justify-between px-[4px]"
+        >
           {/* The GROUP is the title — tap it to switch groups, invite family,
               or start a new group. */}
           <button onClick={openSheet} className="text-left">
-            <span className="block text-[11px] uppercase tracking-[0.16em] font-semibold" style={{ color: MUTED }}>
+            <span
+              className="block text-[11px] uppercase tracking-[0.16em] font-semibold"
+              style={{ color: MUTED }}
+            >
               Family Grocery
             </span>
             <h1 className="text-[24px] md:text-[30px] font-bold leading-tight">
-              {groupName}{" "}
+              {groupName}{' '}
               <span className="text-[14px] md:text-[16px] align-middle" style={{ color: MUTED }}>
                 ▾
               </span>
@@ -931,8 +1074,8 @@ export default function App() {
               {signedIn
                 ? peopleCount > 1
                   ? `${peopleCount} people sharing every list`
-                  : "Just you — tap to invite your family"
-                : "On this device — sign in to share"}
+                  : 'Just you — tap to invite your family'
+                : 'On this device — sign in to share'}
             </span>
           </button>
           <span className="text-[13px] font-semibold shrink-0 pl-[8px]" style={{ color: MUTED }}>
@@ -948,12 +1091,20 @@ export default function App() {
         />
 
         {signedIn && ready && !canWrite && (
-          <div className="max-w-[1100px] mx-auto mb-[12px] rounded-[14px] bg-white p-[12px] text-center" style={{ border: `1px solid ${LINE}` }}>
-            <p className="text-[14px] font-medium">{createVerdict?.reason || "Read-only — ask the group's owner to add you."}</p>
+          <div
+            className="max-w-[1100px] mx-auto mb-[12px] rounded-[14px] bg-white p-[12px] text-center"
+            style={{ border: `1px solid ${LINE}` }}
+          >
+            <p className="text-[14px] font-medium">
+              {createVerdict?.reason || "Read-only — ask the group's owner to add you."}
+            </p>
           </div>
         )}
         {notice && (
-          <div className="max-w-[1100px] mx-auto mb-[12px] rounded-[14px] p-[10px] text-center" style={{ background: "#fbeee9", border: `1px solid ${DANGER}` }}>
+          <div
+            className="max-w-[1100px] mx-auto mb-[12px] rounded-[14px] p-[10px] text-center"
+            style={{ background: '#fbeee9', border: `1px solid ${DANGER}` }}
+          >
             <p className="text-[13px] font-medium" style={{ color: DANGER }}>
               {notice}
             </p>
@@ -969,7 +1120,7 @@ export default function App() {
           key={stripKey}
           ref={stripRef}
           className="max-w-[1100px] mx-auto flex flex-row items-start gap-[14px] overflow-x-auto snap-x snap-mandatory md:snap-none pb-[96px]"
-          style={{ scrollbarWidth: "none", overflowAnchor: "none" }}
+          style={{ scrollbarWidth: 'none', overflowAnchor: 'none' }}
         >
           {stores.map((s) => (
             <Column
@@ -991,7 +1142,7 @@ export default function App() {
               menuOpen={menuStoreId === s._id}
               onMenuToggle={() => {
                 setStoreDeleteArmed(false);
-                setStoreRename(s.name || "");
+                setStoreRename(s.name || '');
                 setMenuStoreId(menuStoreId === s._id ? null : s._id);
               }}
               renameDraft={storeRename}
@@ -1013,15 +1164,19 @@ export default function App() {
           <div className="fixed inset-0 z-40" onPointerDown={() => setSheetOpen(false)} />
           <div
             className="fixed inset-x-0 bottom-0 z-50 md:inset-x-auto md:left-1/2 md:bottom-[40px] md:w-[400px] md:-translate-x-1/2 bg-white rounded-t-[20px] md:rounded-[20px] p-[18px] pb-[72px] md:pb-[18px] space-y-[10px] max-h-[72vh] overflow-y-auto"
-            style={{ boxShadow: "0 -8px 30px rgba(44,40,33,0.16), 0 2px 12px rgba(44,40,33,0.10)" }}
+            style={{ boxShadow: '0 -8px 30px rgba(44,40,33,0.16), 0 2px 12px rgba(44,40,33,0.10)' }}
           >
             {!signedIn && (
               <>
-                <h3 className="text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: MUTED }}>
+                <h3
+                  className="text-[12px] font-semibold uppercase tracking-[0.12em]"
+                  style={{ color: MUTED }}
+                >
                   Share the shopping
                 </h3>
                 <p className="text-[14px] leading-relaxed">
-                  Your lists live on this device for now. Sign in to sync them and share every store list with your family.
+                  Your lists live on this device for now. Sign in to sync them and share every store
+                  list with your family.
                 </p>
                 <div className="flex justify-center py-[4px]">
                   <ViewerTag />
@@ -1031,7 +1186,10 @@ export default function App() {
 
             {signedIn && (
               <>
-                <h3 className="text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: MUTED }}>
+                <h3
+                  className="text-[12px] font-semibold uppercase tracking-[0.12em]"
+                  style={{ color: MUTED }}
+                >
                   {groupName}
                 </h3>
                 {/* One membership shares everything the group owns. */}
@@ -1046,11 +1204,15 @@ export default function App() {
                     <span
                       key={m._id}
                       className="text-[13px] font-medium rounded-full px-[10px] py-[4px] inline-flex items-center gap-[6px]"
-                      style={{ background: "#f2f0e9", color: INK }}
+                      style={{ background: '#f2f0e9', color: INK }}
                     >
                       @{m.userHandle}
                       {(canInvite || m.userHandle === myHandle) && (
-                        <button aria-label={`Remove @${m.userHandle}`} onClick={() => removeMember(m)} className="font-semibold opacity-60 hover:opacity-100">
+                        <button
+                          aria-label={`Remove @${m.userHandle}`}
+                          onClick={() => removeMember(m)}
+                          className="font-semibold opacity-60 hover:opacity-100"
+                        >
                           ✕
                         </button>
                       )}
@@ -1066,7 +1228,13 @@ export default function App() {
                     value={null}
                     onChange={addMember}
                     placeholder="Add someone by handle…"
-                    style={{ display: "block", "--border": LINE, "--card-bg": "#ffffff", "--text": INK, "--muted": MUTED }}
+                    style={{
+                      display: 'block',
+                      '--border': LINE,
+                      '--card-bg': '#ffffff',
+                      '--text': INK,
+                      '--muted': MUTED,
+                    }}
                   />
                 )}
                 {!isMyGroup && activeGroupDoc && canInvite && (
@@ -1078,7 +1246,11 @@ export default function App() {
                       className="flex-1 min-w-0 min-h-[42px] px-[12px] rounded-[12px] text-[14px] outline-none"
                       style={{ border: `1px solid ${LINE}`, color: INK }}
                     />
-                    <button type="submit" className="shrink-0 min-h-[42px] px-[14px] rounded-[12px] text-[13px] font-semibold text-white" style={{ background: ACCENT }}>
+                    <button
+                      type="submit"
+                      className="shrink-0 min-h-[42px] px-[14px] rounded-[12px] text-[13px] font-semibold text-white"
+                      style={{ background: ACCENT }}
+                    >
                       Rename
                     </button>
                   </form>
@@ -1089,24 +1261,35 @@ export default function App() {
                     className="w-full min-h-[42px] rounded-[12px] text-[13px] font-semibold"
                     style={
                       groupDeleteArmed
-                        ? { background: DANGER, color: "white" }
-                        : { border: `1px solid ${DANGER}`, color: DANGER, background: "white" }
+                        ? { background: DANGER, color: 'white' }
+                        : { border: `1px solid ${DANGER}`, color: DANGER, background: 'white' }
                     }
                   >
-                    {groupDeleteArmed ? `Really delete "${groupName}" — its stores, items, and members?` : "Delete this group"}
+                    {groupDeleteArmed
+                      ? `Really delete "${groupName}" — its stores, items, and members?`
+                      : 'Delete this group'}
                   </button>
                 )}
 
-                <h3 className="text-[12px] font-semibold uppercase tracking-[0.12em] pt-[6px]" style={{ color: MUTED }}>
+                <h3
+                  className="text-[12px] font-semibold uppercase tracking-[0.12em] pt-[6px]"
+                  style={{ color: MUTED }}
+                >
                   My groups
                 </h3>
                 <button
-                  onClick={() => switchGroup("mine")}
+                  onClick={() => switchGroup('mine')}
                   className="w-full min-h-[44px] px-[12px] rounded-[12px] text-left text-[15px] font-semibold flex items-center justify-between"
-                  style={isMyGroup ? { background: ACCENT_SOFT, color: ACCENT } : { background: "#f7f5ef", color: INK }}
+                  style={
+                    isMyGroup
+                      ? { background: ACCENT_SOFT, color: ACCENT }
+                      : { background: '#f7f5ef', color: INK }
+                  }
                 >
                   My family
-                  <span className="text-[12px] font-medium opacity-60">{openCountFor(myDefault)}</span>
+                  <span className="text-[12px] font-medium opacity-60">
+                    {openCountFor(myDefault)}
+                  </span>
                 </button>
                 {groups
                   .filter((g) => g.id !== myDefault)
@@ -1115,10 +1298,16 @@ export default function App() {
                       key={g.id}
                       onClick={() => switchGroup(g.id)}
                       className="w-full min-h-[44px] px-[12px] rounded-[12px] text-left text-[15px] font-semibold flex items-center justify-between"
-                      style={activeGroupId === g.id ? { background: ACCENT_SOFT, color: ACCENT } : { background: "#f7f5ef", color: INK }}
+                      style={
+                        activeGroupId === g.id
+                          ? { background: ACCENT_SOFT, color: ACCENT }
+                          : { background: '#f7f5ef', color: INK }
+                      }
                     >
                       {g.name}
-                      <span className="text-[12px] font-medium opacity-60">{openCountFor(g.id)}</span>
+                      <span className="text-[12px] font-medium opacity-60">
+                        {openCountFor(g.id)}
+                      </span>
                     </button>
                   ))}
                 {/* Anyone can start a group — it's just a doc; you become its
@@ -1131,7 +1320,11 @@ export default function App() {
                     className="flex-1 min-w-0 min-h-[44px] px-[12px] rounded-[12px] text-[14px] outline-none"
                     style={{ border: `1px solid ${LINE}`, color: INK }}
                   />
-                  <button type="submit" className="shrink-0 min-h-[44px] px-[14px] rounded-[12px] text-[14px] font-semibold text-white" style={{ background: ACCENT }}>
+                  <button
+                    type="submit"
+                    className="shrink-0 min-h-[44px] px-[14px] rounded-[12px] text-[14px] font-semibold text-white"
+                    style={{ background: ACCENT }}
+                  >
                     Create
                   </button>
                 </form>

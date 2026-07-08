@@ -1,8 +1,17 @@
-import React, { useState } from "react";
-import { Icon, ICONS } from "./Icon.jsx";
-import { c } from "./styles.js";
+import React, { useState } from 'react';
+import { Icon, ICONS } from './Icon.jsx';
+import { c } from './styles.js';
 
-export default function FriendsPanel({ signedIn, userId, connectUrl, linkedFriend, friends, friendedBy, addFriend, removeFriend }) {
+export default function FriendsPanel({
+  signedIn,
+  userId,
+  connectUrl,
+  linkedFriend,
+  friends,
+  friendedBy,
+  addFriend,
+  removeFriend,
+}) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     try {
@@ -16,7 +25,9 @@ export default function FriendsPanel({ signedIn, userId, connectUrl, linkedFrien
   return (
     <section className={c.panel}>
       <h2 className={c.panelH}>Your Crew</h2>
-      <div className={c.panelSub}>Follow friends to see their picks on every ride — and only theirs.</div>
+      <div className={c.panelSub}>
+        Follow friends to see their picks on every ride — and only theirs.
+      </div>
 
       {!signedIn ? (
         <div className={c.signinCallout}>
@@ -24,17 +35,24 @@ export default function FriendsPanel({ signedIn, userId, connectUrl, linkedFrien
           <span>
             {linkedFriend
               ? `Sign in to follow ${linkedFriend}`
-              : "Sign in via the Vibes DIY logo to follow friends and share your own link."}
+              : 'Sign in via the Vibes DIY logo to follow friends and share your own link.'}
           </span>
         </div>
       ) : (
         <>
-          <div className={c.panelSub}>Share your link — when a friend opens it, they follow you back.</div>
+          <div className={c.panelSub}>
+            Share your link — when a friend opens it, they follow you back.
+          </div>
           <div className={c.linkRow}>
-            <input className={c.linkInput} readOnly value={connectUrl} onFocus={(e) => e.target.select()} />
+            <input
+              className={c.linkInput}
+              readOnly
+              value={connectUrl}
+              onFocus={(e) => e.target.select()}
+            />
             <button className={`${c.actionBtn} ${c.actionLink}`} onClick={copy}>
               <Icon d={ICONS.copy} size={16} />
-              {copied ? "Copied" : "Copy"}
+              {copied ? 'Copied' : 'Copy'}
             </button>
           </div>
 
@@ -50,12 +68,18 @@ export default function FriendsPanel({ signedIn, userId, connectUrl, linkedFrien
           <h3 className={c.favLabel} style={{ marginBottom: 8 }}>
             Following ({friends.length})
           </h3>
-          {friends.length === 0 && <div className={c.panelSub}>Nobody yet — share your link above.</div>}
+          {friends.length === 0 && (
+            <div className={c.panelSub}>Nobody yet — share your link above.</div>
+          )}
           {friends.map((f) => (
             <div key={f._id} className={c.friendRow}>
-              <div className={c.avatarFallback}>{(f.friendSlug || "?").slice(0, 2)}</div>
+              <div className={c.avatarFallback}>{(f.friendSlug || '?').slice(0, 2)}</div>
               <span className="flex-1 font-bold">{f.friendSlug}</span>
-              <button className={c.navBtn} onClick={() => removeFriend(f.friendSlug)} aria-label={`Unfollow ${f.friendSlug}`}>
+              <button
+                className={c.navBtn}
+                onClick={() => removeFriend(f.friendSlug)}
+                aria-label={`Unfollow ${f.friendSlug}`}
+              >
                 <Icon d={ICONS.x} size={16} />
               </button>
             </div>
@@ -63,12 +87,12 @@ export default function FriendsPanel({ signedIn, userId, connectUrl, linkedFrien
 
           {friendedBy.length > 0 && (
             <>
-              <h3 className={c.favLabel} style={{ margin: "20px 0 8px" }}>
+              <h3 className={c.favLabel} style={{ margin: '20px 0 8px' }}>
                 Followers ({friendedBy.length})
               </h3>
               {friendedBy.map((f) => (
                 <div key={f._id} className={c.friendRow}>
-                  <div className={c.avatarFallback}>{(f.userId || "?").slice(0, 2)}</div>
+                  <div className={c.avatarFallback}>{(f.userId || '?').slice(0, 2)}</div>
                   <span className="flex-1 font-bold">{f.userId}</span>
                   {!followingSet.has(f.userId) && (
                     <button className={c.navBtn} onClick={() => addFriend(f.userId)}>

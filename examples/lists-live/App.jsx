@@ -1,6 +1,6 @@
-import React, { useState, useRef, useMemo, useEffect } from "react";
-import { useFireproof } from "use-fireproof";
-import { useViewer, useVibe } from "use-vibes";
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { useFireproof } from 'use-fireproof';
+import { useViewer, useVibe } from 'use-vibes';
 
 // ── Lists Live (system/lists-live) ───────────────────────────────────────────
 // Step 2 of the /start Productive lane (#3080): MULTIPLE lists, and the point —
@@ -19,11 +19,11 @@ import { useViewer, useVibe } from "use-vibes";
 // into the cloud on first sign-in — the migrate hook stamps handles and
 // re-homes default-scope items onto your implicit channel.
 
-const DB = "lists";
+const DB = 'lists';
 const STEP = 1000;
 
 function effPos(t) {
-  return typeof t.position === "number" ? t.position : (t.createdAt || 0) / 1000;
+  return typeof t.position === 'number' ? t.position : (t.createdAt || 0) / 1000;
 }
 
 function positionForIndex(sorted, index) {
@@ -41,9 +41,11 @@ function positionForIndex(sorted, index) {
 // doc migrates too, restamped as created by the new user). Members can't exist
 // pre-login (the invite UI is sign-in-gated) — drop any strays.
 const migrateListsDoc = (doc, handle) => {
-  if (doc.type === "list") return { ...doc, creatorHandle: handle };
-  if (doc.type === "todo") {
-    const listId = String(doc.listId || "").startsWith("default-") ? "default-" + handle : doc.listId;
+  if (doc.type === 'list') return { ...doc, creatorHandle: handle };
+  if (doc.type === 'todo') {
+    const listId = String(doc.listId || '').startsWith('default-')
+      ? 'default-' + handle
+      : doc.listId;
     return { ...doc, listId, authorHandle: handle };
   }
   return null;
@@ -55,14 +57,16 @@ function Row({ item, onPointerDown, onDelete, canWrite }) {
       data-tid={item._id}
       className="bg-[#ffffff] border-4 border-[#242424] px-3 py-3 mb-2 select-none cursor-pointer active:opacity-70 flex items-center gap-3"
       onPointerDown={(e) => onPointerDown(e, item)}
-      style={{ touchAction: "none", willChange: "transform" }}
+      style={{ touchAction: 'none', willChange: 'transform' }}
     >
       <span
-        className={`shrink-0 w-7 h-7 border-4 border-[#242424] flex items-center justify-center text-base font-bold ${item.done ? "bg-[#e9ff70]" : "bg-[#ffffff]"}`}
+        className={`shrink-0 w-7 h-7 border-4 border-[#242424] flex items-center justify-center text-base font-bold ${item.done ? 'bg-[#e9ff70]' : 'bg-[#ffffff]'}`}
       >
-        {item.done ? "✓" : ""}
+        {item.done ? '✓' : ''}
       </span>
-      <span className={`flex-1 font-bold text-[#242424] text-base leading-tight ${item.done ? "line-through opacity-50" : ""}`}>
+      <span
+        className={`flex-1 font-bold text-[#242424] text-base leading-tight ${item.done ? 'line-through opacity-50' : ''}`}
+      >
         {item.text}
       </span>
       {canWrite && (
@@ -93,70 +97,80 @@ export default function App() {
 
   const signedIn = !!viewer?.userHandle;
   const myHandle = me?.userHandle || viewer?.userHandle;
-  const myDefaultId = "default-" + (myHandle || "anon");
+  const myDefaultId = 'default-' + (myHandle || 'anon');
 
-  const { doc: draft, merge: mergeDraft } = useDocument({ text: "" });
-  const { docs: todoDocs } = useLiveQuery("type", { key: "todo" });
-  const { docs: listDocs } = useLiveQuery("type", { key: "list" });
-  const { docs: memberDocs } = useLiveQuery("type", { key: "member" });
+  const { doc: draft, merge: mergeDraft } = useDocument({ text: '' });
+  const { docs: todoDocs } = useLiveQuery('type', { key: 'todo' });
+  const { docs: listDocs } = useLiveQuery('type', { key: 'list' });
+  const { docs: memberDocs } = useLiveQuery('type', { key: 'member' });
 
   // The active list is a per-device choice; "default" is a sentinel meaning
   // "my default", resolved per-handle.
   const [listChoice, setListChoiceState] = useState(() => {
     try {
-      return localStorage.getItem("lists-live-list") || "default";
+      return localStorage.getItem('lists-live-list') || 'default';
     } catch {
-      return "default";
+      return 'default';
     }
   });
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [newListName, setNewListName] = useState("");
-  const [renameDraft, setRenameDraft] = useState("");
+  const [newListName, setNewListName] = useState('');
+  const [renameDraft, setRenameDraft] = useState('');
   const [deleteArmed, setDeleteArmed] = useState(false);
   const [notice, setNotice] = useState(null);
 
-  const activeListId = listChoice === "default" ? myDefaultId : listChoice;
+  const activeListId = listChoice === 'default' ? myDefaultId : listChoice;
 
   // Lists I can see: my implicit default, real list docs (mine + shared with
   // me — shared list docs replicate via their channel), and OTHER people's
   // implicit default lists I've been invited to (no doc — derived from the
   // member docs naming me).
   const sortedLists = [...listDocs]
-    .filter((l) => !String(l._id).startsWith("default"))
+    .filter((l) => !String(l._id).startsWith('default'))
     .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   const sharedDefaultIds = useMemo(() => {
     const ids = new Set();
     for (const m of memberDocs) {
-      if (myHandle && m.userHandle === myHandle && String(m.listId || "").startsWith("default-") && m.listId !== myDefaultId) {
+      if (
+        myHandle &&
+        m.userHandle === myHandle &&
+        String(m.listId || '').startsWith('default-') &&
+        m.listId !== myDefaultId
+      ) {
         ids.add(m.listId);
       }
     }
     return [...ids].sort();
   }, [memberDocs, myHandle, myDefaultId]);
   const lists = [
-    { _id: "default", name: "My List" },
+    { _id: 'default', name: 'My List' },
     ...sortedLists,
-    ...sharedDefaultIds.map((id) => ({ _id: id, name: `@${id.slice("default-".length)}'s list` })),
+    ...sharedDefaultIds.map((id) => ({ _id: id, name: `@${id.slice('default-'.length)}'s list` })),
   ];
-  const listName = lists.find((l) => l._id === listChoice)?.name || "My List";
+  const listName = lists.find((l) => l._id === listChoice)?.name || 'My List';
 
   const items = useMemo(
-    () => todoDocs.filter((t) => (t.listId || myDefaultId) === activeListId).sort((a, b) => effPos(a) - effPos(b)),
+    () =>
+      todoDocs
+        .filter((t) => (t.listId || myDefaultId) === activeListId)
+        .sort((a, b) => effPos(a) - effPos(b)),
     [todoDocs, activeListId, myDefaultId]
   );
-  const itemCountFor = (id) => todoDocs.filter((t) => (t.listId || myDefaultId) === (id === "default" ? myDefaultId : id)).length;
+  const itemCountFor = (id) =>
+    todoDocs.filter((t) => (t.listId || myDefaultId) === (id === 'default' ? myDefaultId : id))
+      .length;
   const listMembers = memberDocs.filter((m) => m.listId === activeListId);
   const activeListDoc = listDocs.find((l) => l._id === listChoice);
   const isRealList = !!activeListDoc;
-  const listAdminHandle = String(activeListId).startsWith("default-")
-    ? activeListId.slice("default-".length)
+  const listAdminHandle = String(activeListId).startsWith('default-')
+    ? activeListId.slice('default-'.length)
     : activeListDoc?.creatorHandle;
 
   function switchList(id, knownName) {
     setListChoiceState(id);
-    setRenameDraft(knownName || lists.find((l) => l._id === id)?.name || "My List");
+    setRenameDraft(knownName || lists.find((l) => l._id === id)?.name || 'My List');
     try {
-      localStorage.setItem("lists-live-list", id);
+      localStorage.setItem('lists-live-list', id);
     } catch {
       /* per-device nicety only */
     }
@@ -172,13 +186,22 @@ export default function App() {
   // Per-LIST write verdicts — the access fn is the authority once signed in;
   // logged out, the local store accepts everything.
   const createVerdict =
-    signedIn && ready ? can.create({ type: "todo", listId: activeListId, authorHandle: myHandle }) : null;
+    signedIn && ready
+      ? can.create({ type: 'todo', listId: activeListId, authorHandle: myHandle })
+      : null;
   const canWrite = signedIn ? !!createVerdict?.ok : true;
   // Admin surface (invite/rename/delete) — ask the fn the exact question,
   // probing with a concrete userHandle (the fn validates the grantee id, so a
   // handle-less probe throws instead of answering).
   const canInvite =
-    signedIn && ready ? !!can.create({ type: "member", listId: activeListId, userHandle: myHandle, addedBy: myHandle }).ok : false;
+    signedIn && ready
+      ? !!can.create({
+          type: 'member',
+          listId: activeListId,
+          userHandle: myHandle,
+          addedBy: myHandle,
+        }).ok
+      : false;
   const canManage = signedIn ? canInvite : true;
 
   async function guarded(write) {
@@ -186,7 +209,11 @@ export default function App() {
       setNotice(null);
       await write();
     } catch (e) {
-      setNotice(signedIn ? e?.message || "That change was not allowed." : "Sign in to keep using your lists on this device.");
+      setNotice(
+        signedIn
+          ? e?.message || 'That change was not allowed.'
+          : 'Sign in to keep using your lists on this device.'
+      );
     }
   }
 
@@ -194,11 +221,11 @@ export default function App() {
     e.preventDefault();
     const text = draft.text.trim();
     if (!text || !canWrite) return;
-    mergeDraft({ text: "" });
+    mergeDraft({ text: '' });
     const sorted = items;
     await guarded(() =>
       database.put({
-        type: "todo",
+        type: 'todo',
         text,
         done: false,
         listId: activeListId,
@@ -223,10 +250,10 @@ export default function App() {
     e.preventDefault();
     const name = newListName.trim();
     if (!name) return;
-    setNewListName("");
+    setNewListName('');
     await guarded(async () => {
       const res = await database.put({
-        type: "list",
+        type: 'list',
         name,
         createdAt: Date.now(),
         creatorHandle: myHandle, // access.js: creator is the list's admin
@@ -251,9 +278,14 @@ export default function App() {
       return;
     }
     if (!activeListDoc || !canManage) return;
-    const doomed = [...todoDocs.filter((t) => t.listId === listChoice), ...memberDocs.filter((m) => m.listId === listChoice)];
-    switchList("default");
-    await guarded(() => Promise.all([...doomed.map((d) => database.del(d._id)), database.del(activeListDoc._id)]));
+    const doomed = [
+      ...todoDocs.filter((t) => t.listId === listChoice),
+      ...memberDocs.filter((m) => m.listId === listChoice),
+    ];
+    switchList('default');
+    await guarded(() =>
+      Promise.all([...doomed.map((d) => database.del(d._id)), database.del(activeListDoc._id)])
+    );
   }
 
   // `handle` arrives pre-sanitized from HandleInput (picked handles are real
@@ -263,7 +295,7 @@ export default function App() {
     if (handle === myHandle || listMembers.some((m) => m.userHandle === handle)) return;
     await guarded(() =>
       database.put({
-        type: "member",
+        type: 'member',
         listId: activeListId,
         userHandle: handle,
         addedBy: myHandle,
@@ -292,12 +324,13 @@ export default function App() {
   const dropRef = useRef(0);
 
   const viewItems = dragging && snapshot ? snapshot : items;
-  const visibleItems = dragging && dragItem ? viewItems.filter((t) => t._id !== dragItem._id) : viewItems;
+  const visibleItems =
+    dragging && dragItem ? viewItems.filter((t) => t._id !== dragItem._id) : viewItems;
 
   function locateIndex(y) {
     const el = listRef.current;
     if (!el) return 0;
-    const rows = [...el.querySelectorAll("[data-tid]")];
+    const rows = [...el.querySelectorAll('[data-tid]')];
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i].getBoundingClientRect();
       if (y < r.top + r.height / 2) return i;
@@ -327,8 +360,8 @@ export default function App() {
     if (!dragging && canWrite && (dx > 5 || dy > 5)) {
       setDragging(true);
       setHasDragged(true);
-      document.body.style.userSelect = "none";
-      document.body.style.cursor = "grabbing";
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'grabbing';
     }
   }
 
@@ -357,8 +390,8 @@ export default function App() {
     setSnapshot(null);
     pointerIdRef.current = null;
     dropRef.current = 0;
-    document.body.style.userSelect = "";
-    document.body.style.cursor = "";
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
     if (didDrag) {
       if (item && canWrite) {
         const rest = items.filter((t) => t._id !== item._id);
@@ -376,11 +409,11 @@ export default function App() {
     if (!dragItem) return;
     const onMove = (e) => handlePointerMove(e);
     const onUp = () => handlePointerUp();
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp, { once: true });
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, { once: true });
     return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragItem, dragging, overIndex, hasDragged]);
@@ -388,7 +421,15 @@ export default function App() {
   const rows = [];
   visibleItems.forEach((item, i) => {
     if (dragging && overIndex === i) rows.push(<Placeholder key="ph" />);
-    rows.push(<Row key={item._id} item={item} onPointerDown={handlePointerDown} onDelete={deleteItem} canWrite={canWrite} />);
+    rows.push(
+      <Row
+        key={item._id}
+        item={item}
+        onPointerDown={handlePointerDown}
+        onDelete={deleteItem}
+        canWrite={canWrite}
+      />
+    );
   });
   if (dragging && overIndex >= visibleItems.length) rows.push(<Placeholder key="ph" />);
 
@@ -400,17 +441,19 @@ export default function App() {
           left: 0,
           top: 0,
           transform: `translate3d(${dragPos.x - dragOffset.x}px, ${dragPos.y - dragOffset.y}px, 0)`,
-          willChange: "transform",
-          filter: "drop-shadow(0 6px 0 #242424)",
+          willChange: 'transform',
+          filter: 'drop-shadow(0 6px 0 #242424)',
         }}
       >
         <div className="scale-105 bg-[#ffffff] border-4 border-[#242424] px-3 py-3 w-[260px] flex items-center gap-3">
           <span
-            className={`shrink-0 w-7 h-7 border-4 border-[#242424] flex items-center justify-center text-base font-bold ${dragItem.done ? "bg-[#e9ff70]" : "bg-[#ffffff]"}`}
+            className={`shrink-0 w-7 h-7 border-4 border-[#242424] flex items-center justify-center text-base font-bold ${dragItem.done ? 'bg-[#e9ff70]' : 'bg-[#ffffff]'}`}
           >
-            {dragItem.done ? "✓" : ""}
+            {dragItem.done ? '✓' : ''}
           </span>
-          <span className={`flex-1 font-bold text-[#242424] text-base leading-tight ${dragItem.done ? "line-through opacity-50" : ""}`}>
+          <span
+            className={`flex-1 font-bold text-[#242424] text-base leading-tight ${dragItem.done ? 'line-through opacity-50' : ''}`}
+          >
             {dragItem.text}
           </span>
         </div>
@@ -432,18 +475,23 @@ export default function App() {
             create, rename, delete — and this list's own friends. */}
         <header className="mb-3 flex items-end justify-between px-1">
           <button onClick={openSheet} className="text-left">
-            <span className="block text-[0.6rem] uppercase tracking-widest font-bold text-[#242424] opacity-60">Lists Live</span>
+            <span className="block text-[0.6rem] uppercase tracking-widest font-bold text-[#242424] opacity-60">
+              Lists Live
+            </span>
             <h1 className="text-xl md:text-3xl font-bold text-[#242424] leading-tight">
               {listName} <span className="text-sm md:text-xl align-middle">▾</span>
             </h1>
           </button>
           <span className="text-xs md:text-sm font-bold text-[#242424] opacity-70">
-            {items.length} item{items.length === 1 ? "" : "s"}
+            {items.length} item{items.length === 1 ? '' : 's'}
           </span>
         </header>
 
         {canWrite ? (
-          <form onSubmit={addItem} className="bg-[#ffffff] border-4 border-[#242424] p-3 mb-3 flex gap-2">
+          <form
+            onSubmit={addItem}
+            className="bg-[#ffffff] border-4 border-[#242424] p-3 mb-3 flex gap-2"
+          >
             <input
               type="text"
               placeholder={`Add to ${listName}...`}
@@ -462,7 +510,9 @@ export default function App() {
           ready && (
             <div className="bg-[#ffffff] border-4 border-[#242424] p-3 mb-3 text-center">
               <p className="font-bold text-[#242424] text-sm">
-                {signedIn ? createVerdict?.reason || "Read-only — ask this list's admin to add you." : "Lists are private — sign in to see and edit yours."}
+                {signedIn
+                  ? createVerdict?.reason || "Read-only — ask this list's admin to add you."
+                  : 'Lists are private — sign in to see and edit yours.'}
               </p>
             </div>
           )
@@ -479,18 +529,26 @@ export default function App() {
           className="min-h-[40vh] p-3 border-4 border-[#242424] bg-[#ffffff] bg-opacity-50"
           style={{
             backgroundImage: `radial-gradient(circle at 20px 20px, #242424 3px, transparent 3px)`,
-            backgroundSize: "40px 40px",
+            backgroundSize: '40px 40px',
           }}
         >
           {rows.length === 0 && !dragging && (
-            <p className="text-center font-bold text-[#242424] opacity-60 py-8">This list is empty — add the first item.</p>
+            <p className="text-center font-bold text-[#242424] opacity-60 py-8">
+              This list is empty — add the first item.
+            </p>
           )}
           {rows}
         </div>
 
         <div className="flex justify-between items-center px-1 pt-2 pb-20">
-          <span className="text-xs font-bold text-[#242424] opacity-70">Tap the title to switch lists</span>
-          {!signedIn && <span className="text-xs font-bold text-[#242424] opacity-70">On this device — sign in to sync &amp; share</span>}
+          <span className="text-xs font-bold text-[#242424] opacity-70">
+            Tap the title to switch lists
+          </span>
+          {!signedIn && (
+            <span className="text-xs font-bold text-[#242424] opacity-70">
+              On this device — sign in to sync &amp; share
+            </span>
+          )}
         </div>
       </div>
 
@@ -502,13 +560,16 @@ export default function App() {
           <div className="fixed inset-0 z-40" onPointerDown={() => setSheetOpen(false)} />
           <div
             className="fixed inset-x-0 bottom-0 z-50 md:inset-x-auto md:left-1/2 md:bottom-10 md:w-[380px] md:-translate-x-1/2 bg-[#ffffff] border-t-4 md:border-4 border-[#242424] p-4 pb-16 md:pb-4 space-y-2 max-h-[70vh] overflow-y-auto"
-            style={{ boxShadow: "0 -6px 0 #242424" }}
+            style={{ boxShadow: '0 -6px 0 #242424' }}
           >
             {!signedIn && (
               <>
-                <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest">Sync &amp; share</h3>
+                <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest">
+                  Sync &amp; share
+                </h3>
                 <p className="text-sm font-bold text-[#242424]">
-                  Your lists live on this device. Sign in to sync them everywhere and give each list its own friends.
+                  Your lists live on this device. Sign in to sync them everywhere and give each list
+                  its own friends.
                 </p>
                 <div className="flex justify-center py-1">
                   <ViewerTag />
@@ -517,7 +578,9 @@ export default function App() {
             )}
             {signedIn && canWrite && (
               <>
-                <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest">This list</h3>
+                <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest">
+                  This list
+                </h3>
                 {isRealList && canManage && (
                   <form onSubmit={renameList} className="flex gap-2">
                     <input
@@ -526,15 +589,22 @@ export default function App() {
                       placeholder="List name"
                       className="flex-1 min-w-0 min-h-[44px] p-2 border-4 border-[#242424] text-[#242424] font-bold"
                     />
-                    <button type="submit" className="min-h-[44px] px-3 bg-[#70d6ff] border-4 border-[#242424] font-bold text-[#242424]">
+                    <button
+                      type="submit"
+                      className="min-h-[44px] px-3 bg-[#70d6ff] border-4 border-[#242424] font-bold text-[#242424]"
+                    >
                       Rename
                     </button>
                   </form>
                 )}
                 {/* THIS list's friends — every list has its own. */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-bold text-[#242424] opacity-60 uppercase tracking-widest">Members</span>
-                  <span className="text-sm font-bold text-[#242424]">@{listAdminHandle || "?"}</span>
+                  <span className="text-xs font-bold text-[#242424] opacity-60 uppercase tracking-widest">
+                    Members
+                  </span>
+                  <span className="text-sm font-bold text-[#242424]">
+                    @{listAdminHandle || '?'}
+                  </span>
                   {listMembers.map((m) => (
                     <span
                       key={m._id}
@@ -542,7 +612,11 @@ export default function App() {
                     >
                       @{m.userHandle}
                       {(canInvite || m.userHandle === myHandle) && (
-                        <button aria-label={`Remove @${m.userHandle}`} onClick={() => removeMember(m)} className="font-bold">
+                        <button
+                          aria-label={`Remove @${m.userHandle}`}
+                          onClick={() => removeMember(m)}
+                          className="font-bold"
+                        >
                           ✕
                         </button>
                       )}
@@ -558,22 +632,30 @@ export default function App() {
                     value={null}
                     onChange={addMember}
                     placeholder="Add a friend to THIS list..."
-                    style={{ display: "block", "--border": "#242424", "--card-bg": "#ffffff", "--text": "#242424", "--muted": "#5c5c5c" }}
+                    style={{
+                      display: 'block',
+                      '--border': '#242424',
+                      '--card-bg': '#ffffff',
+                      '--text': '#242424',
+                      '--muted': '#5c5c5c',
+                    }}
                   />
                 )}
                 {isRealList && canManage && (
                   <button
                     onClick={deleteList}
-                    className={`w-full min-h-[44px] px-3 border-2 font-bold text-sm ${deleteArmed ? "bg-[#d94f3d] text-white border-[#242424]" : "border-[#d94f3d] text-[#d94f3d] bg-[#ffffff]"}`}
+                    className={`w-full min-h-[44px] px-3 border-2 font-bold text-sm ${deleteArmed ? 'bg-[#d94f3d] text-white border-[#242424]' : 'border-[#d94f3d] text-[#d94f3d] bg-[#ffffff]'}`}
                   >
                     {deleteArmed
                       ? `Really delete "${listName}" and its ${itemCountFor(listChoice)} item(s)?`
-                      : "Delete list"}
+                      : 'Delete list'}
                   </button>
                 )}
               </>
             )}
-            <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest pt-1">Lists</h3>
+            <h3 className="font-bold text-[#242424] text-xs uppercase tracking-widest pt-1">
+              Lists
+            </h3>
             {canWrite && (
               <form onSubmit={createList} className="flex gap-2">
                 <input
@@ -582,7 +664,10 @@ export default function App() {
                   placeholder="New list name..."
                   className="flex-1 min-w-0 min-h-[44px] p-2 border-4 border-[#242424] text-[#242424] placeholder-[#242424] placeholder-opacity-50"
                 />
-                <button type="submit" className="min-h-[44px] px-4 bg-[#e9ff70] border-4 border-[#242424] font-bold text-[#242424]">
+                <button
+                  type="submit"
+                  className="min-h-[44px] px-4 bg-[#e9ff70] border-4 border-[#242424] font-bold text-[#242424]"
+                >
                   Create
                 </button>
               </form>
@@ -591,10 +676,12 @@ export default function App() {
               <button
                 key={l._id}
                 onClick={() => switchList(l._id)}
-                className={`w-full min-h-[44px] px-3 border-4 border-[#242424] font-bold text-left text-[#242424] ${l._id === listChoice ? "bg-[#e9ff70]" : "bg-[#ffffff]"}`}
+                className={`w-full min-h-[44px] px-3 border-4 border-[#242424] font-bold text-left text-[#242424] ${l._id === listChoice ? 'bg-[#e9ff70]' : 'bg-[#ffffff]'}`}
               >
                 {l.name}
-                <span className="float-right text-xs opacity-60 font-normal">{itemCountFor(l._id)}</span>
+                <span className="float-right text-xs opacity-60 font-normal">
+                  {itemCountFor(l._id)}
+                </span>
               </button>
             ))}
           </div>

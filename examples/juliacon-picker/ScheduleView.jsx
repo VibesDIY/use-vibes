@@ -1,7 +1,7 @@
-import React from "react";
-import { toFestivalDate, festivalDayFor } from "./festival-utils.js";
-import { lineupTag, eventCardStyle, eventCardBg } from "./styles.js";
-import NoteField from "./NoteField.jsx";
+import React from 'react';
+import { toFestivalDate, festivalDayFor } from './festival-utils.js';
+import { lineupTag, eventCardStyle, eventCardBg } from './styles.js';
+import NoteField from './NoteField.jsx';
 
 function GapStrip({ startMs, endMs, allDayEvents, fmtTime }) {
   const count = allDayEvents.filter((e) => {
@@ -15,7 +15,7 @@ function GapStrip({ startMs, endMs, allDayEvents, fmtTime }) {
   return (
     <div className="rounded-lg m-0.5  px-[7px] py-[5px] bg-white/40 dark:bg-white/10 flex items-center gap-0.5">
       <span className="text-xs font-bold text-[#2a2a2a]/60 dark:text-[#ece9f1]/60">
-        {startStr}–{endStr} · {count} talk{count !== 1 ? "s" : ""}
+        {startStr}–{endStr} · {count} talk{count !== 1 ? 's' : ''}
       </span>
     </div>
   );
@@ -55,13 +55,14 @@ export default function ScheduleView({
         const daySchedule = buildSchedule(day);
         if (daySchedule.length === 0) return null;
 
-        const allDayEvents = showGaps && allEvents ? allEvents.filter((e) => festivalDayFor(e.start) === day) : [];
+        const allDayEvents =
+          showGaps && allEvents ? allEvents.filter((e) => festivalDayFor(e.start) === day) : [];
 
         const items = [];
         for (let i = 0; i < daySchedule.length; i++) {
           const item = daySchedule[i];
-          const itemStart = item.type === "shift" ? shiftStartRaw(item.data) : item.data.start;
-          const itemEnd = item.type === "shift" ? shiftEndRaw(item.data) : item.data.end;
+          const itemStart = item.type === 'shift' ? shiftStartRaw(item.data) : item.data.start;
+          const itemEnd = item.type === 'shift' ? shiftEndRaw(item.data) : item.data.end;
           const itemStartMs = toFestivalDate(itemStart).getTime();
           const itemEndMs = toFestivalDate(itemEnd).getTime();
 
@@ -71,20 +72,27 @@ export default function ScheduleView({
               return t < min ? t : min;
             }, Infinity);
             if (earliestEvent < itemStartMs) {
-              items.push({ type: "gap", startMs: earliestEvent, endMs: itemStartMs, key: `gap-pre-${day}` });
+              items.push({
+                type: 'gap',
+                startMs: earliestEvent,
+                endMs: itemStartMs,
+                key: `gap-pre-${day}`,
+              });
             }
           }
 
-          items.push({ type: "item", data: item, key: `${item.type}-${item.id}` });
+          items.push({ type: 'item', data: item, key: `${item.type}-${item.id}` });
 
           if (showGaps && allDayEvents.length > 0) {
             const nextItem = daySchedule[i + 1];
             const nextStartMs = nextItem
-              ? toFestivalDate(nextItem.type === "shift" ? shiftStartRaw(nextItem.data) : nextItem.data.start).getTime()
+              ? toFestivalDate(
+                  nextItem.type === 'shift' ? shiftStartRaw(nextItem.data) : nextItem.data.start
+                ).getTime()
               : null;
 
             if (nextStartMs && nextStartMs > itemEndMs) {
-              items.push({ type: "gap", startMs: itemEndMs, endMs: nextStartMs, key: `gap-${i}` });
+              items.push({ type: 'gap', startMs: itemEndMs, endMs: nextStartMs, key: `gap-${i}` });
             }
 
             if (!nextItem) {
@@ -93,7 +101,12 @@ export default function ScheduleView({
                 return t > max ? t : max;
               }, 0);
               if (latestEvent > itemEndMs) {
-                items.push({ type: "gap", startMs: itemEndMs, endMs: latestEvent, key: `gap-post-${day}` });
+                items.push({
+                  type: 'gap',
+                  startMs: itemEndMs,
+                  endMs: latestEvent,
+                  key: `gap-post-${day}`,
+                });
               }
             }
           }
@@ -106,7 +119,7 @@ export default function ScheduleView({
             </h3>
             <div className="space-y-0.5">
               {items.map((entry) => {
-                if (entry.type === "gap") {
+                if (entry.type === 'gap') {
                   return (
                     <GapStrip
                       key={entry.key}
@@ -118,21 +131,28 @@ export default function ScheduleView({
                   );
                 }
                 const item = entry.data;
-                const itemStart = item.type === "shift" ? shiftStartRaw(item.data) : item.data.start;
-                const itemEnd = item.type === "shift" ? shiftEndRaw(item.data) : item.data.end;
-                const isEvent = item.type === "event";
+                const itemStart =
+                  item.type === 'shift' ? shiftStartRaw(item.data) : item.data.start;
+                const itemEnd = item.type === 'shift' ? shiftEndRaw(item.data) : item.data.end;
+                const isEvent = item.type === 'event';
                 const tag = isEvent ? lineupTag(item.data) : null;
                 return (
                   <div
                     key={entry.key}
-                    className={item.type === "shift" ? c.schedShift : `rounded-[12px] m-0.5 p-[7px] ${eventCardBg}`}
+                    className={
+                      item.type === 'shift'
+                        ? c.schedShift
+                        : `rounded-[12px] m-0.5 p-[7px] ${eventCardBg}`
+                    }
                     style={isEvent ? eventCardStyle(item.data) : undefined}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center gap-0.5 flex-wrap mb-[1px]">
                           <h4 className={`font-black ${c.bodyText}`}>
-                            {item.type === "shift" ? item.data.kind || item.data.title || "Shift" : item.title}
+                            {item.type === 'shift'
+                              ? item.data.kind || item.data.title || 'Shift'
+                              : item.title}
                           </h4>
                           {isEvent && (
                             <span
@@ -145,38 +165,46 @@ export default function ScheduleView({
                           {isEvent && onToggleFavorite && (
                             <button
                               onClick={() => onToggleFavorite(item.data)}
-                              className={`p-[1px] rounded-lg m-0.5  text-xs font-bold px-0.5 ${myFavIds && myFavIds.has(item.data.eventId) ? "bg-[#CB3C33] text-white" : "bg-white dark:bg-[#262031] text-[#2a2a2a] dark:text-[#ece9f1]"}`}
+                              className={`p-[1px] rounded-lg m-0.5  text-xs font-bold px-0.5 ${myFavIds && myFavIds.has(item.data.eventId) ? 'bg-[#CB3C33] text-white' : 'bg-white dark:bg-[#262031] text-[#2a2a2a] dark:text-[#ece9f1]'}`}
                             >
-                              {myFavIds && myFavIds.has(item.data.eventId) ? "♥" : "♡"}
+                              {myFavIds && myFavIds.has(item.data.eventId) ? '♥' : '♡'}
                             </button>
                           )}
                         </div>
                         {isEvent && item.data.speakers && (
-                          <p className="text-xs font-bold text-[#2a2a2a]/70 dark:text-[#ece9f1]/70">{item.data.speakers}</p>
+                          <p className="text-xs font-bold text-[#2a2a2a]/70 dark:text-[#ece9f1]/70">
+                            {item.data.speakers}
+                          </p>
                         )}
                         <p className={`text-sm font-bold ${c.bodyText}`}>
                           {fmtTime(itemStart)} – {fmtTime(itemEnd)}
                           {isEvent && ` · ${item.venue}`}
                         </p>
-                        {ViewerTag && Array.isArray(item.data.pickedBy) && item.data.pickedBy.length > 0 && (
-                          <div className="flex items-center gap-0.5 flex-wrap mt-0.5">
-                            {item.data.pickedBy.map((h) => (
-                              <ViewerTag key={h} userHandle={h} />
-                            ))}
-                          </div>
-                        )}
+                        {ViewerTag &&
+                          Array.isArray(item.data.pickedBy) &&
+                          item.data.pickedBy.length > 0 && (
+                            <div className="flex items-center gap-0.5 flex-wrap mt-0.5">
+                              {item.data.pickedBy.map((h) => (
+                                <ViewerTag key={h} userHandle={h} />
+                              ))}
+                            </div>
+                          )}
                         {isEvent &&
                           (canWrite && saveNote ? (
                             <NoteField
                               saved={notes && notes[item.data.eventId]}
                               onSave={(t) => saveNote(item.data.eventId, t)}
                               className={c.noteArea}
-                              collapsedStyle={{ width: "8em" }}
+                              collapsedStyle={{ width: '8em' }}
                               collapsedRight
                             />
                           ) : notes && notes[item.data.eventId] ? (
-                            <div className={`mt-0.5 p-1.5 bg-[#f4f2f7] dark:bg-[#262031] rounded-lg m-0.5 `}>
-                              <p className={`text-sm font-bold ${c.bodyText}`}>{notes[item.data.eventId]}</p>
+                            <div
+                              className={`mt-0.5 p-1.5 bg-[#f4f2f7] dark:bg-[#262031] rounded-lg m-0.5 `}
+                            >
+                              <p className={`text-sm font-bold ${c.bodyText}`}>
+                                {notes[item.data.eventId]}
+                              </p>
                             </div>
                           ) : null)}
                       </div>

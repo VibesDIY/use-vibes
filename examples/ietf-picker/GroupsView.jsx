@@ -1,8 +1,18 @@
-import React from "react";
-import { fmtDate, fmtTime } from "./festival-utils.js";
-import { eventCardBg } from "./styles.js";
+import React from 'react';
+import { fmtDate, fmtTime } from './festival-utils.js';
+import { eventCardBg } from './styles.js';
 
-export default function GroupsView({ groupsList, myFavIds, canWrite, toggleFavorite, favCounts, superMode, c, database, userId }) {
+export default function GroupsView({
+  groupsList,
+  myFavIds,
+  canWrite,
+  toggleFavorite,
+  favCounts,
+  superMode,
+  c,
+  database,
+  userId,
+}) {
   const toggleAllGroup = async (group) => {
     const allFaved = group.events.every((e) => myFavIds.has(e.eventId));
     if (allFaved) {
@@ -15,7 +25,7 @@ export default function GroupsView({ groupsList, myFavIds, canWrite, toggleFavor
         if (!myFavIds.has(e.eventId)) {
           await database.put({
             _id: `favorite-${userId}-${e.eventId}`,
-            type: "favorite",
+            type: 'favorite',
             eventId: e.eventId,
             userId,
           });
@@ -28,13 +38,13 @@ export default function GroupsView({ groupsList, myFavIds, canWrite, toggleFavor
   // *other* bucket the feed adds later (teams, directorates, admin sessions carry
   // their group type instead of an area) is still rendered — appended after these —
   // so nothing silently drops off the page.
-  const AREA_ORDER = ["art", "gen", "int", "ops", "rtg", "sec", "wit", "irtf"];
+  const AREA_ORDER = ['art', 'gen', 'int', 'ops', 'rtg', 'sec', 'wit', 'irtf'];
   // Area/bucket ids are acronyms — label them as the datatracker does, uppercase.
   const labelFor = (key) => key.toUpperCase();
 
   const grouped = {};
   for (const group of groupsList) {
-    const key = group.lineup?.id || "other";
+    const key = group.lineup?.id || 'other';
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(group);
   }
@@ -54,11 +64,15 @@ export default function GroupsView({ groupsList, myFavIds, canWrite, toggleFavor
         {orderedKeys.map((key) => (
           <button
             key={`nav-${key}`}
-            onClick={() => document.getElementById(`area-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onClick={() =>
+              document
+                .getElementById(`area-${key}`)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
             className="px-2 py-1.5 rounded-md m-0.5 font-black text-sm cursor-pointer hover:opacity-80 transition-all"
             style={{
-              backgroundColor: grouped[key][0].lineup?.color || "#34495e",
-              color: grouped[key][0].lineup?.textColor || "#fff",
+              backgroundColor: grouped[key][0].lineup?.color || '#34495e',
+              color: grouped[key][0].lineup?.textColor || '#fff',
             }}
           >
             {labelFor(key)} ({grouped[key].length})
@@ -70,8 +84,8 @@ export default function GroupsView({ groupsList, myFavIds, canWrite, toggleFavor
           <h3
             className="text-lg font-black mb-[3px] px-2 py-1.5 rounded-md m-0.5 inline-block"
             style={{
-              backgroundColor: grouped[key][0].lineup?.color || "#34495e",
-              color: grouped[key][0].lineup?.textColor || "#fff",
+              backgroundColor: grouped[key][0].lineup?.color || '#34495e',
+              color: grouped[key][0].lineup?.textColor || '#fff',
             }}
           >
             {labelFor(key)} ({grouped[key].length})
@@ -80,22 +94,22 @@ export default function GroupsView({ groupsList, myFavIds, canWrite, toggleFavor
             {grouped[key].map((group) => {
               const allFaved = group.events.every((e) => myFavIds.has(e.eventId));
               const anyFav = group.events.some((e) => myFavIds.has(e.eventId));
-              const areaLabel = group.lineup?.id || "other";
-              const areaColor = group.lineup?.color || "#34495e";
-              const areaText = group.lineup?.textColor || "#fff";
+              const areaLabel = group.lineup?.id || 'other';
+              const areaColor = group.lineup?.color || '#34495e';
+              const areaText = group.lineup?.textColor || '#fff';
               return (
                 <div
                   key={group.acronym}
                   className={`rounded-lg m-0.5 p-2 shadow-lg ${eventCardBg}`}
-                  style={{ "--lineup": areaColor }}
+                  style={{ '--lineup': areaColor }}
                 >
                   <div className="flex items-start gap-[3px]">
                     {canWrite && (
                       <button
                         onClick={() => toggleAllGroup(group)}
-                        className={`shrink-0 text-2xl p-1.5 rounded-lg m-0.5 font-bold transition-all ${allFaved ? "bg-[#b45309] text-white hover:opacity-90" : anyFav ? "bg-[#b45309]/40 text-white hover:opacity-90" : "bg-white dark:bg-[#21262d] text-[#1f2328] dark:text-[#e6edf3] hover:bg-[#e9eef5] dark:hover:bg-[#101826]"}`}
+                        className={`shrink-0 text-2xl p-1.5 rounded-lg m-0.5 font-bold transition-all ${allFaved ? 'bg-[#b45309] text-white hover:opacity-90' : anyFav ? 'bg-[#b45309]/40 text-white hover:opacity-90' : 'bg-white dark:bg-[#21262d] text-[#1f2328] dark:text-[#e6edf3] hover:bg-[#e9eef5] dark:hover:bg-[#101826]'}`}
                       >
-                        {allFaved ? "♥" : anyFav ? "◐" : "♡"}
+                        {allFaved ? '♥' : anyFav ? '◐' : '♡'}
                       </button>
                     )}
                     <div className="flex-1 min-w-0">
@@ -109,7 +123,10 @@ export default function GroupsView({ groupsList, myFavIds, canWrite, toggleFavor
                           {areaLabel}
                         </span>
                         {group.isBof && (
-                          <span className={c.badge} title="Birds of a Feather — a possible new working group">
+                          <span
+                            className={c.badge}
+                            title="Birds of a Feather — a possible new working group"
+                          >
                             BOF
                           </span>
                         )}
@@ -119,8 +136,11 @@ export default function GroupsView({ groupsList, myFavIds, canWrite, toggleFavor
                           </span>
                         )}
                       </div>
-                      <p className={`text-sm font-bold mb-0.5 text-[#1f2328]/70 dark:text-[#e6edf3]/70`}>
-                        {group.venueList.join(" · ")} · {group.events.length} session{group.events.length > 1 ? "s" : ""}
+                      <p
+                        className={`text-sm font-bold mb-0.5 text-[#1f2328]/70 dark:text-[#e6edf3]/70`}
+                      >
+                        {group.venueList.join(' · ')} · {group.events.length} session
+                        {group.events.length > 1 ? 's' : ''}
                       </p>
                       <div className="space-y-[1px]">
                         {group.events.map((e) => (
@@ -128,13 +148,14 @@ export default function GroupsView({ groupsList, myFavIds, canWrite, toggleFavor
                             {canWrite && (
                               <button
                                 onClick={() => toggleFavorite(e)}
-                                className={`text-sm px-0.5 py-[0.5px] rounded-md m-0.5 font-bold transition-all ${myFavIds.has(e.eventId) ? "bg-[#b45309] text-white" : "bg-white dark:bg-[#21262d] text-[#1f2328] dark:text-[#e6edf3] hover:bg-[#e9eef5] dark:hover:bg-[#101826]"}`}
+                                className={`text-sm px-0.5 py-[0.5px] rounded-md m-0.5 font-bold transition-all ${myFavIds.has(e.eventId) ? 'bg-[#b45309] text-white' : 'bg-white dark:bg-[#21262d] text-[#1f2328] dark:text-[#e6edf3] hover:bg-[#e9eef5] dark:hover:bg-[#101826]'}`}
                               >
-                                {myFavIds.has(e.eventId) ? "♥" : "♡"}
+                                {myFavIds.has(e.eventId) ? '♥' : '♡'}
                               </button>
                             )}
                             <span className={`text-sm font-bold ${c.bodyText}`}>
-                              {fmtDate(e.start)} · {fmtTime(e.start)}–{fmtTime(e.end)} · {e.venueTitle}
+                              {fmtDate(e.start)} · {fmtTime(e.start)}–{fmtTime(e.end)} ·{' '}
+                              {e.venueTitle}
                             </span>
                           </div>
                         ))}

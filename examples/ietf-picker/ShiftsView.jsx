@@ -1,5 +1,5 @@
-import React from "react";
-import { fmtTime } from "./festival-utils.js";
+import React from 'react';
+import { fmtTime } from './festival-utils.js';
 
 export default function ShiftsView({
   shifts,
@@ -34,7 +34,11 @@ export default function ShiftsView({
         <div className={c.shiftForm}>
           <h3 className={`text-xl font-black mb-1 ${c.bodyText}`}>Add Extra Events</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-1">
-            <select value={shiftForm.day} onChange={(e) => mergeShift({ day: e.target.value })} className={c.input}>
+            <select
+              value={shiftForm.day}
+              onChange={(e) => mergeShift({ day: e.target.value })}
+              className={c.input}
+            >
               {displayDays.map((day) => (
                 <option key={day} value={day}>
                   {day} ({getDateForDay(day)})
@@ -58,7 +62,7 @@ export default function ShiftsView({
             <input
               type="text"
               placeholder="Side meeting, Dinner, Hackathon, …"
-              value={shiftForm.kind || ""}
+              value={shiftForm.kind || ''}
               onChange={(e) => mergeShift({ kind: e.target.value })}
               className={c.input}
             />
@@ -72,7 +76,11 @@ export default function ShiftsView({
             />
             Show in friends view
           </label>
-          <button onClick={handleSubmit} disabled={submitting} className={`mt-1 ${submitting ? c.btnCyanWorking : c.btnCyan}`}>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className={`mt-1 ${submitting ? c.btnCyanWorking : c.btnCyan}`}
+          >
             Add Extra
           </button>
         </div>
@@ -86,16 +94,23 @@ export default function ShiftsView({
             <div key={shift._id} className={c.shiftCard}>
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className={`text-xl font-black ${c.bodyText}`}>{shift.kind || shift.title || "Shift"}</h3>
+                  <h3 className={`text-xl font-black ${c.bodyText}`}>
+                    {shift.kind || shift.title || 'Shift'}
+                  </h3>
                   <p className={`font-bold ${c.bodyText}`}>
-                    {shift.day} ({getDateForDay(shift.day)}) — {fmtTime(shiftStart)} to {fmtTime(shiftEnd)}
+                    {shift.day} ({getDateForDay(shift.day)}) — {fmtTime(shiftStart)} to{' '}
+                    {fmtTime(shiftEnd)}
                   </p>
                   {canWrite && (
-                    <label className={`mt-0.5 inline-flex items-center gap-0.5 text-sm font-bold ${c.bodyText}`}>
+                    <label
+                      className={`mt-0.5 inline-flex items-center gap-0.5 text-sm font-bold ${c.bodyText}`}
+                    >
                       <input
                         type="checkbox"
                         checked={!!shift.shareWithFriends}
-                        onChange={(e) => database.put({ ...shift, shareWithFriends: e.target.checked })}
+                        onChange={(e) =>
+                          database.put({ ...shift, shareWithFriends: e.target.checked })
+                        }
                         className="w-4 h-4"
                       />
                       Show in friends view
@@ -103,7 +118,11 @@ export default function ShiftsView({
                   )}
                 </div>
                 {canWrite && (
-                  <button onClick={() => deleteShift(shift._id)} className={c.deleteBtn} title="Delete shift">
+                  <button
+                    onClick={() => deleteShift(shift._id)}
+                    className={c.deleteBtn}
+                    title="Delete shift"
+                  >
                     <svg
                       width="18"
                       height="18"
@@ -130,7 +149,9 @@ export default function ShiftsView({
       {shifts.length === 0 && (
         <div className="text-center py-3">
           <h3 className={`text-2xl font-black mb-0.5 ${c.bodyText}`}>No extras scheduled</h3>
-          <p className={c.bodyText}>Use the form above to add side meetings, dinners, breaks, or anything else</p>
+          <p className={c.bodyText}>
+            Use the form above to add side meetings, dinners, breaks, or anything else
+          </p>
         </div>
       )}
     </div>

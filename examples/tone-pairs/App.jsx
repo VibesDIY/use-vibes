@@ -1,7 +1,16 @@
-import React from "react"
+import React from 'react';
 
 function Shape({ name }) {
-  const props = { width: "60%", height: "60%", viewBox: "0 0 24 24", fill: "none", stroke: "#4adede", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
+  const props = {
+    width: '60%',
+    height: '60%',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: '#4adede',
+    strokeWidth: 2,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+  };
   const shapes = {
     circle: <circle cx="12" cy="12" r="8" />,
     square: <rect x="4" y="4" width="16" height="16" />,
@@ -9,15 +18,37 @@ function Shape({ name }) {
     diamond: <polygon points="12,3 21,12 12,21 3,12" />,
     hex: <polygon points="12,3 20,8 20,16 12,21 4,16 4,8" />,
     star: <polygon points="12,3 14,10 21,10 15,14 17,21 12,17 7,21 9,14 3,10 10,10" />,
-    cross: <g><line x1="12" y1="4" x2="12" y2="20" /><line x1="4" y1="12" x2="20" y2="12" /></g>,
-    ring: <g><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></g>,
+    cross: (
+      <g>
+        <line x1="12" y1="4" x2="12" y2="20" />
+        <line x1="4" y1="12" x2="20" y2="12" />
+      </g>
+    ),
+    ring: (
+      <g>
+        <circle cx="12" cy="12" r="8" />
+        <circle cx="12" cy="12" r="3" />
+      </g>
+    ),
     bar: <rect x="3" y="10" width="18" height="4" />,
     dot: <circle cx="12" cy="12" r="3" fill="#4adede" />,
     arc: <path d="M4 18 A 8 8 0 0 1 20 18" />,
     wave: <path d="M3 12 Q 7 6 12 12 T 21 12" />,
-    split: <g><line x1="12" y1="3" x2="12" y2="21" /><circle cx="12" cy="12" r="8" /></g>,
-    grid: <g><rect x="4" y="4" width="7" height="7" /><rect x="13" y="13" width="7" height="7" /></g>,
-    spiral: <path d="M12 12 m-1 0 a 1 1 0 1 1 2 0 a 2 2 0 1 1 -4 0 a 3 3 0 1 1 6 0 a 4 4 0 1 1 -8 0" />,
+    split: (
+      <g>
+        <line x1="12" y1="3" x2="12" y2="21" />
+        <circle cx="12" cy="12" r="8" />
+      </g>
+    ),
+    grid: (
+      <g>
+        <rect x="4" y="4" width="7" height="7" />
+        <rect x="13" y="13" width="7" height="7" />
+      </g>
+    ),
+    spiral: (
+      <path d="M12 12 m-1 0 a 1 1 0 1 1 2 0 a 2 2 0 1 1 -4 0 a 3 3 0 1 1 6 0 a 4 4 0 1 1 -8 0" />
+    ),
     chevron: <polyline points="6,8 12,14 18,8" />,
     zigzag: <polyline points="4,16 9,8 14,16 19,8" />,
     bolt: <polygon points="13,3 6,14 11,14 10,21 18,10 13,10" />,
@@ -33,13 +64,35 @@ function Shape({ name }) {
 // (Bloom-style) so an anonymous /start visitor can play; bests persist per
 // device in localStorage.
 
-const SHAPES = ["circle", "square", "triangle", "diamond", "hex", "star", "cross", "ring", "bar", "dot", "arc", "wave", "split", "grid", "spiral", "chevron", "zigzag", "bolt"];
-const SIZES = { "4x4": [4, 4], "6x6": [6, 6], "8x4": [8, 4] };
-const BEST_KEY = "tone-pairs-bests";
+const SHAPES = [
+  'circle',
+  'square',
+  'triangle',
+  'diamond',
+  'hex',
+  'star',
+  'cross',
+  'ring',
+  'bar',
+  'dot',
+  'arc',
+  'wave',
+  'split',
+  'grid',
+  'spiral',
+  'chevron',
+  'zigzag',
+  'bolt',
+];
+const SIZES = { '4x4': [4, 4], '6x6': [6, 6], '8x4': [8, 4] };
+const BEST_KEY = 'tone-pairs-bests';
 
 // One pentatonic step per shape, low → high from C4 to E7 (pentatonic),
 // in SHAPES order: the same shape always sings the same note.
-const FREQS = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51, 1567.98, 1760.0, 2093.0, 2349.32, 2637.02];
+const FREQS = [
+  261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66,
+  1318.51, 1567.98, 1760.0, 2093.0, 2349.32, 2637.02,
+];
 const NOTE_OF = Object.fromEntries(SHAPES.map((s, i) => [s, FREQS[i]]));
 
 function shuffle(arr) {
@@ -59,8 +112,23 @@ function makeGame(sizeKey) {
   // full (Charlie #3006: 6x6 used to under-deal at 16 shapes).
   const deck = shuffle(SHAPES);
   const picks = Array.from({ length: pairCount }, (_, i) => deck[i % deck.length]);
-  const tiles = shuffle([...picks, ...picks]).map((shape, i) => ({ i, shape, flipped: false, matched: false }));
-  return { sizeKey, cols, rows, tiles, moves: 0, startedAt: Date.now(), completed: false, finishedAt: null, flippedIndices: [] };
+  const tiles = shuffle([...picks, ...picks]).map((shape, i) => ({
+    i,
+    shape,
+    flipped: false,
+    matched: false,
+  }));
+  return {
+    sizeKey,
+    cols,
+    rows,
+    tiles,
+    moves: 0,
+    startedAt: Date.now(),
+    completed: false,
+    finishedAt: null,
+    flippedIndices: [],
+  };
 }
 
 function loadBests() {
@@ -72,7 +140,7 @@ function loadBests() {
 }
 
 export default function App() {
-  const [game, setGame] = React.useState(() => makeGame("4x4"));
+  const [game, setGame] = React.useState(() => makeGame('4x4'));
   const [bests, setBests] = React.useState(loadBests);
   const [now, setNow] = React.useState(Date.now());
   const unflipRef = React.useRef(null);
@@ -91,7 +159,7 @@ export default function App() {
       master.connect(ctx.destination);
       ctxRef.current = { ctx, master };
     }
-    if (ctxRef.current.ctx.state !== "running") ctxRef.current.ctx.resume();
+    if (ctxRef.current.ctx.state !== 'running') ctxRef.current.ctx.resume();
     return ctxRef.current;
   }
 
@@ -104,7 +172,10 @@ export default function App() {
     env.gain.linearRampToValueAtTime(gain, t + 0.012);
     env.gain.exponentialRampToValueAtTime(0.001, t + dur);
     env.connect(master);
-    [[freq, "triangle", 1], [freq * 2, "sine", 0.4]].forEach(([f, type, amt]) => {
+    [
+      [freq, 'triangle', 1],
+      [freq * 2, 'sine', 0.4],
+    ].forEach(([f, type, amt]) => {
       const o = ctx.createOscillator();
       const g = ctx.createGain();
       g.gain.value = amt;
@@ -164,12 +235,16 @@ export default function App() {
       const moves = g.moves + 1;
       if (tiles[a].shape === tiles[b].shape) {
         playMatch(NOTE_OF[tiles[a].shape]);
-        tiles = tiles.map((t, i) => (i === a || i === b ? { ...t, matched: true, flipped: false } : t));
+        tiles = tiles.map((t, i) =>
+          i === a || i === b ? { ...t, matched: true, flipped: false } : t
+        );
         const completed = tiles.every((t) => t.matched);
         const finishedAt = completed ? Date.now() : null;
         if (completed) {
           // Victory: walk the board's pair notes low → high like a run up the scale.
-          const played = [...new Set(tiles.map((t) => t.shape))].map((s) => NOTE_OF[s]).sort((x, y) => x - y);
+          const played = [...new Set(tiles.map((t) => t.shape))]
+            .map((s) => NOTE_OF[s])
+            .sort((x, y) => x - y);
           played.forEach((f, i) => playNote(f, { when: 0.35 + i * 0.09, dur: 0.3, gain: 0.35 }));
           saveBest(g.sizeKey, moves, finishedAt - g.startedAt);
         }
@@ -180,7 +255,9 @@ export default function App() {
       unflipRef.current = setTimeout(() => {
         setGame((cur) => ({
           ...cur,
-          tiles: cur.tiles.map((t, i) => ((i === a || i === b) && !t.matched ? { ...t, flipped: false } : t)),
+          tiles: cur.tiles.map((t, i) =>
+            (i === a || i === b) && !t.matched ? { ...t, flipped: false } : t
+          ),
           flippedIndices: [],
         }));
       }, 900);
@@ -188,24 +265,28 @@ export default function App() {
     });
   }
 
-  const elapsed = !game.completed ? Math.floor((now - game.startedAt) / 1000) : Math.floor((game.finishedAt - game.startedAt) / 1000);
+  const elapsed = !game.completed
+    ? Math.floor((now - game.startedAt) / 1000)
+    : Math.floor((game.finishedAt - game.startedAt) / 1000);
 
   const c = {
     page: "min-h-screen bg-[#0c1220] text-white font-['Inter',sans-serif]",
-    header: "sticky top-0 bg-[#111a2c] border-b border-white/15 px-4 py-3 flex items-center justify-between",
-    title: "text-xl font-bold tracking-tight",
-    tagline: "text-xs text-white/50 font-mono",
-    main: "px-4 py-4 max-w-2xl mx-auto space-y-4 pb-24",
-    section: "bg-[#111a2c] border border-white/15 rounded-lg p-4",
-    sectionTitle: "text-sm font-mono uppercase tracking-wider text-white/50 mb-3",
-    btn: "min-h-[44px] px-4 py-3 bg-[#4adede] text-black font-semibold rounded-md active:scale-95 transition disabled:opacity-40",
-    btnGhost: "min-h-[44px] px-4 py-3 bg-white/5 border border-white/15 text-white rounded-md active:bg-white/10",
-    chip: "px-3 py-1 text-xs font-mono bg-white/5 border border-white/15 rounded-full",
-    tile: "aspect-square rounded-md bg-[#1a2b4a] border-2 border-[#3a5a9a] active:scale-95 transition flex items-center justify-center cursor-pointer",
-    tileBack: "bg-[#1a2b4a] border-[#3a5a9a] hover:border-[#4adede] hover:bg-[#22355c]",
-    statBox: "flex-1 bg-[#080d18] border border-white/10 rounded-md p-3 text-center",
-    statLabel: "text-[10px] font-mono uppercase text-white/40",
-    statValue: "text-2xl font-bold text-[#4adede] font-mono",
+    header:
+      'sticky top-0 bg-[#111a2c] border-b border-white/15 px-4 py-3 flex items-center justify-between',
+    title: 'text-xl font-bold tracking-tight',
+    tagline: 'text-xs text-white/50 font-mono',
+    main: 'px-4 py-4 max-w-2xl mx-auto space-y-4 pb-24',
+    section: 'bg-[#111a2c] border border-white/15 rounded-lg p-4',
+    sectionTitle: 'text-sm font-mono uppercase tracking-wider text-white/50 mb-3',
+    btn: 'min-h-[44px] px-4 py-3 bg-[#4adede] text-black font-semibold rounded-md active:scale-95 transition disabled:opacity-40',
+    btnGhost:
+      'min-h-[44px] px-4 py-3 bg-white/5 border border-white/15 text-white rounded-md active:bg-white/10',
+    chip: 'px-3 py-1 text-xs font-mono bg-white/5 border border-white/15 rounded-full',
+    tile: 'aspect-square rounded-md bg-[#1a2b4a] border-2 border-[#3a5a9a] active:scale-95 transition flex items-center justify-center cursor-pointer',
+    tileBack: 'bg-[#1a2b4a] border-[#3a5a9a] hover:border-[#4adede] hover:bg-[#22355c]',
+    statBox: 'flex-1 bg-[#080d18] border border-white/10 rounded-md p-3 text-center',
+    statLabel: 'text-[10px] font-mono uppercase text-white/40',
+    statValue: 'text-2xl font-bold text-[#4adede] font-mono',
   };
 
   return (
@@ -220,19 +301,21 @@ export default function App() {
       <main id="app" className={c.main}>
         <section id="controls" className={c.section}>
           <h2 className={c.sectionTitle}>Game Setup</h2>
-          <p className="text-sm text-white/60 mb-3">Every shape sings its own note — match by sight, sound, or both.</p>
+          <p className="text-sm text-white/60 mb-3">
+            Every shape sings its own note — match by sight, sound, or both.
+          </p>
           <div className="flex gap-2 mb-3">
-            {Object.keys(SIZES).map(k => (
+            {Object.keys(SIZES).map((k) => (
               <button
                 key={k}
                 onClick={() => newGame(k)}
-                className={(game.sizeKey === k ? c.btn : c.btnGhost) + " flex-1"}
+                className={(game.sizeKey === k ? c.btn : c.btnGhost) + ' flex-1'}
               >
                 {k}
               </button>
             ))}
           </div>
-          <button onClick={() => newGame(game.sizeKey)} className={c.btn + " w-full"}>
+          <button onClick={() => newGame(game.sizeKey)} className={c.btn + ' w-full'}>
             Restart
           </button>
         </section>
@@ -246,14 +329,19 @@ export default function App() {
             </div>
             <div className={c.statBox}>
               <div className={c.statLabel}>Time</div>
-              <div className={c.statValue}>{String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}</div>
+              <div className={c.statValue}>
+                {String(Math.floor(elapsed / 60)).padStart(2, '0')}:
+                {String(elapsed % 60).padStart(2, '0')}
+              </div>
             </div>
             <div className={c.statBox}>
               <div className={c.statLabel}>Pairs</div>
-              <div className={c.statValue}>{game.tiles.filter(t => t.matched).length / 2}</div>
+              <div className={c.statValue}>{game.tiles.filter((t) => t.matched).length / 2}</div>
             </div>
           </div>
-          {game.completed && <p className="text-center mt-3 text-[#4adede] font-mono text-sm">♪ Complete! ♪</p>}
+          {game.completed && (
+            <p className="text-center mt-3 text-[#4adede] font-mono text-sm">♪ Complete! ♪</p>
+          )}
         </section>
 
         <section id="board" className={c.section}>
@@ -269,9 +357,21 @@ export default function App() {
                   key={i}
                   onClick={() => flipTile(i)}
                   disabled={show}
-                  className={c.tile + " " + (t.matched ? "opacity-40 bg-[#4adede]/10 border-[#4adede]/50" : show ? "bg-[#4adede]/10 border-[#4adede]/50" : c.tileBack)}
+                  className={
+                    c.tile +
+                    ' ' +
+                    (t.matched
+                      ? 'opacity-40 bg-[#4adede]/10 border-[#4adede]/50'
+                      : show
+                        ? 'bg-[#4adede]/10 border-[#4adede]/50'
+                        : c.tileBack)
+                  }
                 >
-                  {show ? <Shape name={t.shape} /> : <span className="text-[#3a5a9a] text-lg select-none">♪</span>}
+                  {show ? (
+                    <Shape name={t.shape} />
+                  ) : (
+                    <span className="text-[#3a5a9a] text-lg select-none">♪</span>
+                  )}
                 </button>
               );
             })}
@@ -281,14 +381,18 @@ export default function App() {
         <section id="scores" className={c.section}>
           <h2 className={c.sectionTitle}>Personal Bests</h2>
           <ul className="space-y-2">
-            {Object.keys(SIZES).map(k => {
+            {Object.keys(SIZES).map((k) => {
               const b = bests[k];
               return (
-                <li key={k} className="flex items-center justify-between py-2 border-b border-white/10 last:border-0">
+                <li
+                  key={k}
+                  className="flex items-center justify-between py-2 border-b border-white/10 last:border-0"
+                >
                   <span className={c.chip}>{k}</span>
                   {b ? (
                     <span className="text-sm font-mono">
-                      <span className="text-[#4adede]">{b.moves}</span> moves · {Math.floor(b.elapsed / 1000)}s
+                      <span className="text-[#4adede]">{b.moves}</span> moves ·{' '}
+                      {Math.floor(b.elapsed / 1000)}s
                     </span>
                   ) : (
                     <span className="text-xs text-white/30 font-mono">—</span>

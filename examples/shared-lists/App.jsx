@@ -1,8 +1,8 @@
-import React, { useRef, useState } from "react";
-import { useFireproof } from "use-fireproof";
-import { useViewer, useVibe } from "use-vibes";
+import React, { useRef, useState } from 'react';
+import { useFireproof } from 'use-fireproof';
+import { useViewer, useVibe } from 'use-vibes';
 
-const DB = "sharedLists";
+const DB = 'sharedLists';
 const STEP = 1; // spacing for appends (epsilon guard intentionally omitted — see spec §4)
 
 // `sorted` is the items already sorted ascending by position.
@@ -23,11 +23,15 @@ function positionForDrop(sorted, targetIndex) {
 // hairline borders, gentle shadows, Playfair Display / Space Mono. Respects the
 // visitor's system color scheme via the dark media query below.
 const FONT_DISPLAY = { fontFamily: "'Playfair Display', Georgia, serif" };
-const FONT_BODY = { fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" };
+const FONT_BODY = {
+  fontFamily:
+    "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+};
 const FONT_MONO = { fontFamily: "'Space Mono', ui-monospace, monospace" };
-const CARD = "rounded-xl border border-[var(--comp-border)] bg-[var(--comp-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]";
+const CARD =
+  'rounded-xl border border-[var(--comp-border)] bg-[var(--comp-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]';
 // Compact ViewerTag pill (it carries its own border/padding; don't double-wrap it).
-const TAG = { fontSize: 12, padding: "3px 11px 3px 3px" };
+const TAG = { fontSize: 12, padding: '3px 11px 3px 3px' };
 
 function ThemeStyle() {
   return (
@@ -133,13 +137,13 @@ function ListRail({ lists, activeId, onPick, onNew, canCreate }) {
             key={l._id}
             onClick={() => onPick(l._id)}
             className={
-              "shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm transition " +
+              'shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm transition ' +
               (active
-                ? "bg-[var(--comp-accent)] text-[var(--comp-accent-text)]"
-                : "border border-[var(--comp-border)] bg-[var(--comp-surface)] text-[var(--comp-text)] hover:border-[var(--comp-accent)]")
+                ? 'bg-[var(--comp-accent)] text-[var(--comp-accent-text)]'
+                : 'border border-[var(--comp-border)] bg-[var(--comp-surface)] text-[var(--comp-text)] hover:border-[var(--comp-accent)]')
             }
           >
-            {l.title || "Untitled"}
+            {l.title || 'Untitled'}
           </button>
         );
       })}
@@ -156,13 +160,13 @@ function ListRail({ lists, activeId, onPick, onNew, canCreate }) {
 }
 
 function InviteBox({ onInvite }) {
-  const [handle, setHandle] = useState("");
+  const [handle, setHandle] = useState('');
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         onInvite(handle);
-        setHandle("");
+        setHandle('');
       }}
       className="flex items-center gap-1.5"
     >
@@ -193,9 +197,9 @@ export default function App() {
   // once and hydrates on load. We filter/sort by the active list in plain JS so the
   // subscriptions never change as the active list does — a query whose `prefix`
   // changed with activeListId was the cause of the "empty until you write" flash.
-  const { docs: listDocs } = useLiveQuery("type", { key: "list" });
-  const { docs: itemDocs } = useLiveQuery("type", { key: "item" });
-  const { docs: memberDocs } = useLiveQuery("type", { key: "member" });
+  const { docs: listDocs } = useLiveQuery('type', { key: 'list' });
+  const { docs: itemDocs } = useLiveQuery('type', { key: 'item' });
+  const { docs: memberDocs } = useLiveQuery('type', { key: 'member' });
 
   const lists = [...listDocs].sort((a, b) => (a._id < b._id ? 1 : -1)); // newest-first by _id
   const [activeId, setActiveId] = useState(null);
@@ -203,7 +207,7 @@ export default function App() {
   const activeList = lists.find((l) => l._id === activeListId) || null;
   const members = memberDocs.filter((m) => m.listId === activeListId);
 
-  const [text, setText] = useState("");
+  const [text, setText] = useState('');
   const [dragId, setDragId] = useState(null);
   const [saving, setSaving] = useState(0);
   // Optimistic `done` overrides keyed by item _id. We flip the value locally for an
@@ -237,40 +241,48 @@ export default function App() {
     try {
       await fn();
     } catch (e) {
-      console.error("[shared-lists] write failed", e);
+      console.error('[shared-lists] write failed', e);
     } finally {
       setSaving((n) => n - 1);
     }
   }
 
   const writeVerdict =
-    ready && activeListId ? can.create({ type: "item", listId: activeListId, authorHandle: me?.userHandle }) : null;
+    ready && activeListId
+      ? can.create({ type: 'item', listId: activeListId, authorHandle: me?.userHandle })
+      : null;
   // Preview the list-create gate with a valid placeholder _id: access.js builds the
   // channel from doc._id (safeId), and a create candidate has no _id yet — without
   // one the predictor throws "Invalid id" and the gate wrongly reads as denied.
-  const createListVerdict = ready ? can.create({ type: "list", _id: "list-preview", creatorHandle: me?.userHandle }) : null;
+  const createListVerdict = ready
+    ? can.create({ type: 'list', _id: 'list-preview', creatorHandle: me?.userHandle })
+    : null;
   const canCreateList = !!createListVerdict?.ok;
   const canInvite =
-    ready && activeListId ? can.create({ type: "member", listId: activeListId, addedBy: me?.userHandle }).ok : false;
+    ready && activeListId
+      ? can.create({ type: 'member', listId: activeListId, addedBy: me?.userHandle }).ok
+      : false;
 
   function createList() {
     if (!me) return;
     // Generate the _id ourselves so it's a valid channel token (safeId) and the
     // same value the create predictor saw — Fireproof's auto _id isn't guaranteed
     // to match /^[A-Za-z0-9_-]+$/.
-    const _id = "list-" + crypto.randomUUID();
+    const _id = 'list-' + crypto.randomUUID();
     setActiveId(_id); // optimistic: select the new list right away
-    run(() => database.put({ _id, type: "list", title: "Untitled list", creatorHandle: me.userHandle }));
+    run(() =>
+      database.put({ _id, type: 'list', title: 'Untitled list', creatorHandle: me.userHandle })
+    );
   }
 
   function addItem(e) {
     e.preventDefault();
     const t = text.trim();
     if (!t || !me || !activeListId) return;
-    setText(""); // optimistic: clear the input immediately
+    setText(''); // optimistic: clear the input immediately
     run(() =>
       database.put({
-        type: "item",
+        type: 'item',
         listId: activeListId,
         text: t,
         done: false,
@@ -288,7 +300,7 @@ export default function App() {
     database
       .put({ ...doc, done: next })
       .catch((e) => {
-        console.error("[shared-lists] toggle failed", e);
+        console.error('[shared-lists] toggle failed', e);
         // Revert: drop the override so the live query (current saved state) shows through.
         setOptimisticDone((o) => {
           const copy = { ...o };
@@ -314,7 +326,7 @@ export default function App() {
     setSaving((n) => n + 1);
     Promise.all(updates.map((u) => database.put({ ...u.doc, position: u.position })))
       .catch((e) => {
-        console.error("[shared-lists] reorder failed", e);
+        console.error('[shared-lists] reorder failed', e);
         setOptimisticPos((o) => {
           const n = { ...o };
           for (const u of updates) delete n[u.doc._id];
@@ -348,8 +360,8 @@ export default function App() {
   function onDragMove(e) {
     const id = dragIdRef.current;
     if (!id) return;
-    const row = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-item-id]");
-    const overId = row?.getAttribute("data-item-id");
+    const row = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-item-id]');
+    const overId = row?.getAttribute('data-item-id');
     if (!overId || overId === id) return;
     const rect = row.getBoundingClientRect();
     const after = e.clientY > rect.top + rect.height / 2;
@@ -373,7 +385,9 @@ export default function App() {
   function invite(handle) {
     const h = handle.trim();
     if (!h || !activeListId || !me) return;
-    run(() => database.put({ type: "member", listId: activeListId, userHandle: h, addedBy: me.userHandle }));
+    run(() =>
+      database.put({ type: 'member', listId: activeListId, userHandle: h, addedBy: me.userHandle })
+    );
   }
 
   function renameList(title) {
@@ -400,15 +414,18 @@ export default function App() {
           <h1 style={FONT_DISPLAY} className="text-4xl font-bold tracking-tight">
             Shared Lists
           </h1>
-          <p style={FONT_MONO} className="mt-1.5 text-xs uppercase tracking-wider text-[var(--comp-muted)]">
+          <p
+            style={FONT_MONO}
+            className="mt-1.5 text-xs uppercase tracking-wider text-[var(--comp-muted)]"
+          >
             make a list · add friends · drag to reorder
           </p>
           {/* Absolutely positioned so toggling visibility never reflows the header. */}
           <span
             style={FONT_MONO}
             className={
-              "absolute right-5 top-9 flex items-center gap-1.5 rounded-full border border-[var(--comp-border)] bg-[var(--comp-surface)] px-2.5 py-1 text-[11px] text-[var(--comp-muted)] transition-opacity " +
-              (saving > 0 ? "opacity-100" : "pointer-events-none opacity-0")
+              'absolute right-5 top-9 flex items-center gap-1.5 rounded-full border border-[var(--comp-border)] bg-[var(--comp-surface)] px-2.5 py-1 text-[11px] text-[var(--comp-muted)] transition-opacity ' +
+              (saving > 0 ? 'opacity-100' : 'pointer-events-none opacity-0')
             }
             aria-hidden={saving === 0}
           >
@@ -417,10 +434,16 @@ export default function App() {
           </span>
         </header>
 
-        <ListRail lists={lists} activeId={activeListId} onPick={setActiveId} onNew={createList} canCreate={canCreateList} />
+        <ListRail
+          lists={lists}
+          activeId={activeListId}
+          onPick={setActiveId}
+          onNew={createList}
+          canCreate={canCreateList}
+        />
 
         {activeList && (
-          <div className={"mx-5 mt-3 mb-4 px-5 py-4 " + CARD}>
+          <div className={'mx-5 mt-3 mb-4 px-5 py-4 ' + CARD}>
             <div className="flex items-center gap-3">
               <input
                 key={activeList._id}
@@ -443,10 +466,15 @@ export default function App() {
               )}
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2.5">
-              <span style={FONT_MONO} className="text-[11px] uppercase tracking-wide text-[var(--comp-muted)]">
+              <span
+                style={FONT_MONO}
+                className="text-[11px] uppercase tracking-wide text-[var(--comp-muted)]"
+              >
                 Shared with
               </span>
-              {members.length === 0 && <span className="text-sm italic text-[var(--comp-muted)]">just you</span>}
+              {members.length === 0 && (
+                <span className="text-sm italic text-[var(--comp-muted)]">just you</span>
+              )}
               {members.map((m) => (
                 <span key={m._id} className="flex items-center gap-1">
                   <ViewerTag userHandle={m.userHandle} style={TAG} />
@@ -470,12 +498,12 @@ export default function App() {
           {!activeListId ? (
             <li className="rounded-xl border border-dashed border-[var(--comp-border)] px-4 py-12 text-center text-sm italic text-[var(--comp-muted)]">
               {isViewerPending
-                ? "Connecting…"
+                ? 'Connecting…'
                 : canCreateList
-                  ? "Create a list to get started."
+                  ? 'Create a list to get started.'
                   : viewer
                     ? createListVerdict?.reason || "You can't create a list here."
-                    : "Sign in to create a list."}
+                    : 'Sign in to create a list.'}
             </li>
           ) : (
             <>
@@ -484,9 +512,11 @@ export default function App() {
                   key={it._id}
                   data-item-id={it._id}
                   className={
-                    "group flex select-none items-center gap-2 py-3 pr-4 pl-2 transition " +
+                    'group flex select-none items-center gap-2 py-3 pr-4 pl-2 transition ' +
                     CARD +
-                    (dragId === it._id ? " opacity-60 ring-2 ring-[var(--comp-accent)]" : " hover:border-[var(--comp-accent)]")
+                    (dragId === it._id
+                      ? ' opacity-60 ring-2 ring-[var(--comp-accent)]'
+                      : ' hover:border-[var(--comp-accent)]')
                   }
                 >
                   <span
@@ -501,17 +531,22 @@ export default function App() {
                   </span>
                   <button
                     onClick={() => toggle(it, it.done)}
-                    aria-label={it.done ? "mark not done" : "mark done"}
+                    aria-label={it.done ? 'mark not done' : 'mark done'}
                     className={
-                      "grid h-6 w-6 shrink-0 place-items-center rounded-full border transition " +
+                      'grid h-6 w-6 shrink-0 place-items-center rounded-full border transition ' +
                       (it.done
-                        ? "border-transparent bg-[var(--comp-done)] text-[var(--comp-accent-text)]"
-                        : "border-[var(--comp-border)] bg-transparent text-transparent hover:border-[var(--comp-accent)]")
+                        ? 'border-transparent bg-[var(--comp-done)] text-[var(--comp-accent-text)]'
+                        : 'border-[var(--comp-border)] bg-transparent text-transparent hover:border-[var(--comp-accent)]')
                     }
                   >
                     <IconCheck size={14} />
                   </button>
-                  <span className={"flex-1 break-words " + (it.done ? "text-[var(--comp-muted)] line-through" : "")}>
+                  <span
+                    className={
+                      'flex-1 break-words ' +
+                      (it.done ? 'text-[var(--comp-muted)] line-through' : '')
+                    }
+                  >
                     {it.text}
                   </span>
                   {it.authorHandle && (
@@ -578,7 +613,7 @@ export default function App() {
                 </li>
               ) : (
                 <li className="px-1 py-2 text-sm italic text-[var(--comp-muted)]">
-                  {writeVerdict?.reason || "Sign in to add items."}
+                  {writeVerdict?.reason || 'Sign in to add items.'}
                 </li>
               )}
             </>

@@ -1,15 +1,30 @@
-import React from "react";
-import { Icon, ICONS } from "./Icon.jsx";
-import { pretty12, rideKey, AUDIENCE_LABEL, AREA_LABEL } from "./calendar-utils.js";
-import { c } from "./styles.js";
-import NoteField from "./NoteField.jsx";
+import React from 'react';
+import { Icon, ICONS } from './Icon.jsx';
+import { pretty12, rideKey, AUDIENCE_LABEL, AREA_LABEL } from './calendar-utils.js';
+import { c } from './styles.js';
+import NoteField from './NoteField.jsx';
 
-export default function RideCard({ event, favs = [], userId, canFavorite, toggleFavorite, note, saveNote, condensed = false }) {
-  const mapUrl = event.address ? `https://maps.google.com/?q=${encodeURIComponent(event.address)}` : null;
-  const imgUrl = event.image ? (event.image.startsWith("http") ? event.image : `https://www.shift2bikes.org${event.image}`) : null;
-  const audLabel = AUDIENCE_LABEL[event.audience] || event.audience || "";
-  const areaLabel = AREA_LABEL[event.area] || event.area || "";
-  const myFav = favs.find((f) => (f.userId || "anonymous") === userId);
+export default function RideCard({
+  event,
+  favs = [],
+  userId,
+  canFavorite,
+  toggleFavorite,
+  note,
+  saveNote,
+  condensed = false,
+}) {
+  const mapUrl = event.address
+    ? `https://maps.google.com/?q=${encodeURIComponent(event.address)}`
+    : null;
+  const imgUrl = event.image
+    ? event.image.startsWith('http')
+      ? event.image
+      : `https://www.shift2bikes.org${event.image}`
+    : null;
+  const audLabel = AUDIENCE_LABEL[event.audience] || event.audience || '';
+  const areaLabel = AREA_LABEL[event.area] || event.area || '';
+  const myFav = favs.find((f) => (f.userId || 'anonymous') === userId);
 
   return (
     <article className={c.card}>
@@ -23,11 +38,11 @@ export default function RideCard({ event, favs = [], userId, canFavorite, toggle
           <button
             onClick={() => toggleFavorite(event)}
             aria-pressed={!!myFav}
-            aria-label={myFav ? "Remove favorite" : "Add favorite"}
-            title={myFav ? "Favorited" : "Favorite this ride"}
+            aria-label={myFav ? 'Remove favorite' : 'Add favorite'}
+            title={myFav ? 'Favorited' : 'Favorite this ride'}
             className={myFav ? c.favStarOn : c.favStar}
           >
-            <Icon d={ICONS.star} size={56} fill={myFav ? "currentColor" : "none"} />
+            <Icon d={ICONS.star} size={56} fill={myFav ? 'currentColor' : 'none'} />
           </button>
         )}
         <h2 className={c.title}>{event.title}</h2>
@@ -37,7 +52,9 @@ export default function RideCard({ event, favs = [], userId, canFavorite, toggle
         {audLabel && <span className={`${c.badge} ${c.badgeAud}`}>{audLabel}</span>}
         {areaLabel && <span className={`${c.badge} ${c.badgeArea}`}>{areaLabel}</span>}
         {event.loopride && <span className={`${c.badge} ${c.badgeLoop}`}>Loop Ride</span>}
-        {event.ridelength && event.ridelength !== "--" && <span className={c.badge}>{event.ridelength} mi</span>}
+        {event.ridelength && event.ridelength !== '--' && (
+          <span className={c.badge}>{event.ridelength} mi</span>
+        )}
       </div>
 
       {!condensed && event.newsflash && (
@@ -47,7 +64,9 @@ export default function RideCard({ event, favs = [], userId, canFavorite, toggle
         </div>
       )}
 
-      {!condensed && imgUrl && <img className={c.img} src={imgUrl} alt="" loading="lazy" width={280} height={200} />}
+      {!condensed && imgUrl && (
+        <img className={c.img} src={imgUrl} alt="" loading="lazy" width={280} height={200} />
+      )}
 
       {event.venue && (
         <div className={c.venue}>
@@ -61,7 +80,9 @@ export default function RideCard({ event, favs = [], userId, canFavorite, toggle
                 {event.address}
               </a>
             )}
-            {event.locend && <div className="text-[0.8rem] text-[#1A1A1A]/65 mt-1">Ends: {event.locend}</div>}
+            {event.locend && (
+              <div className="text-[0.8rem] text-[#1A1A1A]/65 mt-1">Ends: {event.locend}</div>
+            )}
           </div>
         </div>
       )}
@@ -77,14 +98,22 @@ export default function RideCard({ event, favs = [], userId, canFavorite, toggle
 
       {favs.length > 0 && (
         <div className={c.favStrip}>
-          <span className={c.favLabel}>{favs.length === 1 ? "1 friend rolling" : `${favs.length} friends rolling`}</span>
+          <span className={c.favLabel}>
+            {favs.length === 1 ? '1 friend rolling' : `${favs.length} friends rolling`}
+          </span>
           <div className={c.avatarPile}>
             {favs.slice(0, 6).map((f) =>
               f.avatarUrl ? (
-                <img key={f._id} src={f.avatarUrl} title={f.displayName} alt={f.displayName || "rider"} className={c.avatar} />
+                <img
+                  key={f._id}
+                  src={f.avatarUrl}
+                  title={f.displayName}
+                  alt={f.displayName || 'rider'}
+                  className={c.avatar}
+                />
               ) : (
                 <div key={f._id} className={c.avatarFallback} title={f.displayName}>
-                  {(f.displayName || f.userId || "?").slice(0, 2)}
+                  {(f.displayName || f.userId || '?').slice(0, 2)}
                 </div>
               )
             )}
@@ -95,7 +124,11 @@ export default function RideCard({ event, favs = [], userId, canFavorite, toggle
 
       {canFavorite && (
         <div className="mb-3">
-          <NoteField saved={note} onSave={(t) => saveNote(rideKey(event), t)} className={c.noteArea} />
+          <NoteField
+            saved={note}
+            onSave={(t) => saveNote(rideKey(event), t)}
+            className={c.noteArea}
+          />
         </div>
       )}
 
@@ -108,15 +141,25 @@ export default function RideCard({ event, favs = [], userId, canFavorite, toggle
             </a>
           )}
           {event.shareable && (
-            <a className={`${c.actionBtn} ${c.actionLink}`} href={event.shareable} target="_blank" rel="noreferrer">
+            <a
+              className={`${c.actionBtn} ${c.actionLink}`}
+              href={event.shareable}
+              target="_blank"
+              rel="noreferrer"
+            >
               <Icon d={ICONS.link} size={16} />
               Details
             </a>
           )}
           {event.weburl && (
-            <a className={`${c.actionBtn} ${c.actionWeb}`} href={event.weburl} target="_blank" rel="noreferrer">
+            <a
+              className={`${c.actionBtn} ${c.actionWeb}`}
+              href={event.weburl}
+              target="_blank"
+              rel="noreferrer"
+            >
               <Icon d={ICONS.link} size={16} />
-              {event.webname || "Site"}
+              {event.webname || 'Site'}
             </a>
           )}
         </div>
