@@ -6,7 +6,7 @@ Super mode (once live): https://vibes.diy/vibe/calendar/defcon-picker?super=1
 ## Edit → Push
 
 ```bash
-cd vibes.diy/vibes/defcon-picker
+cd use-vibes/examples/defcon-picker
 # edit App.jsx
 npx vibes-diy push --vibe calendar/defcon-picker
 ```
@@ -16,7 +16,7 @@ That's it. `push` deploys the app to `calendar/defcon-picker` and prints the liv
 ## Pull current live version
 
 ```bash
-cd vibes.diy/vibes/defcon-picker
+cd use-vibes/examples/defcon-picker
 npx vibes-diy pull calendar/defcon-picker
 ```
 
@@ -77,7 +77,7 @@ which `backend.js` proxies:
 headers don't help — verified 2026-07-08), so in production the upstream branch
 always fails and the schedule actually flows through the db:
 
-- `scripts/refresh-schedule.mjs` runs where the upstream IS reachable (agent
+- The ops refresher (vibes.diy `scripts/vibe-ops/refresh-defcon-schedule.mjs`) runs where the upstream IS reachable (agent
   container, laptop, CI), slims the feed to the fields the app reads (461 KB →
   ~108 KB), and writes it into the `defcon34` db as `schedule-snapshot` chunk docs
   (`seq`/`total`/`fetchedAt`/`body`, ≤100 KB per chunk — argv-size bound). Unknown
@@ -88,7 +88,7 @@ always fails and the schedule actually flows through the db:
   state; the proxy serves it whenever the upstream fails.
 - A **daily Routine** (cloud session cron, "Refresh DEF CON 34 schedule snapshot")
   re-runs the refresher; bump the cadence during con week. Run it manually any
-  time: `node vibes/defcon-picker/scripts/refresh-schedule.mjs` (needs the
+  time: `node scripts/vibe-ops/refresh-defcon-schedule.mjs (vibes.diy repo)` (needs the
   owner-account CLI login).
 - Freshness: refresher cadence + ≤1 m tick + ≤10 m client cache. If the upstream
   ever unblocks the worker egress, the proxy automatically prefers the live feed

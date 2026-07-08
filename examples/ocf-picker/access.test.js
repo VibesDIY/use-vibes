@@ -44,10 +44,10 @@ describe('access.js — channel routing', () => {
     });
   });
 
-  // Either endpoint may sever a friend edge (Codex, vibes.diy#3433): bob must be
-  // able to revoke the mutual sharing alice created by scanning his QR — the
-  // "Added You" list renders a remove control for exactly this. Deletes only:
-  // bob still cannot create or modify an edge he doesn't own.
+  // Either endpoint may sever a friend edge (Codex, #3433): bob must be able to
+  // revoke the mutual sharing alice created by scanning his QR — the "Added You"
+  // list renders a remove control for exactly this. Deletes only: bob still
+  // cannot create or modify an edge he doesn't own.
   it('the target of a friend edge can delete it, but not create or modify it', () => {
     const edge = { _id: 'friend-alice-bob', type: 'friend', userId: 'alice', friendSlug: 'bob' };
     const bob = { userHandle: 'bob' };
@@ -55,7 +55,9 @@ describe('access.js — channel routing', () => {
     expect(del.ok.channels).toEqual(['user-alice', 'user-bob']); // authorized, routed like the edge
     expect(run(edge, null, bob)).toEqual({ forbidden: 'not owner' }); // create for someone else
     expect(run({ ...edge, friendSlug: 'bob' }, edge, bob)).toEqual({ forbidden: 'not owner' }); // non-delete update
-    expect(run({ _id: 'friend-alice-bob', _deleted: true }, edge, { userHandle: 'mallory' })).toEqual({
+    expect(
+      run({ _id: 'friend-alice-bob', _deleted: true }, edge, { userHandle: 'mallory' })
+    ).toEqual({
       forbidden: 'not owner', // a third party can't sever other people's edges
     });
   });
@@ -110,5 +112,45 @@ describe('access.js — guards', () => {
     const { ok } = run({ type: 'geocode', userId: 'alice' }, null, alice);
     expect(ok.channels).toEqual(['discard']);
     expect(ok.grant).toEqual({});
+  });
+});
+
+describe('access.js — schedule-snapshot chunks (owner only)', () => {
+  const chunk = {
+    _id: 'schedule-snapshot-0',
+    type: 'schedule-snapshot',
+    seq: 0,
+    total: 1,
+    fetchedAt: 't',
+    body: '[]',
+  };
+  const owner = { userHandle: 'jchris', isOwner: true };
+
+  it('owner writes land in an unreadable channel with no grant', () => {
+    const { ok } = run(chunk, null, owner);
+    expect(ok.channels).toEqual(['snapshot-internal']);
+    expect(ok.grant).toEqual({});
+  });
+
+  // Security regression (Codex, #3413): the backend serves the schedule to EVERYONE
+  // from these docs when the upstream 403s, and the old unknown-type fallthrough
+  // accepted them from any signed-in user — creates AND overwrites of the fixed
+  // chunk _ids must be owner-only or the schedule is poisonable.
+  it('a non-owner can neither create nor overwrite a chunk', () => {
+    expect(run(chunk, null, alice)).toEqual({ forbidden: 'owner only' });
+    expect(
+      run({ ...chunk, body: 'poison' }, chunk, { userHandle: 'mallory', isOwner: false })
+    ).toEqual({
+      forbidden: 'owner only',
+    });
+  });
+
+  it('tombstones without fields still resolve the type from oldDoc and stay owner-gated', () => {
+    expect(run({ _id: 'schedule-snapshot-0', _deleted: true }, chunk, alice)).toEqual({
+      forbidden: 'owner only',
+    });
+    expect(run({ _id: 'schedule-snapshot-0', _deleted: true }, chunk, owner).ok.channels).toEqual([
+      'snapshot-internal',
+    ]);
   });
 });

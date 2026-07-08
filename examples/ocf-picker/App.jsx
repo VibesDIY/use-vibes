@@ -5,7 +5,8 @@ import {
   FESTIVAL_2026,
   toFestivalDate,
   festivalDayFor,
-  flattenPretalx,
+  flattenSchedule,
+  scheduleIcsItems,
   setsOnNow,
   upNextSets,
   fmtTime,
@@ -13,7 +14,7 @@ import {
 } from './festival-utils.js';
 import { c } from './styles.js';
 import ScheduleView from './ScheduleView.jsx';
-import TracksView from './TracksView.jsx';
+import ArtistsView from './ArtistsView.jsx';
 import NowView from './NowView.jsx';
 import BrowseView from './BrowseView.jsx';
 import FavoritesView from './FavoritesView.jsx';
@@ -59,20 +60,26 @@ const clearFriendParamFromUrl = () => {
 const byTypeUser = (doc) => [doc.type, doc.userId];
 const byTypeFriendSlug = (doc) => [doc.type, doc.friendSlug];
 
-// A topographic contour-line motif along the header's bottom edge: a few thin,
-// low-contrast elevation lines, like a corner of an IGN hiking map behind the
-// wordmark. Hand-written path constants (no render-time randomness — the layout
-// is identical on every render/reload), drawn once as a static SVG with no
-// animation → zero repaint tax. viewBox is 1200 wide, contours stacked upward
-// from the baseline like nested elevation rings on a hillside.
-const CONTOUR_PATHS = [
-  'M0,54 C110,46 210,60 330,52 C450,44 560,58 690,50 C820,42 930,56 1060,48 C1130,44 1170,50 1200,47',
-  'M0,42 C140,34 260,48 390,40 C520,32 640,46 770,38 C900,30 1010,44 1130,36 C1160,34 1185,37 1200,35',
-  'M0,30 C160,22 300,36 440,28 C580,20 720,34 860,26 C1000,18 1100,30 1200,23',
-  'M0,18 C180,11 340,24 500,16 C660,8 820,21 980,13 C1100,8 1160,14 1200,11',
-];
+// A pennant-bunting line along the header's bottom edge: one scalloped string of
+// small triangular flags alternating terracotta / teal / bronze. The three path
+// strings are constants built once at module scope from a fixed grid — no
+// render-time randomness, zero repaint tax. viewBox is 1200×28: the string sags
+// through y=6, flags hang to y=25.
+const BUNTING_PATHS = (() => {
+  const paths = ['', '', ''];
+  const STEP = 40;
+  const FLAG_W = 30;
+  const TOP = 6;
+  const TIP = 25;
+  for (let i = 0; i * STEP < 1200; i++) {
+    const x = i * STEP + (STEP - FLAG_W) / 2;
+    paths[i % 3] += `M${x},${TOP} L${x + FLAG_W},${TOP} L${x + FLAG_W / 2},${TIP} Z `;
+  }
+  return paths.map((d) => d.trim());
+})();
+const BUNTING_COLORS = ['#d95931', '#25a48f', '#cd7f32'];
 
-const migrateSotmDoc = (doc, handle) => {
+const migrateOcfDoc = (doc, handle) => {
   if (doc.type === 'favorite')
     return { ...doc, userId: handle, _id: `favorite-${handle}-${doc.eventId}` };
   if (doc.type === 'note') return { ...doc, userId: handle, _id: `note-${handle}-${doc.eventId}` };
@@ -83,17 +90,17 @@ const migrateSotmDoc = (doc, handle) => {
   return { ...doc, userId: handle };
 };
 
-export default function SotmPicker() {
+export default function OcfPicker() {
   const { viewer, ViewerTag } = useViewer();
   // Optimistic writes + anonymous local writes (with sign-in migration) now come from
   // useFireproof itself: `anonymousLocal` runs put/del/useLiveQuery against a local
   // store while logged out and migrates on first sign-in; the returning-signed-out
   // guard is handled internally. So nothing below branches on auth.
-  const { database, useLiveQuery, useDocument } = useFireproof('sotm2026', {
+  const { database, useLiveQuery, useDocument } = useFireproof('ocf2026', {
     anonymousLocal: true,
-    migrate: migrateSotmDoc,
+    migrate: migrateOcfDoc,
   });
-  const { can, ready } = useVibe('sotm2026');
+  const { can, ready } = useVibe('ocf2026');
 
   const myHandle = viewer?.userHandle || 'anonymous';
   const userId = myHandle;
@@ -133,9 +140,9 @@ export default function SotmPicker() {
     return () => clearInterval(id);
   }, []);
 
-  // Mobile-first: render at device width and stop the wide header art / long rows
-  // from inducing a *horizontal* scroll, via overflow-x:hidden (which leaves vertical
-  // scroll untouched). We deliberately do NOT set maximum-scale/user-scalable — that
+  // Mobile-first: render at device width and stop long rows from inducing a
+  // *horizontal* scroll, via overflow-x:hidden (which leaves vertical scroll
+  // untouched). We deliberately do NOT set maximum-scale/user-scalable — that
   // locked the visual viewport and also blocked vertical scrolling. Accidental
   // double-tap zoom on a heart is instead handled by touch-action:manipulation on the
   // root (see the outer div), which disables tap-zoom without affecting scroll/pinch.
@@ -229,14 +236,14 @@ export default function SotmPicker() {
   }, []);
 
   const getCached = () => {
-    const data = localStorage.getItem('sotm2026-schedule-cache');
-    const ts = +localStorage.getItem('sotm2026-schedule-timestamp');
+    const data = localStorage.getItem('ocf2026-schedule-cache');
+    const ts = +localStorage.getItem('ocf2026-schedule-timestamp');
     if (!data || !ts) return null;
     return { data: JSON.parse(data), isStale: Date.now() - ts > 600_000 };
   };
   const setCached = (d) => {
-    localStorage.setItem('sotm2026-schedule-cache', JSON.stringify(d));
-    localStorage.setItem('sotm2026-schedule-timestamp', Date.now().toString());
+    localStorage.setItem('ocf2026-schedule-cache', JSON.stringify(d));
+    localStorage.setItem('ocf2026-schedule-timestamp', Date.now().toString());
   };
 
   const fetchSchedule = async () => {
@@ -251,7 +258,11 @@ export default function SotmPicker() {
       setLoading(false);
     }
     try {
-      const res = await fetch('https://pretalx.com/sotm2026/schedule/export/schedule.json');
+      // The lineup page ships no CORS header (and no JSON feed with times
+      // exists), so the browser can never fetch it directly — backend.js
+      // fetches + PARSES it same-origin (with its own 10-minute cache) and
+      // serves the parsed session array at /_api/schedule.json.
+      const res = await fetch('/_api/schedule.json');
       const data = await res.json();
       setCached(data);
       ingest(data);
@@ -269,17 +280,16 @@ export default function SotmPicker() {
     }
   };
 
-  // The pretalx export nests events per day per room; flattenPretalx turns that into
-  // the flat internal list (guid-keyed ids, duration-derived ends, track lineups,
-  // conference-day grouping with the 4 AM cutoff).
+  // The proxy already serves parsed session objects; flattenSchedule stamps each
+  // with its fair day (4 AM night cutoff) and drops malformed rows.
   const ingest = (data) => {
-    setEvents(flattenPretalx(data));
+    setEvents(flattenSchedule(data));
   };
 
   const getDateForDay = (day) => {
-    // Prefer the conference day's canonical calendar date. Since a day groups
-    // after-midnight items from the *next* calendar date (4 AM cutoff), we must not
-    // derive the header date from a stray early-morning event's start.
+    // Prefer the fair day's canonical calendar date. Since a day groups
+    // after-midnight sets from the *next* calendar date (4 AM cutoff), we must
+    // not derive the header date from a stray early-morning event's start.
     if (FESTIVAL_2026.dates[day]) return FESTIVAL_2026.dates[day];
     const evt = events.find((e) => e.day === day);
     if (evt) return evt.start.split('T')[0];
@@ -398,9 +408,9 @@ export default function SotmPicker() {
       .map((s) => (unified ? { ...s, pickedBy: [s.userId || 'anonymous'] } : s));
   }, [selectedFriend, allShifts, friendSlugs]);
 
-  // Only days that actually have events or shifts, ordered by the conference day order.
-  // We deliberately do NOT seed with the full dayOrder — a conference day with nothing
-  // on it shouldn't show up in the picker or as an empty section.
+  // Only days that actually have events or shifts, ordered by the fair day order.
+  // We deliberately do NOT seed with the full dayOrder — a fair day with nothing on
+  // it shouldn't show up in the picker or as an empty section.
   const displayDays = useMemo(() => {
     const present = new Set(
       [...events.map((e) => e.day), ...shifts.map((s) => s.day)].filter(Boolean)
@@ -488,10 +498,10 @@ export default function SotmPicker() {
 
   // The persistent-subscription URL (webcal:// opens the iPhone/macOS Calendar
   // subscribe flow; Google Calendar takes the https form via copy). It carries
-  // ONLY the handle, so it's a LIVE feed: backend.js re-aggregates favorites
-  // from the db every few minutes and re-joins talk times against the schedule
-  // feed on each refresh — new picks reach subscribers automatically, and
-  // sharing the link lets a friend follow your faves. Signed-in only:
+  // ONLY the token, so it's a LIVE feed: backend.js re-aggregates favorites
+  // from the db every few minutes and re-joins set times against the parsed
+  // schedule on each refresh — new picks reach subscribers automatically,
+  // and sharing the link lets a friend follow your faves. Signed-in only:
   // anonymous faves live in this browser and never reach the cloud.
   // Offer it only when the feed would actually carry something: favorites, or
   // extras the user marked shareWithFriends — private extras deliberately never
@@ -541,24 +551,57 @@ export default function SotmPicker() {
     }
   };
 
+  // One-shot download: works for anonymous (local-only) faves too — the client
+  // sends its own items to the POST lane, no token or sign-in involved.
+  const downloadIcs = async () => {
+    const items = scheduleIcsItems({
+      events: favoriteEvents,
+      shifts,
+      shiftStart: shiftStartRaw,
+      shiftEnd: shiftEndRaw,
+    });
+    if (items.length === 0) {
+      setIcsError('Nothing to export yet — favorite something first');
+      return;
+    }
+    try {
+      const res = await fetch('/_api/faves.ics', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ items }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ocf2026-faves.ics';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setIcsError(null);
+    } catch (e) {
+      setIcsError("Couldn't build the calendar — try again");
+    }
+  };
+
   const shiftStartRaw = (s) => s.start ?? s.startISO ?? `${getDateForDay(s.day)}T${s.startTime}:00`;
   const shiftEndRaw = (s) => s.end ?? s.endISO ?? `${getDateForDay(s.day)}T${s.endTime}:00`;
 
-  // The Tracks tab groups talks by their conference track (the pretalx `track`
-  // field), each with its legend color — the map-legend view of the program.
-  const tracksList = useMemo(() => {
+  // Group sets by artist (title) — OCF artists play multiple sets across days and
+  // stages, so the Artists view is where you fave a whole act at once. Each group
+  // keeps its first set's lineup/url; sets sort chronologically within the group.
+  const artistsList = useMemo(() => {
     const map = new Map();
     for (const e of events) {
-      const key = e.track || 'General';
+      const key = e.title;
       if (!map.has(key))
-        map.set(key, { title: key, events: [], lineup: e.lineup, venues: new Set() });
-      const track = map.get(key);
-      track.events.push(e);
-      track.venues.add(e.venueTitle);
+        map.set(key, { title: key, url: e.url, events: [], lineup: e.lineup, venues: new Set() });
+      const artist = map.get(key);
+      artist.events.push(e);
+      artist.venues.add(e.venueTitle);
     }
-    for (const t of map.values()) {
-      t.events.sort((a, b) => toFestivalDate(a.start) - toFestivalDate(b.start));
-      t.venueList = [...t.venues];
+    for (const a of map.values()) {
+      a.events.sort((x, y) => toFestivalDate(x.start) - toFestivalDate(y.start));
+      a.venueList = [...a.venues];
     }
     return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
   }, [events]);
@@ -593,8 +636,12 @@ export default function SotmPicker() {
   // show THEIR picks (from the readable firehose), not the current user's.
   const viewedFavoriteEvents = useMemo(() => {
     if (!viewingUser || viewingUser === userId) return favoriteEvents;
-    const ids = new Set(allFavorites.filter((f) => (f.userId || 'anonymous') === viewingUser).map((f) => f.eventId));
-    return events.filter((e) => ids.has(e.eventId)).sort((a, b) => toFestivalDate(a.start) - toFestivalDate(b.start));
+    const ids = new Set(
+      allFavorites.filter((f) => (f.userId || 'anonymous') === viewingUser).map((f) => f.eventId)
+    );
+    return events
+      .filter((e) => ids.has(e.eventId))
+      .sort((a, b) => toFestivalDate(a.start) - toFestivalDate(b.start));
   }, [viewingUser, userId, favoriteEvents, allFavorites, events]);
 
   const makeSchedule = (day) => {
@@ -658,44 +705,51 @@ export default function SotmPicker() {
     </button>
   );
 
-  // The schedule feed loads behind the full UI: header + nav render immediately,
-  // and only the content area shows a loading/error state until events arrive.
+  // The schedule loads behind the full UI: header + nav render immediately,
+  // and only the content area shows a loading/error state until sets arrive.
   const scheduleLoading = loading && events.length === 0;
   const scheduleError = error && events.length === 0;
 
-  const connectUrl = `https://vibes.diy/vibe/calendar/sotm-picker/?friend=${encodeURIComponent(userId)}`;
+  const connectUrl = `https://vibes.diy/vibe/calendar/ocf-picker/?friend=${encodeURIComponent(userId)}`;
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(connectUrl)}`;
 
   return (
     <div className={`min-h-screen ${c.pageBg}`} style={{ touchAction: 'manipulation' }}>
       <div className={`max-w-6xl mx-auto ${c.cardBg} shadow-2xl ${c.border} overflow-hidden`}>
-        <div className={`${c.headerBg} ${c.border} p-2.5 relative isolate`}>
+        <div className={`${c.headerBg} ${c.border} p-2.5 pb-[36px] relative isolate`}>
           <svg
-            className="absolute inset-x-0 bottom-0 w-full h-[64px] z-0 pointer-events-none"
-            viewBox="0 0 1200 64"
+            className="absolute inset-x-0 bottom-0 w-full h-[28px] z-0 pointer-events-none"
+            viewBox="0 0 1200 28"
             preserveAspectRatio="none"
             aria-hidden="true"
           >
-            {CONTOUR_PATHS.map((d, i) => (
-              <path
-                key={i}
-                d={d}
-                fill="none"
-                strokeWidth="1.25"
-                className="stroke-[#4c7a34]/35 dark:stroke-[#a7c68d]/20"
-              />
-            ))}
+            <line
+              x1="0"
+              y1="6"
+              x2="1200"
+              y2="6"
+              className="stroke-[#3a2f28] dark:stroke-[#f0e9df]"
+              strokeOpacity="0.35"
+              strokeWidth="1.5"
+            />
+            <path d={BUNTING_PATHS[0]} fill={BUNTING_COLORS[0]} />
+            <path d={BUNTING_PATHS[1]} fill={BUNTING_COLORS[1]} />
+            <path d={BUNTING_PATHS[2]} fill={BUNTING_COLORS[2]} />
           </svg>
           <div className="flex items-start justify-between gap-1 flex-wrap relative z-10">
             <div>
-              <a href="https://2026.stateofthemap.org/" target="_blank" rel="noopener noreferrer">
-                <h1 className={`text-4xl font-black ${c.bodyText} mb-[1px]`}>
-                  {superMode
-                    ? 'SUPER STATE OF THE MAP 2026 PICKER'
-                    : 'State of the Map 2026 Picker'}
+              <a
+                href="https://www.oregoncountryfair.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <h1 className={`text-4xl font-black font-serif ${c.bodyText} mb-[1px]`}>
+                  {superMode ? 'Super Oregon Country Fair Picker' : 'Oregon Country Fair Picker'}
                 </h1>
               </a>
-              <p className={`${c.bodyText} text-base font-bold`}>August 28–30, 2026</p>
+              <p className={`${c.bodyText} text-base font-bold`}>
+                July 10–12, 2026 · Veneta, Oregon
+              </p>
             </div>
           </div>
           {error && error.includes('cached') && (
@@ -709,9 +763,9 @@ export default function SotmPicker() {
 
         <div className={`${c.navBg} ${c.border} p-2`}>
           <div className="flex flex-wrap gap-[3px]">
-            {['now', 'browse', 'tracks', 'favorites', 'friends', 'shifts', 'schedule']
+            {['now', 'browse', 'artists', 'favorites', 'friends', 'shifts', 'schedule']
               .filter((v) => {
-                if (v === 'now' || v === 'browse' || v === 'tracks') return true;
+                if (v === 'now' || v === 'browse' || v === 'artists') return true;
                 if (v === 'favorites') return superMode && canWrite; // super-mode peer picker
                 if (v === 'schedule') return canFavorite; // anon can view their own favorites schedule
                 return canWrite; // friends + extras need a real sign-in
@@ -723,8 +777,8 @@ export default function SotmPicker() {
                   className={c.navBtn(view === viewName)}
                 >
                   {viewName === 'now' && `Now`}
-                  {viewName === 'browse' && `All Talks`}
-                  {viewName === 'tracks' && `Tracks`}
+                  {viewName === 'browse' && `All Events`}
+                  {viewName === 'artists' && `Artists`}
                   {viewName === 'favorites' && `Favorites (${myFavIds.size})`}
                   {viewName === 'friends' && `🙋‍♀️ Friends`}
                   {viewName === 'shifts' && `Extras`}
@@ -789,9 +843,9 @@ export default function SotmPicker() {
                 />
               )}
 
-              {view === 'tracks' && (
-                <TracksView
-                  tracksList={tracksList}
+              {view === 'artists' && (
+                <ArtistsView
+                  artistsList={artistsList}
                   myFavIds={myFavIds}
                   canWrite={canFavorite}
                   toggleFavorite={toggleFavorite}
@@ -867,9 +921,18 @@ export default function SotmPicker() {
               {view === 'schedule' && (
                 <div>
                   <div className="flex items-center justify-between flex-wrap gap-0.5 mb-1.5">
-                    <h2 className={`text-2xl font-black ${c.bodyText}`}>My SotM Schedule</h2>
+                    <h2 className={`text-2xl font-black font-serif ${c.bodyText}`}>
+                      My Fair Schedule
+                    </h2>
                     {(favoriteEvents.length > 0 || shifts.length > 0) && (
                       <div className="flex items-center flex-wrap gap-0">
+                        <button
+                          onClick={downloadIcs}
+                          className={c.btnCyan}
+                          title="Download your picks as an .ics file — works without signing in; import it into any calendar app"
+                        >
+                          📅 Download .ics
+                        </button>
                         {icsSubWebcal && (
                           <a
                             href={icsSubWebcal}
@@ -904,7 +967,7 @@ export default function SotmPicker() {
                     c={c}
                     shiftStartRaw={shiftStartRaw}
                     shiftEndRaw={shiftEndRaw}
-                    emptyMessage="No talks or shifts scheduled"
+                    emptyMessage="No events or extras scheduled"
                     saveNote={saveNote}
                     canWrite={canWrite}
                     onToggleFavorite={canFavorite ? toggleFavorite : null}
@@ -941,16 +1004,16 @@ export default function SotmPicker() {
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white dark:bg-[#1b2913] rounded-2xl p-2 max-w-sm w-full shadow-2xl">
+          <div className="bg-[#fffaf2] dark:bg-[#1e1a12] rounded-2xl p-2 max-w-sm w-full shadow-2xl">
             <h3 className={`text-xl font-black mb-0.5 ${c.bodyText}`}>Add friend?</h3>
             <p className={`font-bold mb-1.5 ${c.bodyText}`}>
-              This link wants to add <span className="text-[#2d6a8f]">@{friendConfirm}</span> to
+              This link wants to add <span className="text-[#d95931]">@{friendConfirm}</span> to
               your crew. You'll see each other's schedules.
             </p>
             <div className="flex gap-[3px] justify-end flex-wrap">
               <button
                 onClick={declineAddFriend}
-                className="py-1 px-2 font-bold rounded-2xl bg-white dark:bg-[#161c12] text-[#2b3a24] dark:text-[#e9f0e3] border border-black/10 dark:border-white/20 hover:opacity-90 transition-all"
+                className="py-1 px-2 font-bold rounded-2xl bg-[#efe4cf] dark:bg-[#1e1a12] text-[#3a2f28] dark:text-[#f0e9df] border border-black/10 dark:border-white/20 hover:opacity-90 transition-all"
               >
                 Not now
               </button>

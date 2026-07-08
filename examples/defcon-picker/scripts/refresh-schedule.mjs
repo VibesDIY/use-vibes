@@ -12,7 +12,7 @@
 // access.js routes unknown doc types to an unreadable channel, so the chunks
 // are writable by the signed-in owner and invisible to clients — backend-only.
 //
-// Usage: node vibes/defcon-picker/scripts/refresh-schedule.mjs
+// Usage: node examples/defcon-picker/scripts/refresh-schedule.mjs
 // (needs a vibes-diy CLI login that owns calendar/defcon-picker)
 
 import { execFileSync } from 'node:child_process';
