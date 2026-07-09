@@ -2,10 +2,15 @@
 // side-meetings board.
 //
 // GET  /_api/side-meetings
-//   → 200 application/json — a pass-through of https://sidemeetings.ietf.org/_data
-//   (module-cached ~10m, stale-served on upstream failure). The board has no
-//   CORS headers, so the app can't fetch it from the iframe; this proxy is the
-//   only reason the Side Meetings lane can exist client-side.
+//   → 200 application/json — the sidemeetings.ietf.org/_data board. The board
+//   has no CORS headers, so the app can't fetch it from the iframe; this proxy
+//   is the only reason the Side Meetings lane can exist client-side. AND the
+//   board 403s this platform's worker egress outright (IP/ASN-level — browser
+//   headers don't help; verified 2026-07-09), so the data actually comes from
+//   `side-snapshot` chunk docs written owner-side by the vibes.diy repo's
+//   scripts/vibe-ops/refresh-ietf-side-meetings.mjs and assembled by the
+//   scheduled tick. The direct upstream fetch is kept as the fast path in case
+//   the block is ever lifted.
 // POST /_api/faves.ics  { items: [{ id, title, start, end, location?, url? }] }
 //   → 200 text/calendar attachment (ietf126-faves.ics) — one-shot download of
 //   whatever the client sends (works for anonymous local-only faves too).
@@ -255,6 +260,37 @@ export async function scheduled(event, ctx) {
     if (!users.has(key)) users.set(key, { eventIds: [], shifts: [] });
     return users.get(key);
   };
+  // Assemble the side-meetings snapshot from its chunk docs (written owner-side
+  // by the vibes.diy repo's scripts/vibe-ops/refresh-ietf-side-meetings.mjs;
+  // the board 403s this isolate's egress). Chunks join in seq order, and only a
+  // COMPLETE set (all `total` present, one fetchedAt) replaces the previous
+  // snapshot — a half-written refresh must not produce truncated JSON. The _id
+  // check is defense-in-depth on top of access.js's owner-only rule for this
+  // type: only docs at the canonical chunk ids participate, so a stray doc that
+  // merely carries the type can never displace a chunk.
+  const sideChunks = docs
+    .filter(
+      (d) =>
+        d &&
+        d.type === 'side-snapshot' &&
+        typeof d.body === 'string' &&
+        Number.isInteger(d.seq) &&
+        d._id === `side-snapshot-${d.seq}`
+    )
+    .sort((a, b) => a.seq - b.seq);
+  if (sideChunks.length > 0) {
+    const total = sideChunks[0].total;
+    const fetchedAt = sideChunks[0].fetchedAt;
+    const complete =
+      Number.isInteger(total) &&
+      sideChunks.length === total &&
+      sideChunks.every((c, i) => c.seq === i && c.total === total && c.fetchedAt === fetchedAt);
+    if (complete)
+      sideDbSnapshot = {
+        at: Date.parse(fetchedAt) || Date.now(),
+        body: sideChunks.map((c) => c.body).join(''),
+      };
+  }
   for (const d of docs) {
     if (!d || !d.userId) continue;
     if (d.type === 'caltoken') {
@@ -346,39 +382,49 @@ export const SIDE_MEETINGS_DATA_URL = 'https://sidemeetings.ietf.org/_data';
 const SIDE_MEETINGS_URL = 'https://sidemeetings.ietf.org/';
 const SIDE_CACHE_MS = 10 * 60 * 1000;
 
-// Module-level cache shared by the proxy GET and the subscription join. On
-// upstream failure a stale copy beats an outage: the proxy keeps serving the
-// lane, and the subscription keeps a user's side picks in their calendar
-// instead of silently deleting them from every subscribed client.
-let sideCache = null;
+// Raw board JSON TEXT in module state, shared by the proxy GET and the
+// subscription join. Two layers: `sideCache` holds the last successful direct
+// fetch (fast path, currently always blocked), `sideDbSnapshot` holds the
+// owner-written snapshot assembled from `side-snapshot` chunk docs by the
+// scheduled tick — in practice the only layer that ever has data. A stale copy
+// always beats an outage: the proxy keeps serving the lane, and the
+// subscription keeps a user's side picks in their calendar instead of silently
+// deleting them from every subscribed client.
+let sideCache = null; // { at, body }
+let sideDbSnapshot = null; // { at, body }
 export const __resetSideCacheForTests = () => {
   sideCache = null;
+  sideDbSnapshot = null;
 };
 
-const fetchSideData = async () => {
-  if (sideCache && Date.now() - sideCache.at < SIDE_CACHE_MS) return sideCache.data;
+const fetchSideText = async () => {
+  const now = Date.now();
+  if (sideCache !== null && now - sideCache.at < SIDE_CACHE_MS) return sideCache.body;
   try {
     const res = await globalThis.fetch(SIDE_MEETINGS_DATA_URL, {
       headers: { accept: 'application/json' },
     });
     if (!res.ok) throw new Error(`side meetings feed ${res.status}`);
-    const data = await res.json();
-    sideCache = { at: Date.now(), data };
-    return data;
+    const body = await res.text();
+    sideCache = { at: now, body };
+    return body;
   } catch (err) {
-    if (sideCache) return sideCache.data;
+    if (sideDbSnapshot !== null) return sideDbSnapshot.body;
+    if (sideCache !== null) return sideCache.body;
     throw err;
   }
 };
 
 const handleSideMeetings = async () => {
-  let data;
+  let body;
   try {
-    data = await fetchSideData();
+    body = await fetchSideText();
   } catch (err) {
+    // Surface the upstream failure — a bare 502 with no cause makes egress
+    // problems undiagnosable.
     return textResponse(502, `side meetings feed unavailable — try again later (${err.message})`);
   }
-  return new Response(JSON.stringify(data), {
+  return new Response(body, {
     status: 200,
     headers: {
       'content-type': 'application/json; charset=utf-8',
@@ -392,7 +438,7 @@ const handleSideMeetings = async () => {
 // (canceled/rebooked) drops out of the join silently, same as a canceled session.
 export const sideMeetingItems = async (ids) => {
   const wanted = new Set(ids);
-  const data = await fetchSideData();
+  const data = JSON.parse(await fetchSideText());
   const bookings = Array.isArray(data?.bookings) ? data.bookings : [];
   const items = [];
   for (const b of bookings) {
