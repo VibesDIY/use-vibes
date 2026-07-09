@@ -118,15 +118,24 @@ through Friday 2026-07-24 with the 4 AM night cutoff.
 
 The Side Meetings lane comes from `https://sidemeetings.ietf.org/_data`
 (`{ meeting, rooms, bookings }`) — community-organized meetings that are NOT in
-the datatracker agenda. Two things differ from the agenda feed:
+the datatracker agenda. Three things differ from the agenda feed:
 
 - **No CORS headers** on `/_data`, so the app cannot fetch it from the iframe.
-  `backend.js` proxies it at `GET /_api/side-meetings` (module cache ~10 min,
-  stale-served on upstream failure); the client caches the proxy response in
-  `localStorage` for 10 minutes like the agenda.
+  `backend.js` serves it at `GET /_api/side-meetings`; the client caches the
+  response in `localStorage` for 10 minutes like the agenda.
+- **The board 403s the platform's worker egress** (IP/ASN-level, browser headers
+  don't help — verified 2026-07-09, same class as DEF CON's `info.defcon.org`).
+  So the endpoint actually serves an owner-written **db snapshot**: the vibes.diy
+  repo's `scripts/vibe-ops/refresh-ietf-side-meetings.mjs` (run where the
+  upstream IS reachable — an agent container, a laptop, a Routine) writes the raw
+  `/_data` JSON into the `ietf126` db as owner-gated `side-snapshot` chunk docs,
+  and the backend's 1-minute scheduled tick assembles a COMPLETE chunk set into
+  module state. The direct upstream fetch is kept as the fast path in case the
+  block ever lifts. A refresh Routine keeps the snapshot current through the
+  meeting; disable it after IETF 126 ends (July 24).
 - **No meeting number in the URL** — the board always serves the _current_
-  meeting. At the IETF 127 swap, verify the board has flipped before shipping
-  (a 126 board on a 127 app would show last meeting's side meetings).
+  meeting. The refresher refuses to write a snapshot whose `meeting.meetingNumber`
+  isn't 126; at the IETF 127 swap, update that check alongside `MEETING_NUMBER`.
 
 `flattenSideMeetings` maps bookings into the same event shape as sessions with
 `eventId: "side-<booking id>"` (prefixed — booking ids and `session_id`s are both

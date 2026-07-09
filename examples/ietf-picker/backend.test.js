@@ -621,6 +621,56 @@ describe('fetch handler — GET /side-meetings (the board proxy)', () => {
     expect(res.status).toBe(405);
     expect(res.headers.get('allow')).toBe('GET');
   });
+
+  // The production path: sidemeetings.ietf.org 403s the worker egress outright,
+  // so the board really comes from owner-written `side-snapshot` chunk docs
+  // assembled by the scheduled tick.
+  const sideBody = JSON.stringify(SIDE_FEED);
+  const half = Math.ceil(sideBody.length / 2);
+  const SNAP_CHUNKS = [sideBody.slice(0, half), sideBody.slice(half)].map((chunk, seq) => ({
+    _id: `side-snapshot-${seq}`,
+    type: 'side-snapshot',
+    seq,
+    total: 2,
+    fetchedAt: '2026-07-09T18:00:00Z',
+    body: chunk,
+  }));
+  const blockedUpstream = () => {
+    const spy = vi.fn(async (url) =>
+      String(url).includes('sidemeetings')
+        ? new Response('blocked', { status: 403 })
+        : new Response(JSON.stringify(FEED), { status: 200 })
+    );
+    vi.stubGlobal('fetch', spy);
+    return spy;
+  };
+  const tickWith = (docs) =>
+    scheduled({ scheduledTime: '2026-07-09T18:05:00Z' }, { db: { query: async () => docs } });
+
+  it('serves the owner-written db snapshot when the upstream blocks egress (the real path)', async () => {
+    __resetSubCacheForTests();
+    blockedUpstream();
+    await tickWith(SNAP_CHUNKS);
+    const res = await icsFetch(req('/side-meetings'), {});
+    expect(res.status).toBe(200);
+    expect((await res.json()).bookings[0].title).toBe('AUDIT charter discussion');
+  });
+
+  it('never assembles an incomplete chunk set — half a refresh must not serve truncated JSON', async () => {
+    __resetSubCacheForTests();
+    blockedUpstream();
+    await tickWith([SNAP_CHUNKS[0]]); // seq 1 of 2 missing
+    const res = await icsFetch(req('/side-meetings'), {});
+    expect(res.status).toBe(502);
+    expect(await res.text()).toContain('side meetings feed 403');
+  });
+
+  it('ignores chunk docs not at their canonical _id (poisoning defense-in-depth)', async () => {
+    __resetSubCacheForTests();
+    blockedUpstream();
+    await tickWith(SNAP_CHUNKS.map((c) => ({ ...c, _id: `evil-${c.seq}` })));
+    expect((await icsFetch(req('/side-meetings'), {})).status).toBe(502);
+  });
 });
 
 describe('subscription lane — side-meeting picks join against the board', () => {
@@ -677,5 +727,34 @@ describe('subscription lane — side-meeting picks join against the board', () =
     const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {});
     expect(res.status).toBe(502);
     expect(await res.text()).toContain('side meetings feed unavailable');
+  });
+
+  it('joins side picks against the db snapshot when the board blocks egress (the real path)', async () => {
+    const sideBody = JSON.stringify(SIDE_FEED);
+    const snap = {
+      _id: 'side-snapshot-0',
+      type: 'side-snapshot',
+      seq: 0,
+      total: 1,
+      fetchedAt: '2026-07-09T18:00:00Z',
+      body: sideBody,
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url) =>
+        String(url).includes('sidemeetings')
+          ? new Response('blocked', { status: 403 })
+          : new Response(JSON.stringify(FEED), { status: 200 })
+      )
+    );
+    await scheduled(
+      { scheduledTime: '2026-07-09T18:05:00Z' },
+      { db: { query: async () => [...SIDE_DOCS, snap] } }
+    );
+    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {});
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain('SUMMARY:AUDIT charter discussion');
+    expect(body).toContain('SUMMARY:Bidirectional Forwarding Detection');
   });
 });

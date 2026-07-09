@@ -62,6 +62,31 @@ describe('access.js — super grants (owner only)', () => {
   });
 });
 
+describe('access.js — side-meetings snapshot chunks (owner only)', () => {
+  it('the owner writes snapshot chunks into an internal channel with no grant', () => {
+    const { ok } = run(
+      { _id: 'side-snapshot-0', type: 'side-snapshot', seq: 0, total: 1, body: '{}' },
+      null,
+      { userHandle: 'calendar', isOwner: true }
+    );
+    expect(ok.channels).toEqual(['snapshot-internal']);
+    expect(ok.grant).toEqual({});
+  });
+
+  it('a non-owner cannot write (or overwrite) a snapshot chunk — no board poisoning', () => {
+    expect(
+      run({ _id: 'side-snapshot-0', type: 'side-snapshot', seq: 0, body: '{}' }, null, alice)
+    ).toEqual({ forbidden: 'owner only' });
+    expect(
+      run(
+        { _id: 'side-snapshot-0', type: 'side-snapshot', seq: 0, body: 'poison' },
+        { type: 'side-snapshot', seq: 0, body: '{}' },
+        alice
+      )
+    ).toEqual({ forbidden: 'owner only' });
+  });
+});
+
 describe('access.js — guards', () => {
   it('requires a signed-in user', () => {
     expect(run({ type: 'favorite', userId: 'alice', eventId: '1' }, null, null)).toEqual({
