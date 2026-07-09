@@ -280,7 +280,11 @@ async function bskyThumbBytes(req, images) {
       error: `thumb fetch not an image (${detail}, content-type: ${contentType || 'none'})`,
     };
   }
-  return { bytes: new Uint8Array(await img.arrayBuffer()), mimeType: contentType };
+  try {
+    return { bytes: new Uint8Array(await img.arrayBuffer()), mimeType: contentType };
+  } catch (e) {
+    return { error: `thumb body read: ${String((e && e.message) || e)}` };
+  }
 }
 
 // The paste is `identifier:app-password`. App passwords are
@@ -675,17 +679,32 @@ async function advanceRequest(ctx, req, t) {
       if (body.error) return save({ status: 'error', error: body.error });
       const s = await bskySession(ctx, t);
       if (!s.accessJwt) return fail(s.r, 'bsky session');
-      // Best-effort card thumbnail: a failed decode/fetch/upload must not block
-      // the post, so on error we log and fall back to the imageless text+link
-      // card. Bytes come from thumbBase64 (or an images[0] URL fallback).
+      // Best-effort card thumbnail: NOTHING here may block the post. The whole
+      // block is wrapped so an unexpected throw (a body-read rejection, an
+      // oplog write that fails) degrades to the imageless text+link card
+      // instead of bubbling to the outer catch and terminal-erroring the post.
+      // Bytes come from thumbBase64 (or an images[0] URL fallback).
       if (req.thumbBase64 || images[0]) {
-        const src = await bskyThumbBytes(req, images);
-        if (src.bytes) {
-          const up = await bskyUploadBlobBytes(src.bytes, src.mimeType, s.accessJwt);
-          if (up.blob) body.record.embed.external.thumb = up.blob;
-          else await log(ctx, { op: 'bsky-thumb-skipped', slug: req.slug, error: up.error });
-        } else {
-          await log(ctx, { op: 'bsky-thumb-skipped', slug: req.slug, error: src.error });
+        try {
+          const src = await bskyThumbBytes(req, images);
+          if (src.bytes) {
+            const up = await bskyUploadBlobBytes(src.bytes, src.mimeType, s.accessJwt);
+            if (up.blob) body.record.embed.external.thumb = up.blob;
+            else await log(ctx, { op: 'bsky-thumb-skipped', slug: req.slug, error: up.error });
+          } else {
+            await log(ctx, { op: 'bsky-thumb-skipped', slug: req.slug, error: src.error });
+          }
+        } catch (e) {
+          // Even the skip-logging is best-effort — swallow so the post proceeds.
+          try {
+            await log(ctx, {
+              op: 'bsky-thumb-skipped',
+              slug: req.slug,
+              error: `thumb path threw: ${String((e && e.message) || e)}`,
+            });
+          } catch {
+            /* give up on logging; the post must still go out */
+          }
         }
       }
       const r = await bskyFetch('com.atproto.repo.createRecord', {

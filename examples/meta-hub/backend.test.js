@@ -767,6 +767,129 @@ describe('scheduled — shared-path invariants (ig/threads/fbpage parity)', () =
     expect(ctx.dbs.oplog.some((d) => d.op === 'bsky-thumb-skipped')).toBe(true);
   });
 
+  it('bsky posts WITHOUT a thumb when reading the image body throws (best-effort, no bubble)', async () => {
+    let sentRecord = null;
+    routedFetch([
+      META_PROBE_LIVE,
+      LI_LANE_LIVE,
+      [
+        'com.atproto.server.refreshSession',
+        () => json({ accessJwt: 'A2', refreshJwt: 'R2', did: 'did:plc:abc', handle: 'vibes.diy' }),
+      ],
+      // fetch resolves with image headers, but the BODY read rejects mid-stream
+      [
+        'good.vibes.diy',
+        () => ({
+          ok: true,
+          status: 200,
+          headers: { get: (k) => (k === 'content-type' ? 'image/jpeg' : null) },
+          arrayBuffer: () => Promise.reject(new Error('stream broke')),
+        }),
+      ],
+      [
+        'com.atproto.repo.createRecord',
+        (url, init) => {
+          sentRecord = JSON.parse(init.body);
+          return json({ uri: 'at://did:plc:abc/app.bsky.feed.post/3kTHROW', cid: 'x' });
+        },
+      ],
+    ]);
+    const ctx = mockCtx({
+      vault: [
+        {
+          _id: 'token-bsky',
+          kind: 'token',
+          platform: 'bsky',
+          token: 'vibes.diy:abcd-efgh-ijkl-mnop',
+          igUserId: 'did:plc:abc',
+          username: 'vibes.diy',
+          refreshJwt: 'R1',
+          accessJwt: 'A1',
+          refreshedAt: daysAgo(1),
+        },
+      ],
+      requests: [
+        {
+          _id: 'r-bsky',
+          kind: 'publish-request',
+          platform: 'bsky',
+          slug: 's',
+          images: ['https://good.vibes.diy/images/blog/s/card.jpg'],
+          caption: 'hook https://x.example/blog/s?src=bsky',
+          title: 'T',
+          status: 'pending',
+          attempts: 0,
+        },
+      ],
+    });
+    await scheduled({}, ctx);
+    const r = ctx.dbs.requests.find((d) => d._id === 'r-bsky');
+    expect(r.status).toBe('done'); // NOT errored
+    expect(sentRecord.record.embed.external.thumb).toBeUndefined();
+    expect(ctx.dbs.oplog.some((d) => d.op === 'bsky-thumb-skipped')).toBe(true);
+  });
+
+  it('bsky posts even if the skip-logging itself throws (thumb path is fully swallowed)', async () => {
+    let sentRecord = null;
+    routedFetch([
+      META_PROBE_LIVE,
+      LI_LANE_LIVE,
+      [
+        'com.atproto.server.refreshSession',
+        () => json({ accessJwt: 'A2', refreshJwt: 'R2', did: 'did:plc:abc', handle: 'vibes.diy' }),
+      ],
+      [
+        'good.vibes.diy',
+        () => json({ vibesEgressDenied: true, gate: 'floor', host: 'good.vibes.diy' }, 403),
+      ],
+      [
+        'com.atproto.repo.createRecord',
+        (url, init) => {
+          sentRecord = JSON.parse(init.body);
+          return json({ uri: 'at://did:plc:abc/app.bsky.feed.post/3kLOG', cid: 'x' });
+        },
+      ],
+    ]);
+    const ctx = mockCtx({
+      vault: [
+        {
+          _id: 'token-bsky',
+          kind: 'token',
+          platform: 'bsky',
+          token: 'vibes.diy:abcd-efgh-ijkl-mnop',
+          igUserId: 'did:plc:abc',
+          username: 'vibes.diy',
+          refreshJwt: 'R1',
+          accessJwt: 'A1',
+          refreshedAt: daysAgo(1),
+        },
+      ],
+      requests: [
+        {
+          _id: 'r-bsky',
+          kind: 'publish-request',
+          platform: 'bsky',
+          slug: 's',
+          images: ['https://good.vibes.diy/images/blog/s/card.jpg'],
+          caption: 'hook https://x.example/blog/s?src=bsky',
+          title: 'T',
+          status: 'pending',
+          attempts: 0,
+        },
+      ],
+    });
+    // Make ONLY the thumb-skip oplog write blow up, to exercise the swallow.
+    const origPut = ctx.db.put;
+    ctx.db.put = async (doc, opts) => {
+      if (opts.db === 'oplog' && doc.op === 'bsky-thumb-skipped') throw new Error('oplog down');
+      return origPut(doc, opts);
+    };
+    await scheduled({}, ctx);
+    const r = ctx.dbs.requests.find((d) => d._id === 'r-bsky');
+    expect(r.status).toBe('done'); // logging failure did not sink the post
+    expect(sentRecord.record.embed.external.thumb).toBeUndefined();
+  });
+
   it('a batch of bsky requests in one tick shares ONE session mint — no stale refresh JWT replay', async () => {
     let refreshes = 0;
     const calls = routedFetch([

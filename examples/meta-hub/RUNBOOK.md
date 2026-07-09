@@ -112,7 +112,7 @@ bullets). Five platforms publish:
   URL, `title` (falls back to slug), optional `description`. Nothing is
   scraped, so Bluesky renders the card **imageless unless you supply a
   thumbnail**. Supply it by embedding the image bytes in the request as
-  **`thumbBase64`** (base64 of the JPEG/PNG, ≤1,000,000 decoded bytes) plus
+  **`thumbBase64`** (base64 of the JPEG/PNG, ≤1,000,000 decoded bytes (Bluesky's blob cap)) plus
   optional `thumbMime` (default `image/jpeg`); the backend decodes it and
   uploads it as a blob (`com.atproto.repo.uploadBlob`), attaching it as the
   card thumb. **Why bytes and not a URL:** the backend **cannot fetch our card
