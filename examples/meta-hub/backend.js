@@ -879,6 +879,24 @@ export async function scheduled(event, ctx) {
   // steady-state hold costs no writes).
   const actionable = [];
   for (const req of reqs) {
+    // Scheduled posts: a request may carry a `postAt` ISO timestamp. Hold it
+    // — before any token/egress check, so a scheduled post can't terminal-
+    // error on a transient token gap before its time — until that moment
+    // arrives, so a backlog can be spaced out instead of draining 3-per-tick
+    // all at once. An unparseable postAt (NaN) is treated as "due now" so a
+    // typo can't wedge a post forever. heldReason is cleared when the request
+    // becomes actionable (see the actionable.push below).
+    const postAtMs = req.postAt ? new Date(req.postAt).getTime() : NaN;
+    if (Number.isFinite(postAtMs) && postAtMs > Date.now()) {
+      const held = `scheduled for ${req.postAt}`;
+      if (req.heldReason !== held) {
+        await ctx.db.put(
+          { ...req, heldReason: held, updatedAt: new Date().toISOString() },
+          { db: 'requests' }
+        );
+      }
+      continue;
+    }
     const t = fresh.find((x) => x.platform === (req.platform || 'ig'));
     if (!t || !t.token) {
       await ctx.db.put(

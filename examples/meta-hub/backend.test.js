@@ -695,6 +695,146 @@ describe('scheduled — shared-path invariants (ig/threads/fbpage parity)', () =
     expect(ctx.dbs.vault.find((d) => d._id === 'token-bsky').refreshJwt).toBe('R9');
   });
 
+  it('holds a request whose postAt is in the future — no publish, heldReason names the time', async () => {
+    const calls = routedFetch([
+      META_PROBE_LIVE,
+      LI_LANE_LIVE,
+      // must NOT be reached
+      [
+        'com.atproto.repo.createRecord',
+        () => json({ uri: 'at://did:plc:abc/app.bsky.feed.post/3kNOPE', cid: 'x' }),
+      ],
+    ]);
+    const postAt = new Date(Date.now() + 3600_000).toISOString();
+    const ctx = mockCtx({
+      vault: [
+        {
+          _id: 'token-bsky',
+          kind: 'token',
+          platform: 'bsky',
+          token: 'vibes.diy:abcd-efgh-ijkl-mnop',
+          igUserId: 'did:plc:abc',
+          username: 'vibes.diy',
+          refreshJwt: 'R1',
+          accessJwt: 'A1',
+          refreshedAt: daysAgo(0),
+        },
+      ],
+      requests: [
+        {
+          _id: 'r-bsky',
+          kind: 'publish-request',
+          platform: 'bsky',
+          slug: 's',
+          images: [],
+          caption: 'hook https://x.example/blog/s?src=bsky',
+          status: 'pending',
+          attempts: 0,
+          postAt,
+        },
+      ],
+    });
+    await scheduled({}, ctx);
+    const r = ctx.dbs.requests.find((d) => d._id === 'r-bsky');
+    expect(r.status).toBe('pending');
+    expect(r.heldReason).toBe(`scheduled for ${postAt}`);
+    expect(r.attempts).toBe(0); // never advanced
+    expect(calls.some((c) => c.url.includes('createRecord'))).toBe(false);
+  });
+
+  it('publishes a request once its postAt has passed', async () => {
+    routedFetch([
+      META_PROBE_LIVE,
+      LI_LANE_LIVE,
+      [
+        'com.atproto.server.refreshSession',
+        () => json({ accessJwt: 'A2', refreshJwt: 'R2', did: 'did:plc:abc', handle: 'vibes.diy' }),
+      ],
+      [
+        'com.atproto.repo.createRecord',
+        () => json({ uri: 'at://did:plc:abc/app.bsky.feed.post/3kYES', cid: 'x' }),
+      ],
+    ]);
+    const ctx = mockCtx({
+      vault: [
+        {
+          _id: 'token-bsky',
+          kind: 'token',
+          platform: 'bsky',
+          token: 'vibes.diy:abcd-efgh-ijkl-mnop',
+          igUserId: 'did:plc:abc',
+          username: 'vibes.diy',
+          refreshJwt: 'R1',
+          accessJwt: 'A1',
+          refreshedAt: daysAgo(1),
+        },
+      ],
+      requests: [
+        {
+          _id: 'r-bsky',
+          kind: 'publish-request',
+          platform: 'bsky',
+          slug: 's',
+          images: [],
+          caption: 'hook https://x.example/blog/s?src=bsky',
+          title: 'T',
+          status: 'pending',
+          attempts: 0,
+          postAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+      ],
+    });
+    await scheduled({}, ctx);
+    const r = ctx.dbs.requests.find((d) => d._id === 'r-bsky');
+    expect(r.status).toBe('done');
+    expect(r.permalink).toBe('https://bsky.app/profile/vibes.diy/post/3kYES');
+  });
+
+  it('treats an unparseable postAt as due now (a typo cannot wedge a post forever)', async () => {
+    routedFetch([
+      META_PROBE_LIVE,
+      LI_LANE_LIVE,
+      [
+        'com.atproto.server.refreshSession',
+        () => json({ accessJwt: 'A2', refreshJwt: 'R2', did: 'did:plc:abc', handle: 'vibes.diy' }),
+      ],
+      [
+        'com.atproto.repo.createRecord',
+        () => json({ uri: 'at://did:plc:abc/app.bsky.feed.post/3kTYPO', cid: 'x' }),
+      ],
+    ]);
+    const ctx = mockCtx({
+      vault: [
+        {
+          _id: 'token-bsky',
+          kind: 'token',
+          platform: 'bsky',
+          token: 'vibes.diy:abcd-efgh-ijkl-mnop',
+          igUserId: 'did:plc:abc',
+          username: 'vibes.diy',
+          refreshJwt: 'R1',
+          accessJwt: 'A1',
+          refreshedAt: daysAgo(1),
+        },
+      ],
+      requests: [
+        {
+          _id: 'r-bsky',
+          kind: 'publish-request',
+          platform: 'bsky',
+          slug: 's',
+          images: [],
+          caption: 'hook https://x.example/blog/s?src=bsky',
+          status: 'pending',
+          attempts: 0,
+          postAt: 'not-a-real-date',
+        },
+      ],
+    });
+    await scheduled({}, ctx);
+    expect(ctx.dbs.requests.find((d) => d._id === 'r-bsky').status).toBe('done');
+  });
+
   it('bsky 401 on createSession (revoked app password) flags re-auth and holds the request', async () => {
     routedFetch([
       META_PROBE_LIVE,
