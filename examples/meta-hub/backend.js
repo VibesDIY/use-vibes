@@ -207,6 +207,86 @@ async function bskyFetch(path, { method = 'GET', body, token } = {}) {
   return { ok: true, data };
 }
 
+// Bluesky's blob limit is 1,000,000 bytes; the branded card JPEGs are ~80KB.
+const BSKY_BLOB_MAX = 1_000_000;
+
+// POST raw image bytes to uploadBlob → { blob } or { error }. Best-effort: the
+// caller posts without a thumb on any error rather than failing the post.
+async function bskyUploadBlobBytes(bytes, mimeType, accessJwt) {
+  if (!bytes || bytes.length === 0) return { error: 'empty thumb bytes' };
+  if (bytes.length > BSKY_BLOB_MAX)
+    return { error: `thumb too big: ${bytes.length} bytes (max ${BSKY_BLOB_MAX})` };
+  let res;
+  try {
+    res = await fetch(`${HOSTS.bsky}/xrpc/com.atproto.repo.uploadBlob`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessJwt}`,
+        'content-type': mimeType || 'application/octet-stream',
+      },
+      body: bytes,
+    });
+  } catch (e) {
+    return { error: `uploadBlob transport: ${String((e && e.message) || e)}` };
+  }
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    data = {};
+  }
+  if (data && data.vibesEgressDenied)
+    return { error: `uploadBlob egress denied: ${data.gate || true}` };
+  if (!res.ok || !data.blob)
+    return { error: data.message || data.error || `uploadBlob HTTP ${res.status}` };
+  return { blob: data.blob };
+}
+
+// Get the card-thumbnail bytes for a request, or { error }. Bluesky never
+// scrapes the URL, so an external embed is imageless without an uploaded blob.
+// PRIMARY source is `thumbBase64` embedded in the doc — the backend CANNOT
+// fetch our card images: `*.vibes.diy` is on the egress FLOOR denylist (#3048,
+// SSRF prevention, beats every policy), so the queuer (which can read
+// good.vibes.diy) inlines the bytes. FALLBACK is a URL in `images[0]`, which
+// only works for non-floor, CORS-open hosts.
+async function bskyThumbBytes(req, images) {
+  if (req.thumbBase64) {
+    try {
+      const bytes = Uint8Array.from(atob(req.thumbBase64), (c) => c.charCodeAt(0));
+      return { bytes, mimeType: req.thumbMime || 'image/jpeg' };
+    } catch (e) {
+      return { error: `thumbBase64 decode: ${String((e && e.message) || e)}` };
+    }
+  }
+  if (!images[0]) return { error: 'no thumb source (thumbBase64 or images[0])' };
+  let img;
+  try {
+    img = await fetch(images[0]);
+  } catch (e) {
+    return { error: `thumb fetch transport: ${String((e && e.message) || e)}` };
+  }
+  const contentType = img.headers.get('content-type') || '';
+  // A denied egress fetch comes back as a JSON marker, not image bytes (a
+  // platform host hits the floor); an error page is also non-image.
+  if (!img.ok || !contentType.startsWith('image/')) {
+    let detail = `HTTP ${img.status}`;
+    try {
+      const j = await img.json();
+      if (j && j.vibesEgressDenied) detail = `egress denied: ${j.gate || true}`;
+    } catch {
+      /* not JSON — keep the HTTP-status detail */
+    }
+    return {
+      error: `thumb fetch not an image (${detail}, content-type: ${contentType || 'none'})`,
+    };
+  }
+  try {
+    return { bytes: new Uint8Array(await img.arrayBuffer()), mimeType: contentType };
+  } catch (e) {
+    return { error: `thumb body read: ${String((e && e.message) || e)}` };
+  }
+}
+
 // The paste is `identifier:app-password`. App passwords are
 // xxxx-xxxx-xxxx-xxxx (never a colon), while the identifier may be a handle,
 // an email, or a DID (`did:plc:...`) — so split on the LAST colon, which is
@@ -235,10 +315,11 @@ export function bskyLinkFacets(text) {
 }
 
 // Build the post record, or return { error } for a bad request doc. Like
-// LinkedIn, nothing is scraped: the website card (external embed) shows
-// exactly what the request carries. No thumb in v1 — that needs uploadBlob,
-// the same image dance deferred everywhere else.
-export function bskyPostRecord(req, createdAt) {
+// LinkedIn, nothing is scraped: the website card (external embed) shows exactly
+// what the request carries. Pass an uploaded `thumb` blob (from bskyUploadBlob)
+// to give the card an image — Bluesky renders the external embed imageless
+// without one.
+export function bskyPostRecord(req, createdAt, thumb) {
   const text = req.caption || '';
   const chars = [...text].length;
   if (chars > BSKY_MAX_TEXT) return { error: `bsky text is ${chars} chars (max ${BSKY_MAX_TEXT})` };
@@ -256,6 +337,7 @@ export function bskyPostRecord(req, createdAt) {
           uri: link,
           title: req.title || req.slug || link,
           description: req.description || '',
+          ...(thumb ? { thumb } : {}),
         },
       },
     },
@@ -589,19 +671,42 @@ async function advanceRequest(ctx, req, t) {
   }
   try {
     // Bluesky: synchronous — refresh-or-mint a session JWT, then one createRecord.
-    // Text + link facet + website-card embed only for now (thumb needs
-    // uploadBlob — the image dance is v2, same as LinkedIn).
+    // Text + link facet + website-card embed; `images[0]`, if present, becomes
+    // the card's thumbnail (uploaded as a blob). Extra images are ignored (the
+    // external embed carries a single thumb).
     if (platform === 'bsky') {
-      if (images.length > 0) {
-        return save({
-          status: 'error',
-          error: 'bsky is text+link-card only for now — image embeds need uploadBlob (v2)',
-        });
-      }
       const body = bskyPostRecord(req, new Date().toISOString());
       if (body.error) return save({ status: 'error', error: body.error });
       const s = await bskySession(ctx, t);
       if (!s.accessJwt) return fail(s.r, 'bsky session');
+      // Best-effort card thumbnail: NOTHING here may block the post. The whole
+      // block is wrapped so an unexpected throw (a body-read rejection, an
+      // oplog write that fails) degrades to the imageless text+link card
+      // instead of bubbling to the outer catch and terminal-erroring the post.
+      // Bytes come from thumbBase64 (or an images[0] URL fallback).
+      if (req.thumbBase64 || images[0]) {
+        try {
+          const src = await bskyThumbBytes(req, images);
+          if (src.bytes) {
+            const up = await bskyUploadBlobBytes(src.bytes, src.mimeType, s.accessJwt);
+            if (up.blob) body.record.embed.external.thumb = up.blob;
+            else await log(ctx, { op: 'bsky-thumb-skipped', slug: req.slug, error: up.error });
+          } else {
+            await log(ctx, { op: 'bsky-thumb-skipped', slug: req.slug, error: src.error });
+          }
+        } catch (e) {
+          // Even the skip-logging is best-effort — swallow so the post proceeds.
+          try {
+            await log(ctx, {
+              op: 'bsky-thumb-skipped',
+              slug: req.slug,
+              error: `thumb path threw: ${String((e && e.message) || e)}`,
+            });
+          } catch {
+            /* give up on logging; the post must still go out */
+          }
+        }
+      }
       const r = await bskyFetch('com.atproto.repo.createRecord', {
         method: 'POST',
         body: { repo: s.t.igUserId, collection: 'app.bsky.feed.post', record: body.record },
