@@ -1,5 +1,11 @@
-// IETF 126 Agenda Picker backend: serve faves schedules as .ics.
+// IETF 126 Agenda Picker backend: serve faves schedules as .ics, and proxy the
+// side-meetings board.
 //
+// GET  /_api/side-meetings
+//   → 200 application/json — a pass-through of https://sidemeetings.ietf.org/_data
+//   (module-cached ~10m, stale-served on upstream failure). The board has no
+//   CORS headers, so the app can't fetch it from the iframe; this proxy is the
+//   only reason the Side Meetings lane can exist client-side.
 // POST /_api/faves.ics  { items: [{ id, title, start, end, location?, url? }] }
 //   → 200 text/calendar attachment (ietf126-faves.ics) — one-shot download of
 //   whatever the client sends (works for anonymous local-only faves too).
@@ -334,6 +340,83 @@ export const fetchScheduleItems = async (ids) => {
   return items;
 };
 
+// ── Side-meetings proxy + join ───────────────────────────────────────────────
+
+export const SIDE_MEETINGS_DATA_URL = 'https://sidemeetings.ietf.org/_data';
+const SIDE_MEETINGS_URL = 'https://sidemeetings.ietf.org/';
+const SIDE_CACHE_MS = 10 * 60 * 1000;
+
+// Module-level cache shared by the proxy GET and the subscription join. On
+// upstream failure a stale copy beats an outage: the proxy keeps serving the
+// lane, and the subscription keeps a user's side picks in their calendar
+// instead of silently deleting them from every subscribed client.
+let sideCache = null;
+export const __resetSideCacheForTests = () => {
+  sideCache = null;
+};
+
+const fetchSideData = async () => {
+  if (sideCache && Date.now() - sideCache.at < SIDE_CACHE_MS) return sideCache.data;
+  try {
+    const res = await globalThis.fetch(SIDE_MEETINGS_DATA_URL, {
+      headers: { accept: 'application/json' },
+    });
+    if (!res.ok) throw new Error(`side meetings feed ${res.status}`);
+    const data = await res.json();
+    sideCache = { at: Date.now(), data };
+    return data;
+  } catch (err) {
+    if (sideCache) return sideCache.data;
+    throw err;
+  }
+};
+
+const handleSideMeetings = async () => {
+  let data;
+  try {
+    data = await fetchSideData();
+  } catch (err) {
+    return textResponse(502, `side meetings feed unavailable — try again later (${err.message})`);
+  }
+  return new Response(JSON.stringify(data), {
+    status: 200,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'public, max-age=300',
+    },
+  });
+};
+
+// Project favorited side-meeting ids (`side-<booking id>`) into ics items — the
+// side-board twin of fetchScheduleItems. A booking that vanished from the board
+// (canceled/rebooked) drops out of the join silently, same as a canceled session.
+export const sideMeetingItems = async (ids) => {
+  const wanted = new Set(ids);
+  const data = await fetchSideData();
+  const bookings = Array.isArray(data?.bookings) ? data.bookings : [];
+  const items = [];
+  for (const b of bookings) {
+    if (b === null || typeof b !== 'object' || !wanted.has(`side-${b.id}`)) continue;
+    const startDate = parseToDate(String(b.start ?? ''));
+    if (startDate === null) continue;
+    items.push({
+      id: `side-${b.id}`,
+      title: String(b.title || 'Side meeting'),
+      start: String(b.start),
+      end:
+        parseToDate(String(b.end ?? '')) !== null
+          ? String(b.end)
+          : new Date(startDate.getTime() + DEFAULT_SESSION_MS).toISOString(),
+      location: String(b.roomName || 'TBA'),
+      url:
+        typeof b.location === 'string' && /^https?:\/\//i.test(b.location)
+          ? b.location
+          : SIDE_MEETINGS_URL,
+    });
+  }
+  return items;
+};
+
 // Stable UID per item so re-importing an updated export replaces events instead
 // of duplicating them. The client keys items by doc identity (event-<eventId> /
 // shift-<_id>); fall back to title+start for a hand-rolled payload.
@@ -445,12 +528,25 @@ const handleSubscription = async (url) => {
   const cold = subCache === null;
   const handle = cold ? undefined : subCache.tokens.get(t);
   const entry = (handle && subCache.users.get(handle)) || { eventIds: [], shifts: [] };
+  // Side-meeting picks join against the side board, everything else against the
+  // agenda feed. Either upstream failing 502s the refresh (rather than serving
+  // a calendar with those events missing, which subscribed clients would treat
+  // as deletions) — the side board additionally rides its stale cache first.
+  const agendaIds = entry.eventIds.filter((id) => !id.startsWith('side-'));
+  const sideIds = entry.eventIds.filter((id) => id.startsWith('side-'));
   let eventItems = [];
-  if (entry.eventIds.length > 0) {
+  if (agendaIds.length > 0) {
     try {
-      eventItems = await fetchScheduleItems(entry.eventIds);
+      eventItems = await fetchScheduleItems(agendaIds);
     } catch (err) {
       return textResponse(502, 'agenda feed unavailable — try again later');
+    }
+  }
+  if (sideIds.length > 0) {
+    try {
+      eventItems = [...eventItems, ...(await sideMeetingItems(sideIds))];
+    } catch (err) {
+      return textResponse(502, 'side meetings feed unavailable — try again later');
     }
   }
   const shiftRows = entry.shifts.map((r, i) => ({
@@ -486,10 +582,16 @@ const handleSubscription = async (url) => {
 // The `_api` request arrives prefix-stripped (…/_api/faves.ics → /faves.ics).
 export async function fetch(request, ctx) {
   const url = new URL(request.url);
+  if (url.pathname === '/side-meetings') {
+    if (request.method === 'GET' || request.method === 'HEAD') return handleSideMeetings();
+    return textResponse(405, 'method not allowed — GET the side-meetings board', {
+      allow: 'GET',
+    });
+  }
   if (url.pathname !== '/faves.ics') {
     return textResponse(
       404,
-      'not found — /faves.ics (POST to download, GET ?t=<token> to subscribe)'
+      'not found — /faves.ics (POST to download, GET ?t=<token> to subscribe) or /side-meetings'
     );
   }
   if (request.method === 'GET' || request.method === 'HEAD') {

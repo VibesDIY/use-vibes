@@ -6,6 +6,9 @@ import {
   toMeetingDate,
   scheduleIcsItems,
   flattenAgenda,
+  flattenSideMeetings,
+  SIDE_MEETING_COLOR,
+  SIDE_MEETINGS_URL,
   AREA_COLORS,
   DEFAULT_AREA_COLOR,
 } from './festival-utils.js';
@@ -468,5 +471,78 @@ describe('scheduleIcsItems — flattening My Faves for the .ics backend', () => 
       shiftEnd,
     });
     expect(items.map((i) => i.id)).toEqual(['shift-ok']);
+  });
+});
+
+describe('flattenSideMeetings — the sidemeetings.ietf.org /_data board', () => {
+  const SIDE_DATA = {
+    meeting: { meetingNumber: '126', timezone: 'Europe/Vienna' },
+    rooms: [{ id: 1, title: 'Park Suite 4' }],
+    bookings: [
+      {
+        id: 21758539,
+        roomId: 1,
+        roomName: 'Park Suite 4',
+        title: 'Coherent Pluggable CCAMP meeting',
+        description: 'Weekly modeling and gap analysis',
+        start: '2026-07-21T07:00:00.000Z',
+        end: '2026-07-21T08:00:00.000Z',
+        location: 'https://ietf.webex.com/meet/sidemeetings1',
+        organizerName: 'Reza',
+        areas: ['RTG'],
+      },
+      {
+        id: 2,
+        roomName: 'Grand Klimt Hall 3',
+        title: 'In-person only meetup',
+        start: '2026-07-20T15:00:00.000Z',
+        end: '2026-07-20T16:00:00.000Z',
+        location: 'meet at the room', // not a URL — no remote link
+        organizerName: '',
+      },
+      { id: 3, title: '   ', start: '2026-07-21T15:00:00.000Z', end: '2026-07-21T16:00:00.000Z' },
+      { id: 4, title: 'Bad start', start: 'junk', end: '2026-07-21T16:00:00.000Z' },
+      { id: 5, title: 'No end stamped', roomName: 'R', start: '2026-07-22T15:00:00.000Z' },
+    ],
+  };
+  const flat = flattenSideMeetings(SIDE_DATA);
+
+  it('prefixes booking ids so they can never collide with datatracker session_ids', () => {
+    expect(flat.map((m) => m.eventId)).toContain('side-21758539');
+    expect(flat.every((m) => m.eventId.startsWith('side-'))).toBe(true);
+  });
+  it('drops blank-title and unparseable-start bookings, keeps the rest', () => {
+    expect(flat.map((m) => m.eventId).sort()).toEqual(['side-2', 'side-21758539', 'side-5']);
+  });
+  it('marks the lane: isSide, the teal side chip, organizer and areas carried through', () => {
+    const m = flat.find((x) => x.eventId === 'side-21758539');
+    expect(m.isSide).toBe(true);
+    expect(m.lineup).toEqual({ id: 'side', color: SIDE_MEETING_COLOR });
+    expect(m.organizer).toBe('Reza');
+    expect(m.areas).toEqual(['RTG']);
+    expect(m.venueTitle).toBe('Park Suite 4');
+  });
+  it('uses the remote-participation link as the url when it is a real URL, else the board', () => {
+    expect(flat.find((x) => x.eventId === 'side-21758539').url).toBe(
+      'https://ietf.webex.com/meet/sidemeetings1'
+    );
+    expect(flat.find((x) => x.eventId === 'side-2').url).toBe(SIDE_MEETINGS_URL);
+  });
+  it('groups by the Vienna meeting day (feed stamps UTC)', () => {
+    expect(flat.find((x) => x.eventId === 'side-21758539').day).toBe('Tuesday'); // 09:00 CEST
+    expect(flat.find((x) => x.eventId === 'side-2').day).toBe('Monday'); // 17:00 CEST
+  });
+  it('defaults a missing end to a nominal hour so the meeting stays on the board', () => {
+    const m = flat.find((x) => x.eventId === 'side-5');
+    expect(toMeetingDate(m.end).getTime() - toMeetingDate(m.start).getTime()).toBe(3600_000);
+  });
+  it('returns the board sorted by start', () => {
+    const times = flat.map((m) => toMeetingDate(m.start).getTime());
+    expect(times).toEqual([...times].sort((a, b) => a - b));
+  });
+  it('tolerates a malformed payload', () => {
+    expect(flattenSideMeetings(null)).toEqual([]);
+    expect(flattenSideMeetings({})).toEqual([]);
+    expect(flattenSideMeetings({ bookings: [null, 42] })).toEqual([]);
   });
 });
