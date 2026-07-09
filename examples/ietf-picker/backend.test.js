@@ -9,6 +9,8 @@ import {
   __resetSubCacheForTests,
   MAX_ITEMS,
   SCHEDULE_URL,
+  SIDE_MEETINGS_DATA_URL,
+  __resetSideCacheForTests,
   fetch as icsFetch,
 } from './backend.js';
 
@@ -529,5 +531,151 @@ describe('fetch handler — POST /faves.ics', () => {
   it('never needs ctx — works with an anonymous, ctx-less call', async () => {
     const res = await icsFetch(post({ items: items() }), undefined);
     expect(res.status).toBe(200);
+  });
+});
+
+// ── Side-meetings proxy + subscription join ──────────────────────────────────
+
+const SIDE_FEED = {
+  meeting: { meetingNumber: '126', timezone: 'Europe/Vienna' },
+  rooms: [{ id: 1, title: 'Park Suite 4' }],
+  bookings: [
+    {
+      id: 99,
+      roomId: 1,
+      roomName: 'Park Suite 4',
+      title: 'AUDIT charter discussion',
+      description: 'Draft charter for a proposed new group',
+      start: '2026-07-20T07:30:00.000Z',
+      end: '2026-07-20T09:30:00.000Z',
+      location: 'https://ietf.webex.com/meet/sidemeetings2',
+      organizerName: 'Mirja',
+      areas: ['SEC'],
+    },
+  ],
+};
+
+// URL-routing stub: the subscription join fetches BOTH upstreams.
+const routedFeeds = ({ agendaStatus = 200, sideStatus = 200 } = {}) => {
+  const spy = vi.fn(async (url) => {
+    if (String(url).includes('sidemeetings')) {
+      return new Response(JSON.stringify(SIDE_FEED), { status: sideStatus });
+    }
+    return new Response(JSON.stringify(FEED), { status: agendaStatus });
+  });
+  vi.stubGlobal('fetch', spy);
+  return spy;
+};
+
+describe('fetch handler — GET /side-meetings (the board proxy)', () => {
+  beforeEach(() => __resetSideCacheForTests());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('proxies the board JSON with a short shared cache (the board itself has no CORS)', async () => {
+    routedFeeds();
+    const res = await icsFetch(req('/side-meetings'), {});
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('application/json; charset=utf-8');
+    expect(res.headers.get('cache-control')).toBe('public, max-age=300');
+    const body = await res.json();
+    expect(body.bookings[0].title).toBe('AUDIT charter discussion');
+  });
+
+  it('serves from the module cache inside the TTL — one upstream fetch for many GETs', async () => {
+    const spy = routedFeeds();
+    await icsFetch(req('/side-meetings'), {});
+    await icsFetch(req('/side-meetings'), {});
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(SIDE_MEETINGS_DATA_URL, expect.anything());
+  });
+
+  it('serves the stale copy when a refresh past the TTL fails — an outage never empties the lane', async () => {
+    vi.useFakeTimers();
+    routedFeeds();
+    await icsFetch(req('/side-meetings'), {});
+    vi.setSystemTime(Date.now() + 11 * 60 * 1000); // past the 10m TTL
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('nope', { status: 500 }))
+    );
+    const res = await icsFetch(req('/side-meetings'), {});
+    expect(res.status).toBe(200);
+    expect((await res.json()).bookings[0].title).toBe('AUDIT charter discussion');
+  });
+
+  it('502s with a diagnostic when the upstream is down and there is no cache yet', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('nope', { status: 403 }))
+    );
+    const res = await icsFetch(req('/side-meetings'), {});
+    expect(res.status).toBe(502);
+    expect(await res.text()).toContain('side meetings feed 403');
+  });
+
+  it('405s non-GET methods', async () => {
+    const res = await icsFetch(req('/side-meetings', { method: 'POST' }), {});
+    expect(res.status).toBe(405);
+    expect(res.headers.get('allow')).toBe('GET');
+  });
+});
+
+describe('subscription lane — side-meeting picks join against the board', () => {
+  beforeEach(() => {
+    __resetSubCacheForTests();
+    __resetSideCacheForTests();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const SIDE_DOCS = [
+    { _id: 'favorite-alice-35438', type: 'favorite', userId: 'alice', eventId: 35438 },
+    { _id: 'favorite-alice-side99', type: 'favorite', userId: 'alice', eventId: 'side-99' },
+    // A side pick whose booking vanished from the board (canceled) — drops silently.
+    { _id: 'favorite-alice-side404', type: 'favorite', userId: 'alice', eventId: 'side-404' },
+    { _id: 'caltoken-alice', type: 'caltoken', userId: 'alice', token: 'alice-token-1234567890A' },
+  ];
+  const sideTick = () =>
+    scheduled({ scheduledTime: '2026-07-04T12:00:00Z' }, { db: { query: async () => SIDE_DOCS } });
+
+  it('merges agenda picks and side-meeting picks into one calendar', async () => {
+    const spy = routedFeeds();
+    await sideTick();
+    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {});
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain('SUMMARY:Bidirectional Forwarding Detection'); // agenda join
+    expect(body).toContain('SUMMARY:AUDIT charter discussion'); // side join
+    expect(body).toContain('LOCATION:Park Suite 4');
+    expect(body).toContain('URL:https://ietf.webex.com/meet/sidemeetings2');
+    expect(body).toContain('UID:side-99@ietf-picker.vibes.diy'); // stable across refreshes
+    expect(body).toContain('DTSTART:20260720T073000Z');
+    expect(body).not.toContain('side-404'); // vanished booking drops out of the join
+    const urls = spy.mock.calls.map((c) => String(c[0]));
+    expect(urls).toContain(SCHEDULE_URL);
+    expect(urls).toContain(SIDE_MEETINGS_DATA_URL);
+  });
+
+  it('side-only pickers never touch the agenda feed', async () => {
+    const spy = routedFeeds();
+    await scheduled(
+      { scheduledTime: '2026-07-04T12:00:00Z' },
+      { db: { query: async () => [SIDE_DOCS[1], SIDE_DOCS[3]] } }
+    );
+    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {});
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain('SUMMARY:AUDIT charter discussion');
+    const urls = spy.mock.calls.map((c) => String(c[0]));
+    expect(urls).toEqual([SIDE_MEETINGS_DATA_URL]);
+  });
+
+  it('502s (rather than silently deleting side picks from calendars) when the board is down uncached', async () => {
+    routedFeeds({ sideStatus: 500 });
+    await sideTick();
+    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {});
+    expect(res.status).toBe(502);
+    expect(await res.text()).toContain('side meetings feed unavailable');
   });
 });

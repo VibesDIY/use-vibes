@@ -6,9 +6,11 @@ import {
   MEETING_126,
   AGENDA_URL,
   MEETING_URL,
+  SIDE_MEETINGS_API,
   toMeetingDate,
   meetingDayFor,
   flattenAgenda,
+  flattenSideMeetings,
   sessionsOnNow,
   upNextSessions,
   fmtTime,
@@ -16,6 +18,7 @@ import {
 } from './festival-utils.js';
 import { c } from './styles.js';
 import ScheduleView from './ScheduleView.jsx';
+import SideMeetingsView from './SideMeetingsView.jsx';
 import GroupsView from './GroupsView.jsx';
 import NowView from './NowView.jsx';
 import BrowseView from './BrowseView.jsx';
@@ -113,6 +116,8 @@ export default function IetfAgendaPicker() {
   const canWrite = ready && signedIn && Boolean(can?.create?.({ type: 'shift', userId })?.ok);
 
   const [events, setEvents] = useState([]);
+  const [sideMeetings, setSideMeetings] = useState([]);
+  const [sideError, setSideError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -202,6 +207,7 @@ export default function IetfAgendaPicker() {
 
   useEffect(() => {
     fetchSchedule();
+    fetchSideMeetings();
   }, []);
 
   const getCached = () => {
@@ -250,6 +256,36 @@ export default function IetfAgendaPicker() {
   const ingest = (data) => {
     setEvents(flattenAgenda(data));
   };
+
+  // Side meetings come through the backend proxy (the board's /_data has no
+  // CORS), on the same cache-then-refresh pattern as the agenda. A failure only
+  // degrades the side lane — the agenda board must not care.
+  const fetchSideMeetings = async () => {
+    const cachedRaw = localStorage.getItem('ietf126-sidemtg-cache');
+    const cachedTs = +localStorage.getItem('ietf126-sidemtg-timestamp');
+    const cached = cachedRaw && cachedTs ? JSON.parse(cachedRaw) : null;
+    if (cached) {
+      setSideMeetings(flattenSideMeetings(cached));
+      if (Date.now() - cachedTs <= 600_000) return;
+    }
+    try {
+      const res = await fetch(SIDE_MEETINGS_API);
+      if (!res.ok) throw new Error(`side meetings ${res.status}`);
+      const data = await res.json();
+      localStorage.setItem('ietf126-sidemtg-cache', JSON.stringify(data));
+      localStorage.setItem('ietf126-sidemtg-timestamp', Date.now().toString());
+      setSideMeetings(flattenSideMeetings(data));
+      setSideError(null);
+    } catch (e) {
+      console.error(e);
+      setSideError(cached ? 'Using cached side meetings' : 'Failed to load the side meetings');
+    }
+  };
+
+  // Side meetings are first-class events downstream: favorites/notes key on the
+  // (side-prefixed) eventId, so My Faves, Now, the friends schedule, super-mode
+  // counts, and both ics lanes see one merged board.
+  const allEvents = useMemo(() => [...events, ...sideMeetings], [events, sideMeetings]);
 
   const getDateForDay = (day) => {
     // Prefer the meeting day's canonical calendar date. Since a day groups
@@ -356,11 +392,11 @@ export default function IetfAgendaPicker() {
         pickedBy.get(f.eventId).push(uid);
       }
     }
-    return events
+    return allEvents
       .filter((e) => pickedBy.has(e.eventId))
       .map((e) => (unified ? { ...e, pickedBy: pickedBy.get(e.eventId).sort() } : e))
       .sort((a, b) => toMeetingDate(a.start) - toMeetingDate(b.start));
-  }, [selectedFriend, allFavorites, events, followedHandles, includeMyFaves, userId]);
+  }, [selectedFriend, allFavorites, allEvents, followedHandles, includeMyFaves, userId]);
 
   const { docs: allShifts } = useLiveQuery('type', { key: 'shift' });
   const friendShifts = useMemo(() => {
@@ -379,7 +415,7 @@ export default function IetfAgendaPicker() {
   // it shouldn't show up in the picker or as an empty section.
   const displayDays = useMemo(() => {
     const present = new Set(
-      [...events.map((e) => e.day), ...shifts.map((s) => s.day)].filter(Boolean)
+      [...allEvents.map((e) => e.day), ...shifts.map((s) => s.day)].filter(Boolean)
     );
     const o = MEETING_126.dayOrder;
     return [...present].sort((a, b) => {
@@ -390,7 +426,7 @@ export default function IetfAgendaPicker() {
       if (bi === -1) return -1;
       return ai - bi;
     });
-  }, [events, shifts]);
+  }, [allEvents, shifts]);
 
   const {
     doc: shiftForm,
@@ -551,11 +587,14 @@ export default function IetfAgendaPicker() {
     return [...map.values()].sort((a, b) => a.acronym.localeCompare(b.acronym));
   }, [events]);
 
+  // Right Now / Up Next work off the merged board: a side meeting happening now
+  // is exactly what that tab is for.
   const nowSessions = useMemo(
-    () => sessionsOnNow(events, nowTick).sort((a, b) => a.venueTitle.localeCompare(b.venueTitle)),
-    [events, nowTick]
+    () =>
+      sessionsOnNow(allEvents, nowTick).sort((a, b) => a.venueTitle.localeCompare(b.venueTitle)),
+    [allEvents, nowTick]
   );
-  const nextSessions = useMemo(() => upNextSessions(events, nowTick), [events, nowTick]);
+  const nextSessions = useMemo(() => upNextSessions(allEvents, nowTick), [allEvents, nowTick]);
 
   const filteredEvents = useMemo(
     () =>
@@ -572,10 +611,10 @@ export default function IetfAgendaPicker() {
 
   const favoriteEvents = useMemo(
     () =>
-      events
+      allEvents
         .filter((e) => myFavIds.has(e.eventId))
         .sort((a, b) => toMeetingDate(a.start) - toMeetingDate(b.start)),
-    [events, myFavIds]
+    [allEvents, myFavIds]
   );
 
   // Super-mode peer picker: when a picker is selected, the favorites list must
@@ -585,10 +624,10 @@ export default function IetfAgendaPicker() {
     const ids = new Set(
       allFavorites.filter((f) => (f.userId || 'anonymous') === viewingUser).map((f) => f.eventId)
     );
-    return events
+    return allEvents
       .filter((e) => ids.has(e.eventId))
       .sort((a, b) => toMeetingDate(a.start) - toMeetingDate(b.start));
-  }, [viewingUser, userId, favoriteEvents, allFavorites, events]);
+  }, [viewingUser, userId, favoriteEvents, allFavorites, allEvents]);
 
   const makeSchedule = (day) => {
     const ev = favoriteEvents.filter((e) => meetingDayFor(e.start) === day);
@@ -690,9 +729,9 @@ export default function IetfAgendaPicker() {
 
         <div className={`${c.navBg} ${c.border} p-2`}>
           <div className="flex flex-wrap gap-[3px]">
-            {['now', 'browse', 'groups', 'favorites', 'friends', 'shifts', 'schedule']
+            {['now', 'browse', 'groups', 'side', 'favorites', 'friends', 'shifts', 'schedule']
               .filter((v) => {
-                if (v === 'now' || v === 'browse' || v === 'groups') return true;
+                if (v === 'now' || v === 'browse' || v === 'groups' || v === 'side') return true;
                 if (v === 'favorites') return superMode && canWrite; // super-mode peer picker
                 if (v === 'schedule') return canFavorite; // anon can view their own favorites schedule
                 return canWrite; // friends + extras need a real sign-in
@@ -706,6 +745,7 @@ export default function IetfAgendaPicker() {
                   {viewName === 'now' && `Now`}
                   {viewName === 'browse' && `All Sessions`}
                   {viewName === 'groups' && `Groups`}
+                  {viewName === 'side' && `Side Meetings`}
                   {viewName === 'favorites' && `Favorites (${myFavIds.size})`}
                   {viewName === 'friends' && `🙋‍♀️ Follows`}
                   {viewName === 'shifts' && `Extras`}
@@ -779,6 +819,25 @@ export default function IetfAgendaPicker() {
                   c={c}
                   database={database}
                   userId={userId}
+                />
+              )}
+
+              {view === 'side' && (
+                <SideMeetingsView
+                  sideMeetings={sideMeetings}
+                  sideError={sideError}
+                  retrySideMeetings={fetchSideMeetings}
+                  displayDays={displayDays}
+                  getDateForDay={getDateForDay}
+                  myFavIds={myFavIds}
+                  canWrite={canWrite}
+                  canFavorite={canFavorite}
+                  toggleFavorite={toggleFavorite}
+                  notes={notes}
+                  saveNote={saveNote}
+                  superMode={superMode}
+                  favCounts={favCounts}
+                  c={c}
                 />
               )}
 
@@ -894,7 +953,7 @@ export default function IetfAgendaPicker() {
                     canWrite={canWrite}
                     onToggleFavorite={canFavorite ? toggleFavorite : null}
                     myFavIds={myFavIds}
-                    allEvents={events}
+                    allEvents={allEvents}
                     showGaps={true}
                   />
                 </div>

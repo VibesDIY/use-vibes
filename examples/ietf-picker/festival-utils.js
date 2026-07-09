@@ -6,6 +6,14 @@ export const MEETING_TZ = 'Europe/Vienna';
 export const AGENDA_URL = `https://datatracker.ietf.org/meeting/${MEETING_NUMBER}/agenda.json`;
 export const MEETING_URL = `https://www.ietf.org/meeting/${MEETING_NUMBER}/`;
 
+// Community-organized side meetings live on their own board, NOT in the
+// datatracker agenda. sidemeetings.ietf.org always serves the CURRENT meeting's
+// data (no meeting number in the URL), and its /_data endpoint has no CORS
+// headers — so unlike the agenda the app can't fetch it directly; backend.js
+// proxies it at GET /_api/side-meetings.
+export const SIDE_MEETINGS_URL = 'https://sidemeetings.ietf.org/';
+export const SIDE_MEETINGS_API = '/_api/side-meetings';
+
 const hasExplicitTZ = (s) => /([+-]\d\d:\d\d|Z)$/.test(s);
 export const ensureT = (s = '') => (s.includes('T') ? s : s.replace(' ', 'T'));
 
@@ -193,6 +201,52 @@ export const flattenAgenda = (data) => {
     }
   }
   return list;
+};
+
+// Side meetings aren't IETF-area events, so they get their own lane color — a
+// teal no area uses — and the areas the organizer tagged ride along as chips.
+export const SIDE_MEETING_COLOR = '#0e7490';
+
+// sidemeetings.ietf.org /_data → the same event shape flattenAgenda emits, so
+// side meetings are first-class events everywhere downstream (hearts, My Faves,
+// the friends schedule, ics). eventIds are `side-<booking id>`: booking ids and
+// datatracker session_ids are both bare numbers, so the prefix keeps a favorite
+// on one from ever colliding with the other.
+export const flattenSideMeetings = (data) => {
+  const bookings = Array.isArray(data?.bookings) ? data.bookings : [];
+  const list = [];
+  for (const b of bookings) {
+    if (b === null || typeof b !== 'object' || b.id == null) continue;
+    const start = toMeetingDate(b.start);
+    if (isNaN(start)) continue;
+    const title = typeof b.title === 'string' && b.title.trim() !== '' ? b.title.trim() : '';
+    if (title === '') continue;
+    // The board stamps an end on every booking; if one ever arrives blank, a
+    // nominal hour keeps the meeting on the board (same rule as the agenda).
+    const end = isNaN(toMeetingDate(b.end))
+      ? new Date(start.getTime() + 60 * 60 * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z')
+      : b.end;
+    list.push({
+      eventId: `side-${b.id}`,
+      title,
+      start: b.start,
+      end,
+      // `location` is the remote-participation link (webex etc.) when the
+      // organizer provided one; the side-meetings board is the stable fallback.
+      url:
+        typeof b.location === 'string' && /^https?:\/\//i.test(b.location)
+          ? b.location
+          : SIDE_MEETINGS_URL,
+      venueTitle: b.roomName || 'TBA',
+      organizer: typeof b.organizerName === 'string' ? b.organizerName : '',
+      description: typeof b.description === 'string' ? b.description : '',
+      areas: Array.isArray(b.areas) ? b.areas.filter((a) => typeof a === 'string') : [],
+      isSide: true,
+      lineup: { id: 'side', color: SIDE_MEETING_COLOR },
+      day: meetingDayFor(b.start),
+    });
+  }
+  return list.sort((a, b) => toMeetingDate(a.start) - toMeetingDate(b.start));
 };
 
 // What's in session right now: started at/before `nowMs` and not yet ended. A session

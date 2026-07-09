@@ -114,14 +114,35 @@ and computes `end = start + duration` ("H:MM:SS" — the feed has no end timesta
 All times displayed in `Europe/Vienna`; meeting days run Saturday 2026-07-18
 through Friday 2026-07-24 with the 4 AM night cutoff.
 
+## Side meetings data
+
+The Side Meetings lane comes from `https://sidemeetings.ietf.org/_data`
+(`{ meeting, rooms, bookings }`) — community-organized meetings that are NOT in
+the datatracker agenda. Two things differ from the agenda feed:
+
+- **No CORS headers** on `/_data`, so the app cannot fetch it from the iframe.
+  `backend.js` proxies it at `GET /_api/side-meetings` (module cache ~10 min,
+  stale-served on upstream failure); the client caches the proxy response in
+  `localStorage` for 10 minutes like the agenda.
+- **No meeting number in the URL** — the board always serves the _current_
+  meeting. At the IETF 127 swap, verify the board has flipped before shipping
+  (a 126 board on a 127 app would show last meeting's side meetings).
+
+`flattenSideMeetings` maps bookings into the same event shape as sessions with
+`eventId: "side-<booking id>"` (prefixed — booking ids and `session_id`s are both
+bare numbers), so hearts/notes/My Faves/friends/super-mode all work unchanged.
+The ics subscription lane splits a user's picks and joins `side-*` ids against
+the board (`sideMeetingItems` in `backend.js`); a booking that disappears from
+the board drops out of the join like a canceled session.
+
 ## Common edits
 
-| Task                      | Where                                                                                                                                                            |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Point at the next meeting | `MEETING_NUMBER` + `MEETING_126.dates` in `festival-utils.js`; `MEETING_NUMBER` + `MEETING_DATES` + `ANCHOR_ITEMS` in `backend.js`; header subtitle in `App.jsx` |
-| Change area chip colors   | `AREA_COLORS` in `festival-utils.js`                                                                                                                             |
-| Add a new view/tab        | Add to the `["now", "browse", "groups", ...]` array in nav, add `{view === "newview" && ...}` section in the body                                                |
-| Change colors             | the `c` object in `styles.js`                                                                                                                                    |
+| Task                      | Where                                                                                                                                                                                                                                                 |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Point at the next meeting | `MEETING_NUMBER` + `MEETING_126.dates` in `festival-utils.js`; `MEETING_NUMBER` + `MEETING_DATES` + `ANCHOR_ITEMS` in `backend.js`; header subtitle in `App.jsx`; confirm sidemeetings.ietf.org has flipped to the new meeting (no number in its URL) |
+| Change area chip colors   | `AREA_COLORS` in `festival-utils.js`                                                                                                                                                                                                                  |
+| Add a new view/tab        | Add to the `["now", "browse", "groups", ...]` array in nav, add `{view === "newview" && ...}` section in the body                                                                                                                                     |
+| Change colors             | the `c` object in `styles.js`                                                                                                                                                                                                                         |
 
 ## Social migration (2026-07: friend docs → platform follow graph)
 
