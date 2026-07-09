@@ -10,6 +10,7 @@ import {
   decodeEntities,
   GENRE_COLORS,
   GENRE_DEFAULT_COLOR,
+  parseWorkshopsHtml,
 } from './festival-utils.js';
 
 // Everything is anchored through toFestivalDate so events and "now" share one frame.
@@ -378,5 +379,88 @@ describe('scheduleIcsItems — flattening My Faves for the .ics backend', () => 
       shiftEnd,
     });
     expect(items.map((i) => i.id)).toEqual(['shift-ok']);
+  });
+});
+
+describe('parseWorkshopsHtml — the Community Village workshops page', () => {
+  // Distilled from the live page's real shapes (2026-07-09): Elementor text
+  // soup with day headers, hour headers, "Title – Presenter: description. Venue"
+  // lines, a venue wrapped into its own element, a Noon–6pm span prefix, and an
+  // ALL DAY, EVERY DAY section ahead of the first day header.
+  const PAGE = `
+<html><body>
+<h1>Community Village Workshops</h1>
+<h4>ALL DAY, EVERY DAY</h4>
+<h4>Queer &amp; Trans Clothing Swap, Take clothes, leave clothes, build community! Rainbow Village</h4>
+<p>FRIDAY</p>
+<p>11:00</p>
+<p>Bioregional Food Systems – Kelson Gorman: Think global and act local. Village Green</p>
+<p>Story Stick – Weave a story as you add beads. Arts Booth</p>
+<p>12:00</p>
+<p>Noon–6pm, Healthy Bees Observation Hive: Come give love and light to our precious honey bees!</p>
+<p>Comm-Unity House</p>
+<p>1:00</p>
+<p>NA Meeting: Open meeting. Yurt</p>
+<p>SATURDAY</p>
+<p>5:00</p>
+<p>Rainbow Village&#8217;s Cribbage Tournament Dome</p>
+<p>Oregon Country Fair is an independent 501(c)(3) nonprofit organization.</p>
+<h2>Stay Informed</h2>
+</body></html>`;
+  const ws = parseWorkshopsHtml(PAGE);
+  const byId = Object.fromEntries(ws.map((w) => [w.eventId, w]));
+
+  it('parses hour-block items with deterministic cv| eventIds and one-hour slots', () => {
+    const w = byId['cv|2026-07-10|11:00|bioregional-food-systems'];
+    expect(w).toBeDefined();
+    expect(w.start).toBe('2026-07-10T11:00:00');
+    expect(w.end).toBe('2026-07-10T12:00:00');
+    expect(w.venueTitle).toBe('Village Green · Community Village');
+    expect(w.description).toContain('Kelson Gorman');
+    expect(w.isWorkshop).toBe(true);
+    expect(w.lineup).toEqual({ id: 'Workshop', color: GENRE_COLORS.workshop });
+  });
+
+  it('maps the 1:00–6:00 grid hours to PM', () => {
+    expect(byId['cv|2026-07-10|13:00|na-meeting']).toBeDefined();
+    expect(byId['cv|2026-07-11|17:00|rainbow-village-s-cribbage-tournament']).toBeDefined();
+  });
+
+  it('attaches a venue wrapped into its own element to the previous item', () => {
+    const bees = ws.find((w) => w.title === 'Healthy Bees Observation Hive');
+    expect(bees.venueTitle).toBe('Comm-Unity House · Community Village');
+  });
+
+  it('honors the Noon–6pm span prefix over the hour block default', () => {
+    const bees = ws.find((w) => w.title === 'Healthy Bees Observation Hive');
+    expect(bees.start).toBe('2026-07-10T12:00:00');
+    expect(bees.end).toBe('2026-07-10T18:00:00');
+  });
+
+  it('strips a bare trailing venue from a no-description line', () => {
+    const crib = byId['cv|2026-07-11|17:00|rainbow-village-s-cribbage-tournament'];
+    expect(crib.title).toBe('Rainbow Village’s Cribbage Tournament');
+    expect(crib.venueTitle).toBe('Dome · Community Village');
+  });
+
+  it('expands ALL DAY, EVERY DAY items to open-hours entries on every fair day', () => {
+    const swaps = ws.filter((w) => w.title.startsWith('Queer & Trans Clothing Swap'));
+    expect(swaps.map((w) => w.start)).toEqual([
+      '2026-07-10T11:00:00',
+      '2026-07-11T11:00:00',
+      '2026-07-12T11:00:00',
+    ]);
+    expect(swaps.every((w) => w.end.endsWith('19:00:00'))).toBe(true);
+    expect(swaps.every((w) => w.venueTitle === 'Rainbow Village · Community Village')).toBe(true);
+  });
+
+  it('stops at the footer and fails empty (not wrong) when the markers are missing', () => {
+    expect(ws.some((w) => w.title.includes('501(c)(3)'))).toBe(false);
+    expect(parseWorkshopsHtml('<html><body>totally different page</body></html>')).toEqual([]);
+  });
+
+  it('returns the board sorted by start', () => {
+    const starts = ws.map((w) => w.start);
+    expect(starts).toEqual([...starts].sort());
   });
 });

@@ -76,6 +76,30 @@ The client instead fetches the same-origin **`GET /_api/schedule.json`**, which
 - The subscription lane's schedule join (`fetchScheduleItems`) reads through the
   **same cache** — one upstream fetch serves both lanes.
 
+### Community Village workshops (merged into the same snapshot)
+
+The Workshops tab (and every downstream surface — All Events, Now, faves, ics)
+gets its data from `https://www.oregoncountryfair.org/community-village-workshops/`,
+parsed by `parseWorkshopsHtml` (festival-utils.js; behaviorally-identical ops
+copy in the vibes.diy repo's `scripts/vibe-ops/refresh-ocf-schedule.mjs`). The
+page is Elementor text soup: day headers (FRIDAY/SATURDAY/SUNDAY), hour headers
+(`11:00`–`6:00`, fair-local 11 AM–6 PM), item lines shaped
+`Title – Presenter: description. Venue` with the venue as a bare trailing token
+from a fixed seven-venue set (sometimes wrapped into its own element — the
+parser attaches a bare venue line to the previous item), a `Noon–6pm,` span
+prefix, and an `ALL DAY, EVERY DAY` section that expands to one 11 AM–7 PM
+entry per fair day. Workshop sessions carry `isWorkshop: true`, a
+`description`, `cv|<date>|<HHMM>|<titleSlug>` eventIds (deterministic across
+refreshes so favorites survive), and the existing `workshop` genre color.
+
+**The workshops ride the db snapshot, not the backend's live parse**: the
+refresher fetches + parses both pages and writes ONE merged snapshot. (The
+backend's live-fetch path knows only the lineup page — if the worker-egress
+block ever lifted mid-fair, a live parse would serve lineup-only. Accepted
+tradeoff; the block has held and the fair is 3 days long.) The refresher
+hard-fails if either page breaks, so a half dataset never overwrites a
+complete snapshot.
+
 ### The parser
 
 `parseLineupHtml` lives in `festival-utils.js`, is **duplicated inline in

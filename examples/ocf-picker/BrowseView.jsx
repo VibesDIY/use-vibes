@@ -91,6 +91,9 @@ export default function BrowseView({
                             {fmtTime(event.start)} – {fmtTime(event.end)}
                           </p>
                         </div>
+                        {event.description && (
+                          <p className={`mt-0.5 text-sm ${c.bodyText}`}>{event.description}</p>
+                        )}
                         {canWrite ? (
                           <NoteField
                             saved={notes[event.eventId]}

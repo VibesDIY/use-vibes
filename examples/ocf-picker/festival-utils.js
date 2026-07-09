@@ -245,6 +245,161 @@ export const parseLineupHtml = (html) => {
   return sessions;
 };
 
+// ── The Community Village workshops parser ───────────────────────────────────
+
+export const WORKSHOPS_URL = 'https://www.oregoncountryfair.org/community-village-workshops/';
+
+// The workshops page is Elementor text soup, not structured markup: day headers
+// (FRIDAY/SATURDAY/SUNDAY), hour headers ("11:00" … "6:00", fair-local, 11 AM
+// through 6 PM), and free-text lines of the shape
+//   "Title – Presenter: description. Venue"
+// with the venue as a bare trailing token from a small fixed set. Everything
+// below is driven by that observed shape (2026-07-09).
+const CV_VENUES = [
+  'Comm-Unity House',
+  'Wild Edibles Booth',
+  'Rainbow Village', // before Village Green — both end in a "Village"/"Green" family
+  'Village Green',
+  'Arts Booth',
+  'Yurt',
+  'Dome',
+];
+const CV_VENUE_RE = new RegExp(
+  `[\\s,]*(${CV_VENUES.map((v) => v.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})[\\s.!]*$`
+);
+// "Noon–6pm, " (en dash or hyphen) prefixing an item overrides the hour block's
+// default one-hour slot — the only multi-hour form the page uses.
+const CV_SPAN_RE = /^Noon\s*[–-]\s*(\d{1,2})\s*pm[,:]?\s*/i;
+
+// Fair days open at 11 AM and close at 7 PM; the ALL DAY, EVERY DAY section
+// maps to one full-day entry per fair day.
+const CV_DAY_START_MIN = 11 * 60;
+const CV_DAY_END_MIN = 19 * 60;
+
+// Split an item line into { title, description }: first colon wins, else the
+// first spaced dash (en dash or hyphen), else the whole line is the title.
+const cvTitleSplit = (text) => {
+  const colon = text.indexOf(':');
+  const dash = text.search(/\s[–—-]\s/);
+  let cut = -1;
+  let skip = 0;
+  if (colon >= 0 && (dash < 0 || colon < dash)) {
+    cut = colon;
+    skip = 1;
+  } else if (dash >= 0) {
+    cut = dash;
+    skip = 3;
+  }
+  if (cut < 0) return { title: text.trim(), description: '' };
+  return { title: text.slice(0, cut).trim(), description: text.slice(cut + skip).trim() };
+};
+
+// Parse the Community Village workshops page into the same session objects as
+// parseLineupHtml, marked `isWorkshop: true` and carrying a `description`.
+// eventId is SYNTHETIC and deterministic across refreshes (favorites survive):
+// cv|<date>|<HHMM>|<titleSlug>. Rows outside a day/hour context, or in a day
+// the fair calendar doesn't know, drop out. Returns [] when the page's
+// bracketing markers are missing (markup change → fail empty, not wrong).
+export const parseWorkshopsHtml = (html) => {
+  const s = String(html);
+  const startAt = s.search(/ALL DAY, EVERY DAY/i);
+  const endAt = s.indexOf('Stay Informed');
+  if (startAt < 0) return [];
+  const region = s
+    .slice(startAt, endAt > startAt ? endAt : undefined)
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ');
+  const lines = decodeEntities(region.replace(/<[^>]+>/g, '\n'))
+    .split('\n')
+    .map((l) => l.replace(/\s+/g, ' ').trim())
+    .filter((l) => l !== '');
+
+  const sessions = [];
+  const seen = new Set();
+  let day = null; // null until the first day header → the ALL DAY section
+  let hourMin = null;
+  let pendingAllDay = [];
+  const push = (date, startMin, endMin, text, fallbackVenue) => {
+    let body = text;
+    const venueM = CV_VENUE_RE.exec(body);
+    let venue = fallbackVenue;
+    if (venueM && venueM.index > 0) {
+      venue = venueM[1];
+      body = body.slice(0, venueM.index).trim();
+    }
+    const spanM = CV_SPAN_RE.exec(body);
+    if (spanM) {
+      startMin = 12 * 60;
+      const endH = +spanM[1];
+      if (endH >= 1 && endH <= 11) endMin = (endH + 12) * 60;
+      body = body.slice(spanM[0].length).trim();
+    }
+    const { title, description } = cvTitleSplit(body);
+    if (title === '') return;
+    const startHHMM = `${pad2(Math.floor(startMin / 60))}:${pad2(startMin % 60)}`;
+    const eventId = `cv|${date}|${startHHMM}|${titleSlug(title)}`;
+    if (seen.has(eventId)) return; // repeated titles at one hour would collide
+    seen.add(eventId);
+    sessions.push({
+      eventId,
+      title,
+      start: isoAt(date, startMin),
+      end: isoAt(date, endMin),
+      url: WORKSHOPS_URL,
+      venueTitle: venue === 'Community Village' ? venue : `${venue} · Community Village`,
+      ...(description !== '' ? { description } : {}),
+      isWorkshop: true,
+      lineup: { id: 'Workshop', color: GENRE_COLORS.workshop },
+    });
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^ALL DAY, EVERY DAY$/i.test(line)) continue;
+    const dayM = /^(FRIDAY|SATURDAY|SUNDAY)$/i.exec(line);
+    if (dayM) {
+      day = dayM[1][0].toUpperCase() + dayM[1].slice(1).toLowerCase();
+      hourMin = null;
+      continue;
+    }
+    const hourM = /^(\d{1,2}):(\d{2})$/.exec(line);
+    if (hourM && day !== null) {
+      const h = +hourM[1];
+      // The grid is fair-local 11 AM – 6 PM: 11/12 are AM/noon, 1–10 are PM.
+      hourMin = (h >= 11 ? h : h + 12) * 60 + +hourM[2];
+      continue;
+    }
+    // The page's own footer ends the data even if the end marker moved.
+    if (/^Oregon Country Fair is an independent/i.test(line)) break;
+    // A bare venue line belongs to the PREVIOUS item (the page sometimes wraps
+    // the venue into its own element, e.g. Healthy Bees / Comm-Unity House).
+    if (CV_VENUES.includes(line)) {
+      const prev = sessions[sessions.length - 1];
+      if (prev && prev.venueTitle === 'Community Village') {
+        prev.venueTitle = `${line} · Community Village`;
+      }
+      continue;
+    }
+    if (day === null) {
+      pendingAllDay.push(line);
+      continue;
+    }
+    if (hourMin === null) continue;
+    const date = FESTIVAL_2026.dates[day];
+    if (!date) continue;
+    push(date, hourMin, hourMin + 60, line, 'Community Village');
+  }
+
+  // ALL DAY, EVERY DAY items span every fair day's open hours.
+  for (const text of pendingAllDay) {
+    for (const d of FESTIVAL_2026.dayOrder) {
+      push(FESTIVAL_2026.dates[d], CV_DAY_START_MIN, CV_DAY_END_MIN, text, 'Community Village');
+    }
+  }
+
+  return sessions.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+};
+
 // The proxy/snapshot already serve PARSED session objects (backend.js runs the
 // same parser), so "flattening" here is just stamping each session with its
 // fair day (4 AM night cutoff — festivalDayFor is the same rule the faves and

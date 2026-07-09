@@ -579,6 +579,7 @@ export default function OcfPicker() {
   const artistsList = useMemo(() => {
     const map = new Map();
     for (const e of events) {
+      if (e.isWorkshop) continue; // workshops have their own tab, not artist pages
       const key = e.title;
       if (!map.has(key))
         map.set(key, { title: key, url: e.url, events: [], lineup: e.lineup, venues: new Set() });
@@ -609,6 +610,13 @@ export default function OcfPicker() {
         )
         .sort((a, b) => toFestivalDate(a.start) - toFestivalDate(b.start)),
     [events, searchTerm, selectedDay]
+  );
+
+  // The Workshops tab is the same browse surface filtered to Community Village
+  // workshops (they also appear everywhere else — All Events, Now, faves, ics).
+  const filteredWorkshops = useMemo(
+    () => filteredEvents.filter((e) => e.isWorkshop),
+    [filteredEvents]
   );
 
   const favoriteEvents = useMemo(
@@ -750,9 +758,10 @@ export default function OcfPicker() {
 
         <div className={`${c.navBg} ${c.border} p-2`}>
           <div className="flex flex-wrap gap-[3px]">
-            {['now', 'browse', 'artists', 'favorites', 'friends', 'shifts', 'schedule']
+            {['now', 'browse', 'artists', 'workshops', 'favorites', 'friends', 'shifts', 'schedule']
               .filter((v) => {
-                if (v === 'now' || v === 'browse' || v === 'artists') return true;
+                if (v === 'now' || v === 'browse' || v === 'artists' || v === 'workshops')
+                  return true;
                 if (v === 'favorites') return superMode && canWrite; // super-mode peer picker
                 if (v === 'schedule') return canFavorite; // anon can view their own favorites schedule
                 return canWrite; // friends + extras need a real sign-in
@@ -766,6 +775,7 @@ export default function OcfPicker() {
                   {viewName === 'now' && `Now`}
                   {viewName === 'browse' && `All Events`}
                   {viewName === 'artists' && `Artists`}
+                  {viewName === 'workshops' && `Workshops`}
                   {viewName === 'favorites' && `Favorites (${myFavIds.size})`}
                   {viewName === 'friends' && `🙋‍♀️ Follows`}
                   {viewName === 'shifts' && `Extras`}
@@ -812,6 +822,27 @@ export default function OcfPicker() {
               {view === 'browse' && (
                 <BrowseView
                   filteredEvents={filteredEvents}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  selectedDay={selectedDay}
+                  setSelectedDay={setSelectedDay}
+                  displayDays={displayDays}
+                  getDateForDay={getDateForDay}
+                  myFavIds={myFavIds}
+                  canWrite={canWrite}
+                  canFavorite={canFavorite}
+                  toggleFavorite={toggleFavorite}
+                  notes={notes}
+                  saveNote={saveNote}
+                  superMode={superMode}
+                  favCounts={favCounts}
+                  c={c}
+                />
+              )}
+
+              {view === 'workshops' && (
+                <BrowseView
+                  filteredEvents={filteredWorkshops}
                   searchTerm={searchTerm}
                   setSearchTerm={setSearchTerm}
                   selectedDay={selectedDay}
