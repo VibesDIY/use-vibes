@@ -147,6 +147,7 @@ export default function PickathonPicker() {
     follow,
     unfollow,
     approve,
+    removeFollower,
   } = useSocial();
 
   const myHandle = viewer?.userHandle || 'anonymous';
@@ -887,6 +888,7 @@ export default function PickathonPicker() {
                   follow={follow}
                   unfollow={unfollow}
                   approve={approve}
+                  removeFollower={removeFollower}
                   selectedFriend={selectedFriend}
                   setSelectedFriend={setSelectedFriend}
                   includeMyFaves={includeMyFaves}
