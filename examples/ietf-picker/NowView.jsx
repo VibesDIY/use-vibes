@@ -23,7 +23,7 @@ function EventCard({ event, isMine, isFriendPick, canWrite, toggleFavorite, c, s
             )}
             {isFriendPick && (
               <span className={c.badge} title="A friend favorited this">
-                friend pick
+                followed pick
               </span>
             )}
           </div>

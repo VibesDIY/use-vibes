@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useFireproof } from 'use-fireproof';
-import { useViewer, useVibe } from 'use-vibes';
+import { useSocial, useViewer, useVibe } from 'use-vibes';
 import {
   MEETING_NUMBER,
   MEETING_126,
@@ -57,7 +57,6 @@ const clearFriendParamFromUrl = () => {
 // Stable index functions — passed to useLiveQuery so Fireproof doesn't rebuild the
 // query on every render (an inline arrow is a new reference each time).
 const byTypeUser = (doc) => [doc.type, doc.userId];
-const byTypeFriendSlug = (doc) => [doc.type, doc.friendSlug];
 
 // Re-stamp a locally-stored doc onto the freshly signed-in handle when useFireproof's
 // anonymousLocal store migrates local → cloud on first login. Owned docs are keyed by
@@ -84,6 +83,22 @@ export default function IetfAgendaPicker() {
     migrate: migrateIetfDoc,
   });
   const { can, ready } = useVibe('ietf126');
+  // The follow graph lives in the PLATFORM (Settings → Social) — the app stores
+  // no edge docs. `ready` is false for anonymous viewers and during the initial
+  // round-trip, so every social surface gates on it. Mutations resolve after the
+  // shell pushes a refreshed snapshot, and expected refusals (self-follow,
+  // blocked pair, unknown handle) resolve QUIETLY — render from the lists, don't
+  // branch on errors that never arrive.
+  const {
+    ready: socialReady,
+    following,
+    followers,
+    requests,
+    follow,
+    unfollow,
+    approve,
+    removeFollower,
+  } = useSocial();
 
   const myHandle = viewer?.userHandle || 'anonymous';
   const userId = myHandle;
@@ -108,10 +123,9 @@ export default function IetfAgendaPicker() {
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [includeMyFaves, setIncludeMyFaves] = useState(false);
   const [linkedFriend, setLinkedFriend] = useState(null);
-  const [friendConfirm, setFriendConfirm] = useState(null);
   const friendScrolledRef = useRef(false);
-  // Handles we've already resolved (added or declined) this session, so the confirm
-  // prompt doesn't re-appear after the friends list updates.
+  // Handles this session already followed from a link, so a re-render doesn't
+  // re-fire the follow.
   const handledFriendRef = useRef(new Set());
   const [pendingDelete, setPendingDelete] = useState(null);
   const [nowTick, setNowTick] = useState(Date.now());
@@ -165,34 +179,6 @@ export default function IetfAgendaPicker() {
     setLinkedFriend(fp);
     clearFriendParamFromUrl();
   }, []);
-
-  // Adding a friend (they can see your schedule) should be deliberate: the add-intent
-  // rides in the URL and the parent vibes.diy URL is cross-origin, so we can't strip it
-  // there — someone could re-share their address bar and silently propose *their* friend
-  // to a third party. So instead of auto-adding, we confirm first (see the prompt effect
-  // below, after the friends list is available).
-  const confirmAddFriend = () => {
-    const slug = friendConfirm;
-    if (!slug || !viewer?.userHandle) return;
-    handledFriendRef.current.add(slug);
-    database
-      .put({
-        _id: `friend-${viewer.userHandle}-${slug}`,
-        type: 'friend',
-        userId: viewer.userHandle,
-        friendSlug: slug,
-        createdAt: Date.now(),
-      })
-      .catch(() => {});
-    setSelectedFriend(slug);
-    setView('friends');
-    setFriendConfirm(null);
-  };
-  const declineAddFriend = () => {
-    if (friendConfirm) handledFriendRef.current.add(friendConfirm);
-    setFriendConfirm(null);
-    setLinkedFriend(null);
-  };
 
   // Scroll to the friend's schedule once it's rendered (one-time).
   useEffect(() => {
@@ -317,50 +303,51 @@ export default function IetfAgendaPicker() {
   );
   const myFavIds = useMemo(() => new Set(myFavorites.map((f) => f.eventId)), [myFavorites]);
 
-  const { docs: friends } = useLiveQuery(byTypeUser, { key: ['friend', userId] });
-  const { docs: friendedBy } = useLiveQuery(byTypeFriendSlug, { key: ['friend', userId] });
+  // Whose picks I can see = handles I follow with an ACTIVE edge. A follow into
+  // a private account sits at state "requested" until they approve — it grants
+  // no reads, so including it would only render empty schedule sections.
+  const followedHandles = useMemo(
+    () => new Set(following.filter((f) => f.state === 'active').map((f) => f.handle)),
+    [following]
+  );
 
-  const friendSlugs = useMemo(() => {
-    const s = new Set();
-    for (const f of friends) s.add(f.friendSlug);
-    for (const f of friendedBy) s.add(f.userId);
-    s.delete(userId);
-    return s;
-  }, [friends, friendedBy, userId]);
-
-  // Once signed in, a captured ?friend link prompts a confirmation before adding —
-  // unless you already follow them, in which case just jump to their schedule.
+  // A captured ?friend link now just FOLLOWS the scanned handle once signed in.
+  // Following is one-directional — it exposes nothing of YOURS (they see your
+  // picks only if they follow you back) — so the old add-friend confirmation
+  // dialog is gone: the action is low-stakes and one tap undoes it. A follow
+  // into a private account lands as "requested" and their schedule stays empty
+  // until they approve.
   useEffect(() => {
-    if (!signedIn || !linkedFriend || linkedFriend === viewer.userHandle) return;
+    if (!signedIn || !socialReady || !linkedFriend || linkedFriend === viewer.userHandle) return;
     if (handledFriendRef.current.has(linkedFriend)) return;
-    if (friends.some((f) => f.friendSlug === linkedFriend)) {
-      handledFriendRef.current.add(linkedFriend);
-      // Clear any prompt we may have opened in an earlier run before `friends` hydrated
-      // (useLiveQuery starts empty), so an already-followed user never gets stuck with it.
-      setFriendConfirm(null);
+    handledFriendRef.current.add(linkedFriend);
+    const go = () => {
       setSelectedFriend(linkedFriend);
       setView('friends');
+    };
+    if (followedHandles.has(linkedFriend)) {
+      go();
       return;
     }
-    setFriendConfirm(linkedFriend);
-  }, [signedIn, linkedFriend, friends, viewer?.userHandle]);
+    follow(linkedFriend).then(go, go);
+  }, [signedIn, socialReady, linkedFriend, followedHandles, viewer?.userHandle, follow]);
 
   const friendFavIds = useMemo(() => {
     const s = new Set();
     for (const f of allFavorites) {
-      if (friendSlugs.has(f.userId || 'anonymous')) s.add(f.eventId);
+      if (followedHandles.has(f.userId || 'anonymous')) s.add(f.eventId);
     }
     return s;
-  }, [allFavorites, friendSlugs]);
+  }, [allFavorites, followedHandles]);
 
-  // Selecting ALL_FRIENDS unifies everyone you're connected to (Following + Added You,
-  // i.e. friendSlugs — plus yourself, when "include my faves" is on) into one schedule;
+  // Selecting ALL_FRIENDS unifies everyone you FOLLOW (active edges — plus
+  // yourself, when "include my faves" is on) into one schedule;
   // each event carries `pickedBy` handles so the unified view can attribute picks.
   // A single friend keeps the plain per-handle filter.
   const friendFavoriteEvents = useMemo(() => {
     if (!selectedFriend) return [];
     const unified = selectedFriend === ALL_FRIENDS;
-    const inUnion = (uid) => friendSlugs.has(uid) || (includeMyFaves && uid === userId);
+    const inUnion = (uid) => followedHandles.has(uid) || (includeMyFaves && uid === userId);
     const pickedBy = new Map();
     for (const f of allFavorites) {
       const uid = f.userId || 'anonymous';
@@ -373,7 +360,7 @@ export default function IetfAgendaPicker() {
       .filter((e) => pickedBy.has(e.eventId))
       .map((e) => (unified ? { ...e, pickedBy: pickedBy.get(e.eventId).sort() } : e))
       .sort((a, b) => toMeetingDate(a.start) - toMeetingDate(b.start));
-  }, [selectedFriend, allFavorites, events, friendSlugs, includeMyFaves, userId]);
+  }, [selectedFriend, allFavorites, events, followedHandles, includeMyFaves, userId]);
 
   const { docs: allShifts } = useLiveQuery('type', { key: 'shift' });
   const friendShifts = useMemo(() => {
@@ -382,10 +369,10 @@ export default function IetfAgendaPicker() {
     return allShifts
       .filter((s) => {
         const uid = s.userId || 'anonymous';
-        return s.shareWithFriends && (unified ? friendSlugs.has(uid) : uid === selectedFriend);
+        return s.shareWithFriends && (unified ? followedHandles.has(uid) : uid === selectedFriend);
       })
       .map((s) => (unified ? { ...s, pickedBy: [s.userId || 'anonymous'] } : s));
-  }, [selectedFriend, allShifts, friendSlugs]);
+  }, [selectedFriend, allShifts, followedHandles]);
 
   // Only days that actually have sessions or shifts, ordered by the meeting day order.
   // We deliberately do NOT seed with the full dayOrder — a meeting day with nothing on
@@ -595,8 +582,12 @@ export default function IetfAgendaPicker() {
   // show THEIR picks (from the readable firehose), not the current user's.
   const viewedFavoriteEvents = useMemo(() => {
     if (!viewingUser || viewingUser === userId) return favoriteEvents;
-    const ids = new Set(allFavorites.filter((f) => (f.userId || 'anonymous') === viewingUser).map((f) => f.eventId));
-    return events.filter((e) => ids.has(e.eventId)).sort((a, b) => toMeetingDate(a.start) - toMeetingDate(b.start));
+    const ids = new Set(
+      allFavorites.filter((f) => (f.userId || 'anonymous') === viewingUser).map((f) => f.eventId)
+    );
+    return events
+      .filter((e) => ids.has(e.eventId))
+      .sort((a, b) => toMeetingDate(a.start) - toMeetingDate(b.start));
   }, [viewingUser, userId, favoriteEvents, allFavorites, events]);
 
   const makeSchedule = (day) => {
@@ -716,7 +707,7 @@ export default function IetfAgendaPicker() {
                   {viewName === 'browse' && `All Sessions`}
                   {viewName === 'groups' && `Groups`}
                   {viewName === 'favorites' && `Favorites (${myFavIds.size})`}
-                  {viewName === 'friends' && `🙋‍♀️ Friends`}
+                  {viewName === 'friends' && `🙋‍♀️ Follows`}
                   {viewName === 'shifts' && `Extras`}
                   {viewName === 'schedule' &&
                     `My Faves${myFavIds.size > 0 ? ` (${myFavIds.size})` : ''}`}
@@ -809,8 +800,14 @@ export default function IetfAgendaPicker() {
 
               {view === 'friends' && (
                 <FriendsView
-                  friends={friends}
-                  friendedBy={friendedBy}
+                  socialReady={socialReady}
+                  following={following}
+                  followers={followers}
+                  requests={requests}
+                  follow={follow}
+                  unfollow={unfollow}
+                  approve={approve}
+                  removeFollower={removeFollower}
                   selectedFriend={selectedFriend}
                   setSelectedFriend={setSelectedFriend}
                   includeMyFaves={includeMyFaves}
@@ -828,8 +825,6 @@ export default function IetfAgendaPicker() {
                   fmtTime={fmtTime}
                   connectUrl={connectUrl}
                   qrSrc={qrSrc}
-                  renderDeleteX={renderDeleteX}
-                  pendingDelete={pendingDelete}
                   ViewerTag={ViewerTag}
                   c={c}
                 />
@@ -917,38 +912,10 @@ export default function IetfAgendaPicker() {
           <div className={c.signInCallout}>
             <span className="min-w-0 flex-1 sm:flex-none sm:w-[190px] text-left">
               {linkedFriend
-                ? 'Sign in via the Vibes DIY logo to add friends'
-                : 'Sign in via the Vibes DIY logo to share your session picks with friends'}
+                ? 'Sign in via the Vibes DIY logo to follow people'
+                : 'Sign in via the Vibes DIY logo — followers can see your session picks'}
             </span>
             <div className="w-[120px] shrink-0 self-stretch" aria-hidden="true" />
-          </div>
-        </div>
-      )}
-
-      {friendConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-1"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="bg-white dark:bg-[#21262d] rounded-lg p-2 max-w-sm w-full shadow-2xl">
-            <h3 className={`text-xl font-black mb-0.5 ${c.bodyText}`}>Add friend?</h3>
-            <p className={`font-bold mb-1.5 ${c.bodyText}`}>
-              This link wants to add{' '}
-              <span className="text-[#205a9e] dark:text-[#58a6ff]">@{friendConfirm}</span> to your
-              crew. You'll see each other's schedules.
-            </p>
-            <div className="flex gap-[3px] justify-end flex-wrap">
-              <button
-                onClick={declineAddFriend}
-                className="py-1 px-2 font-bold rounded-lg bg-white dark:bg-[#161b22] text-[#1f2328] dark:text-[#e6edf3] border border-black/10 dark:border-white/20 hover:opacity-90 transition-all"
-              >
-                Not now
-              </button>
-              <button onClick={confirmAddFriend} className={c.btnPink}>
-                Add friend
-              </button>
-            </div>
           </div>
         </div>
       )}
