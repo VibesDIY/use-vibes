@@ -17,6 +17,7 @@ export default function FriendsView({
   follow,
   unfollow,
   approve,
+  removeFollower,
   selectedFriend,
   setSelectedFriend,
   includeMyFaves,
@@ -155,6 +156,14 @@ export default function FriendsView({
                 >
                   Approve
                 </button>
+                <button
+                  onClick={() => mutate(removeFollower, r.handle)}
+                  disabled={busy.has(r.handle)}
+                  className="py-[1px] px-1 rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#181a20] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#B22222] hover:text-white transition-all"
+                  title="Decline — they can request again later"
+                >
+                  Decline
+                </button>
               </div>
             ))}
           </div>
@@ -262,6 +271,16 @@ export default function FriendsView({
                     className="py-[1px] px-1 rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#CD6C0C] hover:text-white transition-all"
                   >
                     Follow back
+                  </button>
+                )}
+                {canWrite && (
+                  <button
+                    onClick={() => mutate(removeFollower, f.handle)}
+                    disabled={busy.has(f.handle)}
+                    className="px-0.5 py-[1px] rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#B22222] hover:text-white transition-all"
+                    title="Remove this follower — soft: they can follow you again later (block is the hard version, in Settings)"
+                  >
+                    ×
                   </button>
                 )}
               </div>
