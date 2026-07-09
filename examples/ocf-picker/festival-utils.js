@@ -319,7 +319,7 @@ export const parseWorkshopsHtml = (html) => {
   let day = null; // null until the first day header → the ALL DAY section
   let hourMin = null;
   let pendingAllDay = [];
-  const push = (date, startMin, endMin, text, fallbackVenue) => {
+  const push = ({ date, startMin, endMin, text, fallbackVenue }) => {
     let body = text;
     const venueM = CV_VENUE_RE.exec(body);
     let venue = fallbackVenue;
@@ -387,13 +387,25 @@ export const parseWorkshopsHtml = (html) => {
     if (hourMin === null) continue;
     const date = FESTIVAL_2026.dates[day];
     if (!date) continue;
-    push(date, hourMin, hourMin + 60, line, 'Community Village');
+    push({
+      date,
+      startMin: hourMin,
+      endMin: hourMin + 60,
+      text: line,
+      fallbackVenue: 'Community Village',
+    });
   }
 
   // ALL DAY, EVERY DAY items span every fair day's open hours.
   for (const text of pendingAllDay) {
     for (const d of FESTIVAL_2026.dayOrder) {
-      push(FESTIVAL_2026.dates[d], CV_DAY_START_MIN, CV_DAY_END_MIN, text, 'Community Village');
+      push({
+        date: FESTIVAL_2026.dates[d],
+        startMin: CV_DAY_START_MIN,
+        endMin: CV_DAY_END_MIN,
+        text,
+        fallbackVenue: 'Community Village',
+      });
     }
   }
 
