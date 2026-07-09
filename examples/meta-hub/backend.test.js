@@ -835,6 +835,101 @@ describe('scheduled — shared-path invariants (ig/threads/fbpage parity)', () =
     expect(ctx.dbs.requests.find((d) => d._id === 'r-bsky').status).toBe('done');
   });
 
+  it('holds a future-postAt request even with NO token in the vault (schedule gate precedes the token error)', async () => {
+    // The whole point of ordering the postAt check first: a scheduled post must
+    // not get terminal-errored ("no token in vault") before its time — the
+    // token only has to exist when it actually becomes due.
+    const calls = routedFetch([META_PROBE_LIVE, LI_LANE_LIVE]);
+    const postAt = new Date(Date.now() + 3600_000).toISOString();
+    const ctx = mockCtx({
+      vault: [], // deliberately empty — no bsky token
+      requests: [
+        {
+          _id: 'r-bsky',
+          kind: 'publish-request',
+          platform: 'bsky',
+          slug: 's',
+          images: [],
+          caption: 'hook https://x.example/blog/s?src=bsky',
+          status: 'pending',
+          attempts: 0,
+          postAt,
+        },
+      ],
+    });
+    await scheduled({}, ctx);
+    const r = ctx.dbs.requests.find((d) => d._id === 'r-bsky');
+    expect(r.status).toBe('pending'); // held, NOT errored
+    expect(r.heldReason).toBe(`scheduled for ${postAt}`);
+    expect(r.error).toBeUndefined();
+    expect(calls.some((c) => c.url.includes('createRecord'))).toBe(false);
+  });
+
+  it('releases a held request on a later tick and clears heldReason (held → due transition)', async () => {
+    vi.useFakeTimers();
+    try {
+      const base = new Date('2026-07-09T00:00:00.000Z').getTime();
+      vi.setSystemTime(base);
+      const postAt = new Date(base + 6 * 3600_000).toISOString(); // +6h
+      routedFetch([
+        META_PROBE_LIVE,
+        LI_LANE_LIVE,
+        [
+          'com.atproto.server.refreshSession',
+          () =>
+            json({ accessJwt: 'A2', refreshJwt: 'R2', did: 'did:plc:abc', handle: 'vibes.diy' }),
+        ],
+        [
+          'com.atproto.repo.createRecord',
+          () => json({ uri: 'at://did:plc:abc/app.bsky.feed.post/3kREL', cid: 'x' }),
+        ],
+      ]);
+      const ctx = mockCtx({
+        vault: [
+          {
+            _id: 'token-bsky',
+            kind: 'token',
+            platform: 'bsky',
+            token: 'vibes.diy:abcd-efgh-ijkl-mnop',
+            igUserId: 'did:plc:abc',
+            username: 'vibes.diy',
+            refreshJwt: 'R1',
+            accessJwt: 'A1',
+            refreshedAt: new Date(base - 86400000).toISOString(), // aged, so the refresh path runs when due
+          },
+        ],
+        requests: [
+          {
+            _id: 'r-bsky',
+            kind: 'publish-request',
+            platform: 'bsky',
+            slug: 's',
+            images: [],
+            caption: 'hook https://x.example/blog/s?src=bsky',
+            title: 'T',
+            status: 'pending',
+            attempts: 0,
+            postAt,
+          },
+        ],
+      });
+      // Tick 1 — before postAt: held, not published.
+      await scheduled({}, ctx);
+      let r = ctx.dbs.requests.find((d) => d._id === 'r-bsky');
+      expect(r.status).toBe('pending');
+      expect(r.heldReason).toBe(`scheduled for ${postAt}`);
+      // Advance past postAt and tick again — now due: publishes and clears the hold.
+      vi.setSystemTime(base + 7 * 3600_000);
+      await scheduled({}, ctx);
+      r = ctx.dbs.requests.find((d) => d._id === 'r-bsky');
+      expect(r.status).toBe('done');
+      expect(r.heldReason).toBeNull();
+      expect(r.permalink).toBe('https://bsky.app/profile/vibes.diy/post/3kREL');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('bsky 401 on createSession (revoked app password) flags re-auth and holds the request', async () => {
     routedFetch([
       META_PROBE_LIVE,
