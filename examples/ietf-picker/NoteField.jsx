@@ -9,7 +9,7 @@ export default function NoteField({
   saved,
   onSave,
   className,
-  placeholder = 'Add note...',
+  placeholder = 'Add private note...',
   collapsedStyle,
   collapsedRight,
 }) {
