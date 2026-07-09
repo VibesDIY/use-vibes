@@ -14,6 +14,11 @@ publishing pipeline so GitHub never carries social credentials:
 - **requests db** (owner-only): `publish-request` docs walk a state machine
   `pending → items-created → carousel-created → done|error`, carrying
   `images[]` (public JPEG URLs, 4:5), `caption`, and eventually `permalink`.
+  An optional `postAt` ISO timestamp **schedules** the post: the triage loop
+  holds any request whose `postAt` is in the future (`heldReason: scheduled
+for <postAt>`) before it touches tokens or egress, so a backlog can be
+  spaced out instead of draining 3-per-tick all at once. Omit it to post ASAP;
+  an unparseable `postAt` is treated as "due now" so a typo can't wedge a post.
 - **oplog db** (owner-only): rotation/publish log + the `egress-probe` doc.
 
 All token-touching work runs in the `scheduled` handler (1m tick) **on
@@ -41,6 +46,10 @@ just retries next tick (bounded by `MAX_ATTEMPTS`).
     "createdAt": "<iso-now>"
   }'
   ```
+
+  To **schedule** it for later, add `"postAt": "<iso-future>"` — the request
+  holds until then, then posts on the next tick. Stagger several `postAt`
+  values (e.g. 6h apart) to drip a backlog into a feed instead of flooding it.
 
   Status lands on the same doc within ~1–3 ticks; `done` carries the
   Instagram `permalink`.
