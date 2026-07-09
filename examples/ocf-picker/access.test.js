@@ -12,10 +12,13 @@ function run(doc, oldDoc, user) {
 const alice = { userHandle: 'alice' };
 
 describe('access.js — channel routing', () => {
-  it("favorites go to super + the owner's share channel, granted to the owner only", () => {
+  it("favorites go to super + the owner's share channel, follower-readable via audience", () => {
     const { ok } = run({ type: 'favorite', userId: 'alice', eventId: '1' }, null, alice);
     expect(ok.channels).toEqual(['super', 'share-alice']);
-    expect(ok.grant).toEqual({ users: { alice: ['share-alice'] } }); // nobody is granted "super"
+    // The follow graph lives in the platform: followers (and always the owner —
+    // X ∈ followersOf X) read via the audience label; no self-grant needed.
+    expect(ok.audience).toEqual({ followersOf: 'alice' });
+    expect(ok.grant).toBeUndefined();
   });
 
   it("notes are private to the owner's user channel", () => {
@@ -24,42 +27,20 @@ describe('access.js — channel routing', () => {
     expect(ok.grant).toEqual({ users: { alice: ['user-alice'] } });
   });
 
-  it('a shared shift goes to the share channel; a private shift stays in the user channel', () => {
-    expect(
-      run({ type: 'shift', userId: 'alice', shareWithFriends: true }, null, alice).ok.channels
-    ).toEqual(['share-alice']);
-    expect(
-      run({ type: 'shift', userId: 'alice', shareWithFriends: false }, null, alice).ok.channels
-    ).toEqual(['user-alice']);
+  it('a shared shift is follower-readable; a private shift stays in the user channel', () => {
+    const shared = run({ type: 'shift', userId: 'alice', shareWithFriends: true }, null, alice).ok;
+    expect(shared.channels).toEqual(['share-alice']);
+    expect(shared.audience).toEqual({ followersOf: 'alice' });
+    const priv = run({ type: 'shift', userId: 'alice', shareWithFriends: false }, null, alice).ok;
+    expect(priv.channels).toEqual(['user-alice']);
+    expect(priv.audience).toBeUndefined();
+    expect(priv.grant).toEqual({ users: { alice: ['user-alice'] } });
   });
 
-  it("a friend edge cross-grants read of each other's share channel", () => {
+  it('legacy friend edge docs are accepted but land unreadable (graph moved to the platform)', () => {
     const { ok } = run({ type: 'friend', userId: 'alice', friendSlug: 'bob' }, null, alice);
-    expect(ok.channels).toEqual(['user-alice', 'user-bob']);
-    expect(ok.grant).toEqual({
-      users: {
-        alice: ['user-alice', 'share-bob'], // alice reads bob's shared favorites/shifts
-        bob: ['user-bob', 'share-alice'], // and bob reads alice's
-      },
-    });
-  });
-
-  // Either endpoint may sever a friend edge (Codex, #3433): bob must be able to
-  // revoke the mutual sharing alice created by scanning his QR — the "Added You"
-  // list renders a remove control for exactly this. Deletes only: bob still
-  // cannot create or modify an edge he doesn't own.
-  it('the target of a friend edge can delete it, but not create or modify it', () => {
-    const edge = { _id: 'friend-alice-bob', type: 'friend', userId: 'alice', friendSlug: 'bob' };
-    const bob = { userHandle: 'bob' };
-    const del = run({ _id: 'friend-alice-bob', _deleted: true }, edge, bob);
-    expect(del.ok.channels).toEqual(['user-alice', 'user-bob']); // authorized, routed like the edge
-    expect(run(edge, null, bob)).toEqual({ forbidden: 'not owner' }); // create for someone else
-    expect(run({ ...edge, friendSlug: 'bob' }, edge, bob)).toEqual({ forbidden: 'not owner' }); // non-delete update
-    expect(
-      run({ _id: 'friend-alice-bob', _deleted: true }, edge, { userHandle: 'mallory' })
-    ).toEqual({
-      forbidden: 'not owner', // a third party can't sever other people's edges
-    });
+    expect(ok.channels).toEqual(['discard']);
+    expect(ok.grant).toEqual({});
   });
 });
 

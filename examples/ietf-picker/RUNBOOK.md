@@ -27,10 +27,10 @@ npx vibes-diy pull calendar/ietf-picker
 - **Database**: Fireproof `"ietf126"` — data lives in the browser, syncs across users via the vibes.diy data plane. Read access is scoped by `access.js` channels (below), so a client only syncs what it can read.
 - **Auth**: `useViewer()` from `use-vibes`. `can(...)` gates write surfaces. Anonymous users favorite locally (migrated on sign-in); notes/shifts/friends need sign-in.
 - **Channels** (`access.js` — same design as pickathon-picker's; the file is fully generic):
-  - **Favorites** (`type: "favorite"`, keyed `favorite-{userId}-{eventId}`) → the owner's **`share-{userId}`** channel _and_ the global **`super`** firehose. The owner reads their own via `share-`; friends read them because a **friend edge grants read of each other's `share-` channel**. Nobody is granted `super` — it exists only to be unlocked by a `grant` doc (see below). This is deliberately NOT world-readable: it's what keeps every client from syncing every user's favorites at scale.
+  - **Favorites** (`type: "favorite"`, keyed `favorite-{userId}-{eventId}`) → the owner's **`share-{userId}`** channel _and_ the global **`super`** firehose. The owner reads their own via `share-`; followers read them via the platform follow graph (**`audience: { followersOf }`**, see § Social migration). Nobody is granted `super` — it exists only to be unlocked by a `grant` doc (see below). This is deliberately NOT world-readable: it's what keeps every client from syncing every user's favorites at scale.
   - **Notes** (`note-{userId}-{eventId}`) → private **`user-{userId}`** channel. Never shared.
   - **Shifts** (the Extras tab) → `share-{userId}` if `shareWithFriends`, else private `user-{userId}`. So a friend can see your shared side meetings but not your private ones.
-  - **Friend edge** (`friend-{owner}-{slug}`) → lives in both `user-` channels (for following/followers lists) and cross-grants each person read of the other's `share-` channel.
+  - **Follow graph (PLATFORM)** — who-sees-whose-picks moved out of this db entirely (vibes.diy#3421): edges, privacy, and blocks live in the platform (Settings → Social), read/mutated in-app via `useSocial()`. Favorites and shared extras carry `audience: { followersOf: <owner> }` on their access-fn result, resolved at READ TIME against the live graph — a new follower instantly sees history, unfollow/removeFollower/block instantly revokes. The owner is always in their own audience, so no self-grant is needed.
 - **Super mode** — URL easter egg (`?super=1` / `?super=true`). Shows `★ N` global pick counts and a peer picker. To see global data you must both (a) open with `?super=1` **and** (b) hold a `super` grant (below) — otherwise the client only has its own + friends' favorites and the counts are friend-scoped.
 
 ## Granting super access
@@ -122,3 +122,23 @@ through Friday 2026-07-24 with the 4 AM night cutoff.
 | Change area chip colors   | `AREA_COLORS` in `festival-utils.js`                                                                                                                             |
 | Add a new view/tab        | Add to the `["now", "browse", "groups", ...]` array in nav, add `{view === "newview" && ...}` section in the body                                                |
 | Change colors             | the `c` object in `styles.js`                                                                                                                                    |
+
+## Social migration (2026-07: friend docs → platform follow graph)
+
+This app used to store `type:"friend"` edge docs and cross-grant `share-` channel
+reads from them. That graph now lives in the PLATFORM (vibes.diy#3421):
+
+- The app reads/mutates edges with `useSocial()` (`following`/`followers`/`requests`
+  - `follow`/`unfollow`/`approve`/`removeFollower`); access.js labels follower-visible
+    docs with `audience: { followersOf: <owner> }` instead of granting per-edge.
+- **Legacy `type:"friend"` docs remain in the db but are inert** — they fall to the
+  unknown-type discard branch (kept, unreadable). Do not delete them casually, and
+  NEVER re-run the one-shot import (`vibes.diy` repo:
+  `vibes-diy/cli/social-import-friend-edges.oneoff.mts`) — it ran once at cutover to
+  convert the edges to bidirectional platform follows; a post-cutover re-run could
+  resurrect deliberately removed edges (no-resurrection residual, see the import spec
+  in vibes.diy `docs/superpowers/specs/2026-07-09-friend-doc-import-and-prompt-landing.md`).
+- Semantics changed with the model: visibility is now FOLLOW-DIRECTION (I see the
+  picks of people I follow), not mutual-edge; a private account's inbound follows sit
+  `requested` until approved. Copy discipline everywhere: "following"/"followers",
+  never "friends".

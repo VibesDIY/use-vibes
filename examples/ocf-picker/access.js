@@ -12,14 +12,17 @@ export default function (doc, oldDoc, user, ctx) {
   // live in localStorage and migrate in on first sign-in.
   if (!user) throw { forbidden: 'authentication required' };
 
-  // Favorites live in the owner's *shared* channel (owner + their friends can read it,
-  // so "friend picks" resolve without fetching the world) AND are mirrored into the
-  // global "super" firehose. Nobody is granted "super" here — only a `grant` doc unlocks
-  // it. This is what stops every client from syncing every user's favorites at scale.
+  // Favorites live in the owner's *shared* channel and are readable by the
+  // owner's PLATFORM FOLLOWERS via the audience label — the follow graph now
+  // lives in the platform (Settings → Social), not in this db. Resolution is
+  // read-time: a new follower sees history instantly, an unfollow/block revokes
+  // instantly, and the owner is always in their own audience (X ∈ followersOf X),
+  // so no self-grant is needed. Favorites are still mirrored into the global
+  // "super" firehose, which stays locked behind an owner-written `grant` doc.
   if (type === 'favorite') {
     if (ownerId !== user.userHandle) throw { forbidden: 'not owner' };
     const share = `share-${ownerId}`;
-    return { channels: ['super', share], grant: { users: { [ownerId]: [share] } } };
+    return { channels: ['super', share], audience: { followersOf: ownerId } };
   }
 
   // Calendar-subscription token: the random capability that makes the user's
@@ -39,42 +42,26 @@ export default function (doc, oldDoc, user, ctx) {
     return { channels: [ch], grant: { users: { [ownerId]: [ch] } } };
   }
 
-  // A shift marked shareWithFriends goes to the owner's shared channel (friends can read
-  // it — that's the friend-shift-sharing feature); otherwise it stays private in the
-  // owner's user channel.
+  // A shift marked shareWithFriends is readable by the owner's followers (same
+  // audience label as favorites); a private shift stays on the owner's private
+  // user channel with a plain self-grant — `audience` is only for follower
+  // visibility, it does not replace channels+grant for private data.
   if (type === 'shift') {
     if (ownerId !== user.userHandle) throw { forbidden: 'not owner' };
     const shared =
       doc.shareWithFriends != null ? doc.shareWithFriends : oldDoc && oldDoc.shareWithFriends;
-    const ch = shared ? `share-${ownerId}` : `user-${ownerId}`;
+    if (shared) {
+      return { channels: [`share-${ownerId}`], audience: { followersOf: ownerId } };
+    }
+    const ch = `user-${ownerId}`;
     return { channels: [ch], grant: { users: { [ownerId]: [ch] } } };
   }
 
-  // A friend edge makes the two people's *shared* channels mutually readable, so each
-  // sees the other's favorites and shared shifts. Private user channels (notes, private
-  // shifts) are NOT shared. The edge doc itself lives in both user channels so it appears
-  // in each person's following/followers list.
-  if (type === 'friend') {
-    const friendSlug = doc.friendSlug != null ? doc.friendSlug : oldDoc && oldDoc.friendSlug;
-    // Only the initiator may create or modify the edge — but EITHER endpoint may
-    // sever it: the "Added You" list renders a remove control, and the person
-    // being followed must be able to revoke the mutual share grant someone else
-    // created by scanning their QR. Deleting the doc drops its grant on the next
-    // fixpoint, which is exactly the revocation.
-    const isDelete = Boolean(doc._deleted);
-    if (ownerId !== user.userHandle && !(isDelete && friendSlug === user.userHandle)) {
-      throw { forbidden: 'not owner' };
-    }
-    return {
-      channels: [`user-${ownerId}`, `user-${friendSlug}`],
-      grant: {
-        users: {
-          [ownerId]: [`user-${ownerId}`, `share-${friendSlug}`],
-          [friendSlug]: [`user-${friendSlug}`, `share-${ownerId}`],
-        },
-      },
-    };
-  }
+  // The friend graph moved to the platform (follow edges, privacy, blocks —
+  // Settings → Social). This app no longer stores `type:"friend"` docs; legacy
+  // edge docs fall through to the unknown-type branch below (kept, unreadable).
+  // NOTE: their old cross-grants stop applying once this function is live —
+  // visibility comes from platform follows only. See RUNBOOK § Social migration.
 
   // A `grant` doc unlocks the "super" favorites firehose for one user (doc.grantTo).
   // Owner-only — `user.isOwner` is the reserved vibe-owner flag (the account that owns

@@ -74,7 +74,7 @@ export default function ShiftsView({
               onChange={(e) => mergeShift({ shareWithFriends: e.target.checked })}
               className="w-5 h-5"
             />
-            Show in friends view
+            Share with followers
           </label>
           <button
             onClick={handleSubmit}
@@ -113,7 +113,7 @@ export default function ShiftsView({
                         }
                         className="w-4 h-4"
                       />
-                      Show in friends view
+                      Share with followers
                     </label>
                   )}
                 </div>

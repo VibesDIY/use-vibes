@@ -1,13 +1,23 @@
 import React, { useState } from 'react';
 import ScheduleView from './ScheduleView.jsx';
 
-// Sentinel for selectedFriend meaning "everyone I'm connected to" — the unified
+// Sentinel for selectedFriend meaning "everyone I follow" — the unified
 // schedule. `*` can't appear in a real handle, so it can't collide.
 export const ALL_FRIENDS = '*all*';
 
+// The follow graph lives in the platform (Settings → Social); this view renders
+// the viewer's edges from useSocial() and never touches the app db for them.
+// Copy discipline: "following" = whose picks I see; "followers" = who sees my
+// picks — never "friends".
 export default function FriendsView({
-  friends,
-  friendedBy,
+  socialReady,
+  following,
+  followers,
+  requests,
+  follow,
+  unfollow,
+  approve,
+  removeFollower,
   selectedFriend,
   setSelectedFriend,
   includeMyFaves,
@@ -25,12 +35,27 @@ export default function FriendsView({
   fmtTime,
   connectUrl,
   qrSrc,
-  renderDeleteX,
-  pendingDelete,
   ViewerTag,
   c,
 }) {
   const [copied, setCopied] = useState(false);
+  // Handles with an in-flight mutation: the promise resolves only after the
+  // shell pushes the refreshed snapshot, so this is purely a double-tap guard —
+  // when it clears, the lists already show the new state. Expected refusals
+  // (self-follow, blocked pair, unknown handle) resolve quietly — the snapshot
+  // just doesn't change — so there is nothing to catch and no error UI to render.
+  const [busy, setBusy] = useState(() => new Set());
+  const mutate = (fn, handle) => {
+    setBusy((b) => new Set(b).add(handle));
+    fn(handle).finally(() =>
+      setBusy((b) => {
+        const n = new Set(b);
+        n.delete(handle);
+        return n;
+      })
+    );
+  };
+
   const copyLink = () => {
     navigator.clipboard.writeText(connectUrl).then(() => {
       setCopied(true);
@@ -38,14 +63,29 @@ export default function FriendsView({
     });
   };
 
+  const followingActive = following.filter((f) => f.state === 'active');
+  const followingRequested = following.filter((f) => f.state === 'requested');
+  const followingSet = new Set(following.map((f) => f.handle));
+
+  // Signed-in but the graph snapshot hasn't arrived yet — skeleton, not lists.
+  if (!socialReady) {
+    return (
+      <div className="mb-1.5 p-2.5 bg-white dark:bg-[#21262d] rounded-lg m-0.5">
+        <p className={`font-bold ${c.bodyText}`}>Loading your follows…</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="flex flex-col items-center gap-1 p-2.5 bg-[#e9eef5] dark:bg-[#101826] rounded-lg m-0.5 mb-1.5">
         <div className="flex items-center gap-0.5 flex-wrap justify-center">
-          <p className={`text-lg font-bold ${c.bodyText}`}>Share this link to connect schedules</p>
+          <p className={`text-lg font-bold ${c.bodyText}`}>
+            Share this link so people can follow you
+          </p>
         </div>
         <div className="bg-white dark:bg-[#132f4f] rounded-lg m-0.5 p-2">
-          <img src={qrSrc} alt="Connect QR code" width="320" height="320" />
+          <img src={qrSrc} alt="Follow-me QR code" width="320" height="320" />
         </div>
         <div className="flex items-center gap-[3px]">
           <button
@@ -89,18 +129,54 @@ export default function FriendsView({
           </button>
         </div>
         <p className={`text-sm font-bold text-center max-w-[340px] ${c.bodyText}`}>
-          Send this link to someone you want to add as a friend. When they open it, you'll be added
-          to each other's crews and can see each other's schedules.
+          Whoever opens it follows you — they'll see the session picks and shared extras on your
+          schedule. Follow them back to see theirs.
         </p>
       </div>
 
+      {requests.length > 0 && (
+        <div className="mb-1.5 p-2.5 bg-[#e9eef5] dark:bg-[#101826] rounded-lg m-0.5">
+          <h3 className={`text-xl font-black mb-1 ${c.bodyText}`}>
+            Follow requests ({requests.length})
+          </h3>
+          <p className={`text-sm font-bold mb-1 ${c.bodyText}`}>
+            Your account is private — approve a request to let that person see your picks.
+          </p>
+          <div className="flex flex-wrap gap-[3px]">
+            {requests.map((r) => (
+              <div
+                key={`req-${r.handle}`}
+                className="flex items-center gap-0.5 p-0.5 rounded-full m-0.5 bg-white dark:bg-[#21262d]"
+              >
+                <ViewerTag userHandle={r.handle} />
+                <button
+                  onClick={() => mutate(approve, r.handle)}
+                  disabled={busy.has(r.handle)}
+                  className={c.btnPink}
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => mutate(removeFollower, r.handle)}
+                  disabled={busy.has(r.handle)}
+                  className="py-[1px] px-1 rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#161b22] text-[#1f2328] dark:text-[#e6edf3] hover:bg-[#B22222] hover:text-white transition-all"
+                  title="Decline — they can request again later"
+                >
+                  Decline
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mb-1.5 p-2.5 bg-white dark:bg-[#21262d] rounded-lg m-0.5">
         <p className={`text-sm font-bold mb-1 ${c.bodyText} italic`}>
-          {friends.length + friendedBy.length > 0
-            ? 'Click a friend to see their schedule'
-            : 'Add a friend to see their schedule'}
+          {followingActive.length > 0
+            ? 'Tap someone you follow to see their schedule'
+            : 'Follow someone to see their schedule'}
         </p>
-        {friends.length + friendedBy.length > 0 && (
+        {followingActive.length > 0 && (
           <div className="flex items-center flex-wrap gap-0.5 mb-1.5">
             <button
               onClick={() => setSelectedFriend(selectedFriend === ALL_FRIENDS ? null : ALL_FRIENDS)}
@@ -109,7 +185,7 @@ export default function FriendsView({
               All
             </button>
             <span className={`text-sm font-bold ${c.bodyText}`}>
-              everyone's picks as one schedule
+              everyone you follow, as one schedule
             </span>
             <label
               className={`flex items-center gap-0.5 text-sm font-bold ${c.bodyText} cursor-pointer`}
@@ -124,49 +200,89 @@ export default function FriendsView({
             </label>
           </div>
         )}
-        <h3 className={`text-xl font-black mb-1 ${c.bodyText}`}>Added You ({friendedBy.length})</h3>
-        {friendedBy.length === 0 ? (
-          <p className={`font-bold ${c.bodyText} mb-1.5`}>Nobody has scanned your QR yet.</p>
+
+        <h3 className={`text-xl font-black mb-1 ${c.bodyText}`}>Following ({following.length})</h3>
+        {following.length === 0 ? (
+          <p className={`font-bold ${c.bodyText} mb-1.5`}>
+            Not following anyone yet — scan a friend's QR code to follow them.
+          </p>
         ) : (
           <div className="flex flex-wrap gap-[3px] mb-1.5">
-            {friendedBy.map((f) => (
+            {followingActive.map((f) => (
               <div
-                key={`by-${f._id}`}
-                className={`flex items-center gap-0.5 p-0.5 rounded-full m-0.5 transition-all ${selectedFriend === f.userId ? 'bg-[#b45309]' : 'bg-[#205a9e] dark:bg-[#132f4f]'}`}
+                key={`fw-${f.handle}`}
+                className={`flex items-center gap-0.5 p-0.5 rounded-full m-0.5 transition-all ${selectedFriend === f.handle ? 'bg-[#b45309]' : 'bg-[#e9eef5] dark:bg-[#101826]'}`}
               >
                 <button
-                  onClick={() => setSelectedFriend(selectedFriend === f.userId ? null : f.userId)}
+                  onClick={() => setSelectedFriend(selectedFriend === f.handle ? null : f.handle)}
                   className="flex items-center"
                 >
-                  <ViewerTag userHandle={f.userId} />
+                  <ViewerTag userHandle={f.handle} />
                 </button>
-                {canWrite && renderDeleteX(f._id)}
+                <button
+                  onClick={() => mutate(unfollow, f.handle)}
+                  disabled={busy.has(f.handle)}
+                  className="px-0.5 py-[1px] rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#21262d] text-[#1f2328] dark:text-[#e6edf3] hover:bg-[#B22222] hover:text-white transition-all"
+                  title="Unfollow"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {followingRequested.map((f) => (
+              <div
+                key={`fw-${f.handle}`}
+                className="flex items-center gap-0.5 p-0.5 rounded-full m-0.5 bg-white dark:bg-[#21262d] opacity-80"
+                title="They have a private account — waiting for approval"
+              >
+                <ViewerTag userHandle={f.handle} />
+                <span className={`text-xs font-bold pr-0.5 ${c.bodyText}`}>requested</span>
+                <button
+                  onClick={() => mutate(unfollow, f.handle)}
+                  disabled={busy.has(f.handle)}
+                  className="px-0.5 py-[1px] rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#161b22] text-[#1f2328] dark:text-[#e6edf3] hover:bg-[#B22222] hover:text-white transition-all"
+                  title="Cancel request"
+                >
+                  ×
+                </button>
               </div>
             ))}
           </div>
         )}
 
-        <h3 className={`text-xl font-black mb-1 ${c.bodyText}`}>Following ({friends.length})</h3>
-        {friends.length === 0 ? (
-          <p className={`font-bold ${c.bodyText}`}>
-            No friends yet — share your QR code above to connect.
-          </p>
+        <h3 className={`text-xl font-black mb-1 ${c.bodyText}`}>Followers ({followers.length})</h3>
+        <p className={`text-sm font-bold mb-1 ${c.bodyText}`}>
+          Followers can see your session picks and shared extras.
+        </p>
+        {followers.length === 0 ? (
+          <p className={`font-bold ${c.bodyText}`}>Nobody follows you yet — share your QR above.</p>
         ) : (
           <div className="flex flex-wrap gap-[3px]">
-            {friends.map((f) => (
+            {followers.map((f) => (
               <div
-                key={f._id}
-                className={`flex items-center gap-0.5 p-0.5 rounded-full m-0.5 transition-all ${selectedFriend === f.friendSlug ? 'bg-[#b45309]' : 'bg-[#e9eef5] dark:bg-[#101826]'}`}
+                key={`fb-${f.handle}`}
+                className="flex items-center gap-0.5 p-0.5 rounded-full m-0.5 bg-[#205a9e] dark:bg-[#132f4f]"
               >
-                <button
-                  onClick={() =>
-                    setSelectedFriend(selectedFriend === f.friendSlug ? null : f.friendSlug)
-                  }
-                  className="flex items-center"
-                >
-                  <ViewerTag userHandle={f.friendSlug} />
-                </button>
-                {canWrite && renderDeleteX(f._id)}
+                <ViewerTag userHandle={f.handle} />
+                {canWrite && !followingSet.has(f.handle) && (
+                  <button
+                    onClick={() => mutate(follow, f.handle)}
+                    disabled={busy.has(f.handle)}
+                    className="py-[1px] px-1 rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#21262d] text-[#1f2328] dark:text-[#e6edf3] hover:bg-[#b45309] hover:text-white transition-all"
+                  >
+                    Follow back
+                  </button>
+                )}
+                {canWrite && (
+                  <button
+                    onClick={() => mutate(removeFollower, f.handle)}
+                    disabled={busy.has(f.handle)}
+                    className="px-0.5 py-[1px] rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#21262d] text-[#1f2328] dark:text-[#e6edf3] hover:bg-[#B22222] hover:text-white transition-all"
+                    title="Remove this follower — soft: they can follow you again later (block is the hard version, in Settings)"
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -178,7 +294,7 @@ export default function FriendsView({
           <div className="flex items-center justify-between mb-1 flex-wrap gap-0.5">
             <div className="flex items-center gap-0.5 flex-wrap">
               {selectedFriend === ALL_FRIENDS ? (
-                <h3 className={`text-2xl font-black ${c.bodyText}`}>Everyone's Picks</h3>
+                <h3 className={`text-2xl font-black ${c.bodyText}`}>Everyone You Follow</h3>
               ) : (
                 <>
                   <h3 className={`text-2xl font-black ${c.bodyText}`}>Picks by</h3>
@@ -201,8 +317,8 @@ export default function FriendsView({
             shiftEndRaw={shiftEndRaw}
             emptyMessage={
               selectedFriend === ALL_FRIENDS
-                ? "Your crew hasn't picked any sessions yet."
-                : "This friend hasn't picked any sessions yet."
+                ? 'Nobody you follow has picked any sessions yet.'
+                : "They haven't picked any sessions yet — or their account is private and hasn't approved you yet."
             }
             canWrite={false}
             onToggleFavorite={canWrite ? toggleFavorite : null}
