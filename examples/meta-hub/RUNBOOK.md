@@ -124,7 +124,8 @@ bullets). Five platforms publish:
   fails the post still goes out with the imageless text+link card (a
   `bsky-thumb-skipped` oplog entry records why), never blocked. To generate
   `thumbBase64` from a card at build time:
-  `base64 -w0 card.jpg` (or `Buffer.from(await (await fetch(url)).arrayBuffer()).toString('base64')`).
+  `base64 -w0 card.jpg` (`-w0` is GNU/Linux; on macOS/BSD drop it) or
+  `Buffer.from(await (await fetch(url)).arrayBuffer()).toString('base64')`.
   Synchronous, done in one tick; permalink constructed from the returned
   `at://` URI. **No egress change was needed**: the AT Protocol XRPC API is
   fully CORS-open (Bluesky's own client is a browser SPA), so it rides the
