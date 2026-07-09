@@ -106,11 +106,25 @@ bullets). Five platforms publish:
   an organization Page instead of the member needs `w_organization_social`
   via the Community Management API (app review) — deliberately out of scope.
 
-- **`platform: "bsky"`** — text + link-card post (no images yet): caption
-  ≤300 chars with the post URL in it (the backend adds the byte-offset link
-  facet — Bluesky does NOT auto-detect links), plus a website-card embed
-  built from `link`/first URL, `title` (falls back to slug), optional
-  `description`. Nothing is scraped, and no thumb until an `uploadBlob` v2.
+- **`platform: "bsky"`** — text + link-card post: caption ≤300 chars with the
+  post URL in it (the backend adds the byte-offset link facet — Bluesky does
+  NOT auto-detect links), plus a website-card embed built from `link`/first
+  URL, `title` (falls back to slug), optional `description`. Nothing is
+  scraped, so Bluesky renders the card **imageless unless you supply a
+  thumbnail**. Supply it by embedding the image bytes in the request as
+  **`thumbBase64`** (base64 of the JPEG/PNG, ≤1,000,000 decoded bytes) plus
+  optional `thumbMime` (default `image/jpeg`); the backend decodes it and
+  uploads it as a blob (`com.atproto.repo.uploadBlob`), attaching it as the
+  card thumb. **Why bytes and not a URL:** the backend **cannot fetch our card
+  images** — `*.vibes.diy` (incl. `good.vibes.diy`) is on the egress floor
+  denylist (#3048, SSRF prevention, beats every policy), so whoever queues the
+  request (which _can_ read good.vibes.diy) inlines the bytes. A raw
+  `images[0]` URL is accepted as a fallback but only works for non-floor,
+  CORS-open hosts. Thumbnailing is **best-effort**: if decode/fetch/upload
+  fails the post still goes out with the imageless text+link card (a
+  `bsky-thumb-skipped` oplog entry records why), never blocked. To generate
+  `thumbBase64` from a card at build time:
+  `base64 -w0 card.jpg` (or `Buffer.from(await (await fetch(url)).arrayBuffer()).toString('base64')`).
   Synchronous, done in one tick; permalink constructed from the returned
   `at://` URI. **No egress change was needed**: the AT Protocol XRPC API is
   fully CORS-open (Bluesky's own client is a browser SPA), so it rides the
