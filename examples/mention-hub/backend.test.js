@@ -15,6 +15,7 @@ import {
   buildClaimDm,
   claimUrlFor,
   shouldDispatchBuilder,
+  dispatchableWork,
   parseIntentVerdict,
   scheduled,
 } from './backend.js';
@@ -629,6 +630,122 @@ describe('shouldDispatchBuilder — event-driven builder trigger (#3529)', () =>
   it('treats the debounce boundary as elapsed (>=)', () => {
     const exactly = new Date(t0 - debounceMs).toISOString();
     expect(shouldDispatchBuilder({ queued: 1, lastDispatchAt: exactly, nowMs: t0 })).toBe(true);
+  });
+});
+
+describe('dispatchableWork — pending + crashed-runner recovery (#60)', () => {
+  const t0 = Date.parse('2026-07-06T12:00:00.000Z');
+  const staleMs = 45 * 60000;
+
+  it('counts pending-build docs and ignores terminal ones', () => {
+    const requests = [
+      { status: 'pending-build' },
+      { status: 'pending-build' },
+      { status: 'built' },
+      { status: 'replied' },
+      { status: 'build-failed' },
+      { status: 'skipped' },
+    ];
+    expect(dispatchableWork({ requests, nowMs: t0 })).toBe(2);
+  });
+
+  it('ignores a building doc still inside the staleness window (a live runner)', () => {
+    const requests = [{ status: 'building', updatedAt: new Date(t0 - staleMs + 1000).toISOString() }];
+    expect(dispatchableWork({ requests, nowMs: t0 })).toBe(0);
+  });
+
+  it('counts a building doc stranded past the staleness window (crashed runner)', () => {
+    const requests = [{ status: 'building', updatedAt: new Date(t0 - staleMs - 1000).toISOString() }];
+    expect(dispatchableWork({ requests, nowMs: t0 })).toBe(1);
+  });
+
+  it('treats a building doc with no updatedAt as infinitely stale (recoverable)', () => {
+    expect(dispatchableWork({ requests: [{ status: 'building' }], nowMs: t0 })).toBe(1);
+  });
+
+  it('sums fresh pending work with stale building work but not live builds', () => {
+    const requests = [
+      { status: 'pending-build' },
+      { status: 'building', updatedAt: new Date(t0 - staleMs - 1000).toISOString() }, // stale → +1
+      { status: 'building', updatedAt: new Date(t0).toISOString() }, // live → ignored
+    ];
+    expect(dispatchableWork({ requests, nowMs: t0 })).toBe(2);
+  });
+});
+
+describe('scheduled — stale-building recovery re-triggers a run (#60)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const bskyToken = {
+    _id: 'token-bsky',
+    kind: 'token',
+    platform: 'bsky',
+    token: 'vibesdiy.bsky.social:aaaa-bbbb-cccc-dddd',
+    did: 'did:plc:self',
+    handle: 'vibesdiy.bsky.social',
+    accessJwt: 'jwt-access',
+    refreshJwt: 'jwt-refresh',
+    refreshedAt: new Date().toISOString(),
+  };
+  const ghToken = { _id: 'token-github', kind: 'token', platform: 'github', token: 'ghp_test' };
+
+  // The exact gap Charlie flagged: a runner died holding the final claimed doc,
+  // so the pending queue is empty but one stale `building` doc remains. With the
+  // schedule disabled, only this dispatch path can revive its recovery.
+  it('dispatches when only a stale building doc remains and the pending queue is empty', async () => {
+    const f = fakeDb();
+    f.seed('vault', bskyToken);
+    f.seed('vault', ghToken);
+    f.seed('requests', {
+      _id: 'mention-did:plc:alice-3lczzz',
+      kind: 'mention',
+      status: 'building',
+      updatedAt: new Date(Date.now() - 46 * 60000).toISOString(),
+    });
+    let dispatched = null;
+    vi.stubGlobal(
+      'fetch',
+      xrpcStub([
+        ['listNotifications', () => json({ notifications: [] })],
+        [
+          'dispatches',
+          async (_url, init) => {
+            dispatched = JSON.parse(init.body);
+            return new Response(null, { status: 204 });
+          },
+        ],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    expect(dispatched).toMatchObject({ ref: 'main' });
+    expect(f.dbs.oplog.get('listener-state').lastDispatchAt).toBeTruthy();
+    expect([...f.dbs.oplog.values()].some((d) => d.op === 'builder-dispatched')).toBe(true);
+  });
+
+  it('does not dispatch while the building doc is still fresh (a live runner)', async () => {
+    const f = fakeDb();
+    f.seed('vault', bskyToken);
+    f.seed('vault', ghToken);
+    f.seed('requests', {
+      _id: 'mention-did:plc:alice-3lcyyy',
+      kind: 'mention',
+      status: 'building',
+      updatedAt: new Date(Date.now() - 60000).toISOString(), // 1 min ago
+    });
+    vi.stubGlobal(
+      'fetch',
+      xrpcStub([
+        ['listNotifications', () => json({ notifications: [] })],
+        [
+          'dispatches',
+          () => {
+            throw new Error('should not dispatch a fresh build');
+          },
+        ],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    expect([...f.dbs.oplog.values()].some((d) => d.op === 'builder-dispatched')).toBe(false);
   });
 });
 
