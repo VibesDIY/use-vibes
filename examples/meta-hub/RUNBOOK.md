@@ -79,8 +79,8 @@ bullets). Five platforms publish:
   commentary (≤3000 chars, links clickable, hashtags work) plus an article
   card built from the request's `link` (falls back to the first URL in the
   caption), `title` (falls back to `slug`), and optional `description`.
-  LinkedIn's Posts API does **not** scrape the URL — the card is text-only
-  until an Images-API thumbnail upload lands (v2) — and its commentary is
+  LinkedIn's Posts API does **not** scrape the URL — you set the card fields
+  yourself — and its commentary is
   "little text format", so the backend escapes `\|{}@[]()<>*_~` (parens in
   prose otherwise 400 the post; `#` is left live, `@`-mention templates can't
   be authored from a caption). Synchronous, done in one tick; the permalink is
@@ -90,11 +90,29 @@ bullets). Five platforms publish:
   means bump it), and the post id arrives in the `x-restli-id` response
   header of an empty 201.
 
+  **Card thumbnail** (optional): supply the image bytes the same way Bluesky
+  does — inline **`thumbBase64`** (+ optional `thumbMime`, default
+  `image/jpeg`) on the request, since the backend can't fetch `*.vibes.diy`
+  card images (egress floor denylist, SSRF prevention), so the queuer inlines
+  them. The backend then runs LinkedIn's two-hop Images API — `POST
+/rest/images?action=initializeUpload` for a signed upload URL + image URN,
+  then a `PUT` of the bytes — and references the URN as
+  `content.article.thumbnail`. Best-effort, exactly like bsky: any
+  decode/init/PUT failure logs a `linkedin-thumb-skipped` oplog entry and the
+  post still goes out as the text+link card, never blocked. No status poll (a
+  `w_member_social` token can't GET images), so the URN is referenced
+  immediately and LinkedIn finishes processing async — an occasional
+  still-processing thumb is the accepted trade for never blocking the post.
+
   **Egress**: api.linkedin.com sends no CORS headers, so LinkedIn rides the
   egress **platform allowlist**
   (`vibes.diy/api/svc/intern/egress-platform-list.ts`), not the CORS lane.
   The dashboard's `linkedin lane` probe must show `live` — `denied` means the
-  api worker running that allowlist hasn't deployed (or was rolled back).
+  api worker running that allowlist hasn't deployed (or was rolled back). The
+  thumbnail upload needs two more allowlist entries beyond post/userinfo:
+  `POST /rest/images` (pinned to `?action=initializeUpload`) and `PUT`
+  `www.linkedin.com/dms-uploads/` — if those aren't deployed yet the thumbnail
+  is skipped (best-effort) and the text card still posts.
 
   **Token**: a 60-day **member** token — LinkedIn app associated with a
   LinkedIn Page, products "Share on LinkedIn" + "Sign In with LinkedIn using
