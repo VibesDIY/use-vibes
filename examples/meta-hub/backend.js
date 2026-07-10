@@ -118,11 +118,11 @@ export function liEscape(s) {
 }
 
 // Build the article-share body, or return { error } for a bad request doc.
-// v1 is article-link posts ONLY: LinkedIn's Posts API does not scrape URLs
-// (docs are explicit — partners set title/description/thumbnail themselves),
-// and a thumbnail needs the Images API upload dance, which is v2. So the card
-// is text-only for now: source link + title (+ optional description).
-export function liPostBody(author, req) {
+// LinkedIn's Posts API does not scrape URLs (docs are explicit — partners set
+// title/description/thumbnail themselves), so the card carries exactly what the
+// request provides: source link + title + optional description, and an optional
+// `thumbnail` image URN (from liUploadThumb) for the card picture.
+export function liPostBody(author, req, thumbnail) {
   const text = req.caption || '';
   const link = req.link || (text.match(/https?:\/\/\S+/) || [])[0];
   if (!link)
@@ -150,6 +150,10 @@ export function liPostBody(author, req) {
           source: link,
           title: req.title || req.slug || link,
           ...(req.description ? { description: req.description } : {}),
+          // A `urn:li:image:…` from the Images API upload (liUploadThumb) gives
+          // the card a picture; LinkedIn never scrapes the URL, so without it
+          // the card is text-only. Best-effort — omitted on any upload failure.
+          ...(thumbnail ? { thumbnail } : {}),
         },
       },
       lifecycleState: 'PUBLISHED',
@@ -161,6 +165,72 @@ export function liPostBody(author, req) {
 // A dead LinkedIn token is an HTTP 401 (Meta's equivalent is code 190).
 export function liTokenDead(r) {
   return r.status === 401;
+}
+
+// --- LinkedIn Images API: article-card thumbnail upload ----------------------
+// Two hops, both Bearer server-to-server (no CORS → they ride the platform
+// egress allowlist, NOT the CORS lane):
+//   1. POST /rest/images?action=initializeUpload {initializeUploadRequest:{owner}}
+//      → { value: { uploadUrl, image } }; uploadUrl is a signed one-time URL on
+//      www.linkedin.com/dms-uploads/<opaque>, image is the urn:li:image:… .
+//   2. PUT the raw bytes to that uploadUrl.
+// The image URN then goes on content.article.thumbnail (see liPostBody). A
+// w_member_social token CANNOT GET /rest/images, so there is NO status poll —
+// we reference the URN immediately and LinkedIn finishes processing async.
+// Everything here is best-effort: the caller posts the text+link card on any
+// error rather than failing the post.
+async function liInitImageUpload(author, token) {
+  const r = await liFetch('rest/images?action=initializeUpload', {
+    method: 'POST',
+    body: { initializeUploadRequest: { owner: author } },
+    token,
+  });
+  if (!r.ok) return { error: r.message || r.egressDenied || `HTTP ${r.status}` };
+  const v = (r.data && r.data.value) || {};
+  if (!v.uploadUrl || !v.image) return { error: 'initializeUpload: missing uploadUrl/image' };
+  return { uploadUrl: v.uploadUrl, image: v.image };
+}
+
+// Raw fetch, not liFetch: the uploadUrl is a full signed URL on www.linkedin.com
+// (not an api.linkedin.com path) and must carry the image bytes, not the
+// version/restli JSON headers. Bearer auth per LinkedIn's upload contract.
+async function liPutImageBytes(uploadUrl, bytes, mimeType, token) {
+  let res;
+  try {
+    res = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'content-type': mimeType || 'application/octet-stream',
+      },
+      body: bytes,
+    });
+  } catch (e) {
+    return { error: `image PUT transport: ${String((e && e.message) || e)}` };
+  }
+  // A denied egress PUT (allowlist not deployed) comes back as a JSON marker.
+  if (res.status === 403) {
+    try {
+      const j = await res.json();
+      if (j && j.vibesEgressDenied) return { error: `image PUT egress denied: ${j.gate || true}` };
+    } catch {
+      /* not JSON — fall through to the generic status error */
+    }
+  }
+  if (!res.ok) return { error: `image PUT HTTP ${res.status}` };
+  return { ok: true };
+}
+
+// Orchestrate bytes → init → put → { image } URN, or { error }. Best-effort
+// caller (the linkedin publish branch) turns any error into a text-only post.
+async function liUploadThumb(req, images, author, token) {
+  const src = await cardThumbBytes(req, images);
+  if (!src.bytes) return { error: src.error };
+  const init = await liInitImageUpload(author, token);
+  if (init.error) return { error: init.error };
+  const put = await liPutImageBytes(init.uploadUrl, src.bytes, src.mimeType, token);
+  if (put.error) return { error: put.error };
+  return { image: init.image };
 }
 
 // --- Bluesky (AT Protocol): the sixth channel --------------------------------
@@ -242,14 +312,15 @@ async function bskyUploadBlobBytes(bytes, mimeType, accessJwt) {
   return { blob: data.blob };
 }
 
-// Get the card-thumbnail bytes for a request, or { error }. Bluesky never
-// scrapes the URL, so an external embed is imageless without an uploaded blob.
-// PRIMARY source is `thumbBase64` embedded in the doc — the backend CANNOT
-// fetch our card images: `*.vibes.diy` is on the egress FLOOR denylist (#3048,
-// SSRF prevention, beats every policy), so the queuer (which can read
-// good.vibes.diy) inlines the bytes. FALLBACK is a URL in `images[0]`, which
-// only works for non-floor, CORS-open hosts.
-async function bskyThumbBytes(req, images) {
+// Get the card-thumbnail bytes for a request, or { error }. Platform-neutral:
+// both Bluesky (uploadBlob) and LinkedIn (Images API) upload the same card
+// bytes, they just differ in the upload call. Neither scrapes the URL, so the
+// card is imageless without an upload. PRIMARY source is `thumbBase64` embedded
+// in the doc — the backend CANNOT fetch our card images: `*.vibes.diy` is on
+// the egress FLOOR denylist (#3048, SSRF prevention, beats every policy), so
+// the queuer (which can read good.vibes.diy) inlines the bytes. FALLBACK is a
+// URL in `images[0]`, which only works for non-floor, CORS-open hosts.
+async function cardThumbBytes(req, images) {
   if (req.thumbBase64) {
     try {
       const bytes = Uint8Array.from(atob(req.thumbBase64), (c) => c.charCodeAt(0));
@@ -686,7 +757,7 @@ async function advanceRequest(ctx, req, t) {
       // Bytes come from thumbBase64 (or an images[0] URL fallback).
       if (req.thumbBase64 || images[0]) {
         try {
-          const src = await bskyThumbBytes(req, images);
+          const src = await cardThumbBytes(req, images);
           if (src.bytes) {
             const up = await bskyUploadBlobBytes(src.bytes, src.mimeType, s.accessJwt);
             if (up.blob) body.record.embed.external.thumb = up.blob;
@@ -725,15 +796,33 @@ async function advanceRequest(ctx, req, t) {
       return;
     }
     // LinkedIn: synchronous like fbpage — one POST /rest/posts, no containers.
-    // Article-link shares only for now (see liPostBody); images are v2.
+    // An article-link share, optionally with a card thumbnail uploaded via the
+    // Images API (best-effort — see below). Extra images beyond the thumb are
+    // ignored (the article embed carries a single thumbnail).
     if (platform === 'linkedin') {
-      if (images.length > 0) {
-        return save({
-          status: 'error',
-          error: 'linkedin is article-link only for now — image posts need the Images API (v2)',
-        });
+      // Best-effort card thumbnail: NOTHING here may block the post (same
+      // philosophy as bsky). Bytes come from thumbBase64 (or an images[0] URL
+      // fallback); upload via the Images API and reference the returned URN.
+      // Any failure → log `linkedin-thumb-skipped` and post the text+link card.
+      let thumbUrn = null;
+      if (req.thumbBase64 || images[0]) {
+        try {
+          const up = await liUploadThumb(req, images, t.igUserId, t.token);
+          if (up.image) thumbUrn = up.image;
+          else await log(ctx, { op: 'linkedin-thumb-skipped', slug: req.slug, error: up.error });
+        } catch (e) {
+          try {
+            await log(ctx, {
+              op: 'linkedin-thumb-skipped',
+              slug: req.slug,
+              error: `thumb path threw: ${String((e && e.message) || e)}`,
+            });
+          } catch {
+            /* give up on logging; the post must still go out */
+          }
+        }
       }
-      const body = liPostBody(t.igUserId, req);
+      const body = liPostBody(t.igUserId, req, thumbUrn);
       if (body.error) return save({ status: 'error', error: body.error });
       const r = await liFetch('rest/posts', { method: 'POST', body: body.post, token: t.token });
       if (!r.ok) return fail(r, 'linkedin post');

@@ -96,6 +96,18 @@ describe('liPostBody — article-share request body', () => {
     });
     expect(error).toMatch(/max 3000/);
   });
+  it('attaches a thumbnail image URN to the article when one is passed', () => {
+    const { post } = liPostBody(
+      author,
+      { slug: 's', caption: 'https://good.vibes.diy/blog/s', title: 'T' },
+      'urn:li:image:C4E10AQF'
+    );
+    expect(post.content.article.thumbnail).toBe('urn:li:image:C4E10AQF');
+  });
+  it('omits thumbnail when none is passed (text-only card)', () => {
+    const { post } = liPostBody(author, { slug: 's', caption: 'https://good.vibes.diy/blog/s' });
+    expect(post.content.article.thumbnail).toBeUndefined();
+  });
 });
 
 describe('liFetch — LinkedIn REST client', () => {
@@ -827,6 +839,124 @@ describe('scheduled — shared-path invariants (ig/threads/fbpage parity)', () =
     expect(r.status).toBe('done'); // NOT errored
     expect(sentRecord.record.embed.external.thumb).toBeUndefined();
     expect(ctx.dbs.oplog.some((d) => d.op === 'bsky-thumb-skipped')).toBe(true);
+  });
+
+  const liToken = (over = {}) => ({
+    _id: 'token-linkedin',
+    kind: 'token',
+    platform: 'linkedin',
+    token: 'LITOK',
+    igUserId: 'urn:li:person:abc',
+    username: 'Me',
+    refreshedAt: daysAgo(0),
+    ...over,
+  });
+
+  it('linkedin uploads thumbBase64 via the Images API and references the image URN on the article', async () => {
+    let sentPost = null;
+    let putInit = null;
+    const calls = routedFetch([
+      META_PROBE_LIVE,
+      LI_LANE_LIVE,
+      // initializeUpload → signed uploadUrl + image URN
+      [
+        'api.linkedin.com/rest/images',
+        () =>
+          json({
+            value: {
+              uploadUrl: 'https://www.linkedin.com/dms-uploads/C4E10AQF/uploaded-image/0?ca=x',
+              image: 'urn:li:image:C4E10AQF',
+            },
+          }),
+      ],
+      // the byte PUT to the signed URL
+      [
+        'www.linkedin.com/dms-uploads',
+        (url, init) => {
+          putInit = init;
+          return new Response(null, { status: 201 });
+        },
+      ],
+      // the post create — capture the body, return the share URN in x-restli-id
+      [
+        'api.linkedin.com/rest/posts',
+        (url, init) => {
+          sentPost = JSON.parse(init.body);
+          return new Response(null, { status: 201, headers: { 'x-restli-id': 'urn:li:share:77' } });
+        },
+      ],
+    ]);
+    const ctx = mockCtx({
+      vault: [liToken()],
+      requests: [
+        {
+          _id: 'r-li',
+          kind: 'publish-request',
+          platform: 'linkedin',
+          slug: 's',
+          images: [],
+          thumbBase64: Buffer.from([1, 2, 3, 4]).toString('base64'),
+          thumbMime: 'image/jpeg',
+          caption: 'hook https://good.vibes.diy/blog/s?src=linkedin',
+          title: 'T',
+          status: 'pending',
+          attempts: 0,
+        },
+      ],
+    });
+    await scheduled({}, ctx);
+    const r = ctx.dbs.requests.find((d) => d._id === 'r-li');
+    expect(r.status).toBe('done');
+    expect(r.permalink).toBe('https://www.linkedin.com/feed/update/urn:li:share:77');
+    // the uploaded image URN rode onto the article thumbnail
+    expect(sentPost.content.article.thumbnail).toBe('urn:li:image:C4E10AQF');
+    // PUT carried the declared mime; no fetch to a floor-denied platform host
+    expect(putInit.method).toBe('PUT');
+    expect(putInit.headers['content-type']).toBe('image/jpeg');
+    expect(calls.some((c) => c.url.includes('good.vibes.diy'))).toBe(false);
+    // upload happened before the post
+    const iInit = calls.findIndex((c) => c.url.includes('rest/images'));
+    const iPost = calls.findIndex((c) => c.url.includes('rest/posts'));
+    expect(iInit).toBeGreaterThanOrEqual(0);
+    expect(iInit).toBeLessThan(iPost);
+  });
+
+  it('linkedin posts WITHOUT a thumbnail when initializeUpload fails (best-effort), logging linkedin-thumb-skipped', async () => {
+    let sentPost = null;
+    routedFetch([
+      META_PROBE_LIVE,
+      LI_LANE_LIVE,
+      ['api.linkedin.com/rest/images', () => json({ serviceErrorCode: 0, message: 'nope' }, 500)],
+      [
+        'api.linkedin.com/rest/posts',
+        (url, init) => {
+          sentPost = JSON.parse(init.body);
+          return new Response(null, { status: 201, headers: { 'x-restli-id': 'urn:li:share:88' } });
+        },
+      ],
+    ]);
+    const ctx = mockCtx({
+      vault: [liToken()],
+      requests: [
+        {
+          _id: 'r-li',
+          kind: 'publish-request',
+          platform: 'linkedin',
+          slug: 's',
+          images: [],
+          thumbBase64: Buffer.from([1, 2, 3, 4]).toString('base64'),
+          caption: 'hook https://good.vibes.diy/blog/s?src=linkedin',
+          title: 'T',
+          status: 'pending',
+          attempts: 0,
+        },
+      ],
+    });
+    await scheduled({}, ctx);
+    const r = ctx.dbs.requests.find((d) => d._id === 'r-li');
+    expect(r.status).toBe('done'); // NOT errored — the post still goes out
+    expect(sentPost.content.article.thumbnail).toBeUndefined();
+    expect(ctx.dbs.oplog.some((d) => d.op === 'linkedin-thumb-skipped')).toBe(true);
   });
 
   it('bsky posts even if the skip-logging itself throws (thumb path is fully swallowed)', async () => {
