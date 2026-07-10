@@ -46,6 +46,12 @@ const BUILDER_REF = 'main'; // schedule/dispatch only resolve against the defaul
 // while a build is in flight. A single dispatch drains up to MAX_BUILDS builds.
 const DISPATCH_DEBOUNCE_MS = 12 * 60000;
 const DISPATCH_MAX_BUILDS = 10; // upper bound on builds asked for in one run
+// Mirror of the runner's STALE_BUILDING_MS (scripts/mention-builds.mjs): a doc
+// stuck in `building` past this window is a crashed run the runner will retry —
+// but only if a run is dispatched. With no cron, we must count these as
+// dispatchable work, else a runner that dies holding the last pending doc
+// strands it in `building` forever (#60).
+const STALE_BUILDING_MS = 45 * 60000;
 
 // Guardrail defaults (#3323: "required, this is unauthenticated compute").
 // Overridable per-field via an owner-written `config` doc (kind "config",
@@ -646,6 +652,25 @@ async function classifyBuildIntent(ctx, prompt) {
   }
 }
 
+// Work the builder can act on (pure, unit-tested): freshly `pending-build`
+// mentions PLUS `building` docs stranded past the staleness window. The runner
+// already retries crashed `building` docs, but only inside a run — with the
+// schedule disabled, a run has to be dispatched for that recovery to happen. If
+// a runner dies holding the final pending doc, the pending queue is empty yet a
+// stale `building` doc remains; counting it here is the only thing that ever
+// re-triggers its recovery (#60).
+export function dispatchableWork({ requests, nowMs, staleBuildingMs = STALE_BUILDING_MS }) {
+  let count = 0;
+  for (const d of requests) {
+    if (d.status === 'pending-build') {
+      count += 1;
+    } else if (d.status === 'building' && nowMs - new Date(d.updatedAt ?? 0).getTime() > staleBuildingMs) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 // Pure dispatch decision (unit-tested): fire only when work is queued and we're
 // past the debounce since the last dispatch. Missing lastDispatchAt ⇒ never
 // dispatched ⇒ fire immediately when there's work.
@@ -696,10 +721,13 @@ async function maybeDispatchBuilder(ctx) {
   if (!token) return;
 
   const requests = (await ctx.db.query({ db: 'requests' })).filter((d) => d.kind === 'mention');
-  const queued = requests.filter((d) => d.status === 'pending-build').length;
+  const nowMs = Date.now();
+  // Count stale `building` docs alongside `pending-build` so a crashed runner's
+  // stranded work still re-triggers the recovery run (#60).
+  const queued = dispatchableWork({ requests, nowMs });
 
   const state = (await ctx.db.query({ db: 'oplog' })).find((d) => d._id === 'listener-state') || {};
-  if (!shouldDispatchBuilder({ queued, lastDispatchAt: state.lastDispatchAt, nowMs: Date.now() })) return;
+  if (!shouldDispatchBuilder({ queued, lastDispatchAt: state.lastDispatchAt, nowMs })) return;
 
   const r = await githubDispatch(ctx, token, queued);
   if (r.ok) {
