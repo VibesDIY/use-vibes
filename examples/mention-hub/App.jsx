@@ -34,8 +34,10 @@ const CONFIG_FIELDS = [
   ['maxGlobalPerDay', 'global builds / day (spend ceiling)'],
   ['maxNewPerTick', 'new builds / tick'],
   ['maxRepliesPerTick', 'replies / tick'],
+  ['maxDmsPerTick', 'claim DMs / tick'],
   ['minPromptChars', 'min prompt chars'],
   ['dedupeWindowDays', 'dedupe window (days)'],
+  ['maxMentionAgeDays', 'max mention age (days)'],
 ];
 
 export default function App() {
@@ -57,6 +59,7 @@ export default function App() {
     .slice(0, 20);
 
   const [credential, setCredential] = useState('');
+  const [githubPat, setGithubPat] = useState('');
   const [justSaved, setJustSaved] = useState(null);
   const [cfgDraft, setCfgDraft] = useState(null);
 
@@ -90,6 +93,24 @@ export default function App() {
     });
     setCredential('');
     setJustSaved('bsky');
+    setTimeout(() => setJustSaved(null), 2500);
+  };
+
+  // The GitHub PAT that lets the backend fire the builder workflow on demand
+  // (#3529). Same write-only vault as the Bluesky credential — never syncs back.
+  const saveGithubPat = async () => {
+    if (!githubPat.trim()) return;
+    await vaultDb.put({
+      _id: 'token-github',
+      kind: 'token',
+      platform: 'github',
+      token: githubPat.trim(),
+      pastedAt: new Date().toISOString(),
+      needsReauth: false,
+      lastError: null,
+    });
+    setGithubPat('');
+    setJustSaved('github');
     setTimeout(() => setJustSaved(null), 2500);
   };
 
@@ -150,12 +171,48 @@ export default function App() {
               onClick={saveCredential}
               className="bg-[#FEDD00] text-stone-900 font-bold text-[12px] px-[14px] py-[6px] rounded-[6px]"
             >
-              {justSaved ? 'saved ✓' : 'save'}
+              {justSaved === 'bsky' ? 'saved ✓' : 'save'}
             </button>
           </div>
           <p className="text-[11px] text-stone-500">
             Write-only vault: the paste never syncs back to any browser. The next tick verifies it
             and shows the handle above.
+          </p>
+        </section>
+
+        <section className="border border-stone-700 rounded-[8px] p-[12px] space-y-[8px]">
+          <h2 className="text-[14px] font-bold">Builder trigger (GitHub)</h2>
+          <div className="text-[12px] text-stone-400">
+            {listener?.lastDispatchAt ? (
+              <>
+                <span className="text-emerald-400">dispatched</span> — last {listener.lastDispatchAt}
+              </>
+            ) : (
+              'no builder dispatch yet'
+            )}
+            {listener?.lastDispatchError ? (
+              <span className="text-red-400"> — {listener.lastDispatchError}</span>
+            ) : null}
+          </div>
+          <div className="flex gap-[8px]">
+            <input
+              type="password"
+              value={githubPat}
+              onChange={(e) => setGithubPat(e.target.value)}
+              placeholder="GitHub PAT (fine-grained: VibesDIY/vibes.diy, Actions: read+write)"
+              className="flex-1 bg-stone-900 border border-stone-700 rounded-[6px] px-[10px] py-[6px] text-[12px]"
+            />
+            <button
+              onClick={saveGithubPat}
+              className="bg-[#FEDD00] text-stone-900 font-bold text-[12px] px-[14px] py-[6px] rounded-[6px]"
+            >
+              {justSaved === 'github' ? 'saved ✓' : 'save'}
+            </button>
+          </div>
+          <p className="text-[11px] text-stone-500">
+            Lets the 1-minute tick fire the builder workflow on demand (event-driven, no polling
+            cron). Same write-only vault; never syncs back. Needed only for the compute lane —
+            the Bluesky credential above still handles listening and replies.
           </p>
         </section>
 
