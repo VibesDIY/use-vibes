@@ -86,7 +86,7 @@ export const DEFAULTS = {
 // in the oplog db with enabled:true and at least one search query. A missing or
 // disabled config no-ops silently, exactly like an un-pasted credential.
 export const SOLICITATION_DEFAULTS = {
-  enabled: false, // master switch — the lane is inert until an owner turns it on
+  enabled: false, // master switch — inert until on; turning it off also freezes in-flight work (dispatch + reply)
   queries: [], // Bluesky search queries run each tick, e.g. ['drop your startup link']
   maxPerAuthorPerDay: 1, // one reply per poster per UTC day — never pile onto anyone
   maxGlobalPerDay: 8, // spend ceiling for the proactive lane (below the mention lane's)
@@ -642,8 +642,10 @@ async function loadConfig(ctx) {
 // Solicitation-lane config lives in its own owner-written doc (kind
 // "config-solicitation") so the proactive lane can be turned on/off and tuned
 // independently of the mention guardrails. Dark by default: an absent doc ⇒
-// enabled:false, and no queries ⇒ nothing to search ⇒ nothing runs.
-async function loadSolicitationConfig(ctx) {
+// enabled:false, and no queries ⇒ nothing to search ⇒ nothing runs. Overrides
+// are validated per-field and fall back to the safe default on anything
+// malformed, so a typo can never widen a guardrail.
+export async function loadSolicitationConfig(ctx) {
   const docs = await ctx.db.query({ db: 'oplog' });
   const cfgDoc = docs.find((d) => d.kind === 'config-solicitation') || {};
   const cfg = { ...SOLICITATION_DEFAULTS };
@@ -653,16 +655,23 @@ async function loadSolicitationConfig(ctx) {
       .filter((q) => typeof q === 'string' && q.trim().length > 0)
       .map((q) => q.trim());
   }
+  // Count caps are budgets — they MUST be non-negative integers. A fractional
+  // cap silently rounds up at the `count >= cap` check (e.g. maxGlobalPerDay
+  // 0.5 lets one build through a sub-1 ceiling), and Infinity/NaN produce
+  // malformed limits — so reject anything non-integer and keep the default.
   for (const k of [
     'maxPerAuthorPerDay',
     'maxGlobalPerDay',
     'maxNewPerTick',
     'maxRepliesPerTick',
-    'maxPostAgeHours',
     'searchLimit',
     'authorFeedLimit',
   ]) {
-    if (typeof cfgDoc[k] === 'number' && cfgDoc[k] >= 0) cfg[k] = cfgDoc[k];
+    if (Number.isInteger(cfgDoc[k]) && cfgDoc[k] >= 0) cfg[k] = cfgDoc[k];
+  }
+  // Age window may be fractional (hours), but must still be finite and >= 0.
+  if (Number.isFinite(cfgDoc.maxPostAgeHours) && cfgDoc.maxPostAgeHours >= 0) {
+    cfg.maxPostAgeHours = cfgDoc.maxPostAgeHours;
   }
   return cfg;
 }
@@ -1059,15 +1068,19 @@ async function githubDispatch(ctx, token, queued) {
 // lives in the same write-only vault as the Bluesky credential (#3529): pasted
 // on the dashboard, never synced to any browser, read here in admin mode.
 // Dark until it's pasted — a missing token no-ops silently.
-async function maybeDispatchBuilder(ctx) {
+async function maybeDispatchBuilder(ctx, { includeSolicitations = false } = {}) {
   const ghVault = (await ctx.db.query({ db: 'vault' })).filter(
     (d) => d.kind === 'token' && d.platform === 'github'
   );
   const token = ghVault[0] && ghVault[0].token;
   if (!token) return;
 
+  // When the solicitation lane is inactive it's a hard freeze, not just "stop
+  // finding new ones": already-queued solicitation docs must NOT dispatch (or
+  // reply) — so exclude them from the builder count unless the lane is on. The
+  // mention lane is always counted.
   const requests = (await ctx.db.query({ db: 'requests' })).filter(
-    (d) => d.kind === 'mention' || d.kind === 'solicitation'
+    (d) => d.kind === 'mention' || (includeSolicitations && d.kind === 'solicitation')
   );
   const nowMs = Date.now();
   // Count stale `building` docs alongside `pending-build` so a crashed runner's
@@ -1116,6 +1129,11 @@ export async function scheduled(event, ctx) {
   const requestsAll = await ctx.db.query({ db: 'requests' });
   const existing = requestsAll.filter((d) => d.kind === 'mention');
   const existingSol = requestsAll.filter((d) => d.kind === 'solicitation');
+  // The solicitation lane's master switch. When off (or no config doc), the
+  // whole lane is frozen — not just search, but the shared builder dispatch and
+  // the reply loop too — so flipping enabled:false is a real emergency stop for
+  // work already in flight, matching the documented dark-by-default contract.
+  const solActive = solCfg.enabled === true;
 
   // 1. Listen: one page of the newest notifications. Deterministic doc ids
   // make reprocessing idempotent, so no cursor bookkeeping is needed; a burst
@@ -1166,7 +1184,7 @@ export async function scheduled(event, ctx) {
   // lane with search queries. Reuses the same requests db + builder lane as
   // mentions — a solicitation doc walks the identical pending-build → built →
   // replied pipeline.
-  if (solCfg.enabled && solCfg.queries.length > 0) {
+  if (solActive && solCfg.queries.length > 0) {
     const sinceIso = new Date(nowMs - solCfg.maxPostAgeHours * 3600000).toISOString();
     const seenPosts = new Map();
     for (const q of solCfg.queries.slice(0, 6)) {
@@ -1228,8 +1246,9 @@ export async function scheduled(event, ctx) {
 
   // 2. Fire the builder lane on demand if mentions are queued (#3529) — the
   // event-driven replacement for the polling cron. Debounced; dark until the
-  // GITHUB_DISPATCH_TOKEN secret exists. Both lanes share this dispatcher.
-  await maybeDispatchBuilder(ctx);
+  // GITHUB_DISPATCH_TOKEN secret exists. Both lanes share this dispatcher, but
+  // solicitation docs only count while the lane is active (kill-switch).
+  await maybeDispatchBuilder(ctx, { includeSolicitations: solActive });
 
   // 3. Reply to verified-live builds (the builder lane sets `built` only after
   // the published vibe answered 200). Each lane has its own per-tick reply cap.
@@ -1237,9 +1256,13 @@ export async function scheduled(event, ctx) {
   for (const m of builtMentions.slice(0, cfg.maxRepliesPerTick)) {
     await replyToMention(ctx, m, s.t, s.accessJwt);
   }
-  const builtSol = existingSol.filter((d) => d.status === 'built' && d.vibeUrl);
-  for (const m of builtSol.slice(0, solCfg.maxRepliesPerTick)) {
-    await replyToMention(ctx, m, s.t, s.accessJwt);
+  // Only post solicitation replies while the lane is active — disabling it must
+  // also stop already-built solicitations from reaching the timeline.
+  if (solActive) {
+    const builtSol = existingSol.filter((d) => d.status === 'built' && d.vibeUrl);
+    for (const m of builtSol.slice(0, solCfg.maxRepliesPerTick)) {
+      await replyToMention(ctx, m, s.t, s.accessJwt);
+    }
   }
 
   // 4. DM the requester a private claim (remix) link once the public reply has
