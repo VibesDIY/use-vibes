@@ -14,10 +14,12 @@ export default function (doc, oldDoc, user, ctx) {
   }
   if (
     doc.kind === 'mention' ||
+    doc.kind === 'solicitation' || // proactive search lane, same ops channel as mentions
     doc.kind === 'oplog' ||
     doc.kind === 'token-status' ||
     doc.kind === 'listener-state' ||
-    doc.kind === 'config'
+    doc.kind === 'config' ||
+    doc.kind === 'config-solicitation' // owner-written switch/knobs for the solicitation lane
   ) {
     return { channels: ['ops'], grant: { roles: { owner: ['ops'] } } };
   }
