@@ -89,8 +89,8 @@ export const SOLICITATION_DEFAULTS = {
   enabled: false, // master switch — inert until on; turning it off also freezes in-flight work (dispatch + reply)
   queries: [], // Bluesky search queries run each tick, e.g. ['drop your startup link']
   maxPerAuthorPerDay: 1, // one reply per poster per UTC day — never pile onto anyone
-  maxGlobalPerDay: 8, // spend ceiling for the proactive lane (below the mention lane's)
-  maxNewPerTick: 2, // newly accepted solicitations per tick (burst brake)
+  maxGlobalPerDay: 8, // REPLY ceiling for the proactive lane, enforced post-classification
+  maxNewPerTick: 12, // posts EXAMINED (classified) per tick — decoupled from the reply cap
   maxRepliesPerTick: 1, // replies posted per tick — deliberately slow, human-paced
   maxPostAgeHours: 12, // only answer fresh calls; older threads have moved on (reads as spam)
   searchLimit: 25, // posts fetched per query per tick
@@ -544,8 +544,10 @@ export function buildSolicitationReply({ solicitation, vibeUrl, createdAt, embed
 // as args. Unlike planMentions this emits CANDIDATES (status "candidate", no
 // build prompt yet): the prompt is derived later from the poster's feed (a
 // network call), and only LLM-confirmed calls become pending-build. Freshest
-// posts first, so a burst spends the tick's budget on live threads ("do the
-// live/fresh ones first").
+// posts first, so the tick's examine budget goes to live threads ("do the
+// live/fresh ones first"). It emits up to maxNewPerTick candidates to EXAMINE;
+// the daily REPLY cap (maxGlobalPerDay) is enforced later, at accept time — so
+// a small reply cap never starves how many posts reach the classifier.
 export function planSolicitations({ posts, selfDid, existing, cfg, nowIso }) {
   const day = dayKey(nowIso);
   const existingIds = new Set(existing.map((d) => d._id));
@@ -607,17 +609,23 @@ export function planSolicitations({ posts, selfDid, existing, cfg, nowIso }) {
       skip('author daily cap');
       continue;
     }
+    // Once the day's REPLY budget is already spent (persisted accepts), stop
+    // examining — no point classifying posts we can't answer today. But the cap
+    // is NOT charged per candidate here: candidates are only *examined*, and
+    // most are skipped by the SHARE gate. The reply cap binds at accept time
+    // (in scheduled) instead, so a small cap can't starve how many posts reach
+    // the classifier — that's what maxNewPerTick controls (the examine budget).
     if (todayCount >= cfg.maxGlobalPerDay) {
       skip('global daily cap');
       continue;
     }
     if (acceptedThisTick >= cfg.maxNewPerTick) {
-      // Burst brake: leave it unwritten so a later tick re-plans it fresh.
+      // Examine budget for this tick — leave the rest unwritten so a later tick
+      // re-plans them fresh (freshest-first, so live threads go first).
       continue;
     }
     out.push({ ...base, status: 'candidate' });
     acceptedThisTick += 1;
-    todayCount += 1;
     authorCounts.set(authorDid, (authorCounts.get(authorDid) || 0) + 1);
   }
   return out;
@@ -1208,11 +1216,18 @@ export async function scheduled(event, ctx) {
       cfg: solCfg,
       nowIso,
     });
-    let solAccepted = 0;
+    // The daily REPLY cap binds here, post-classification: today's persisted
+    // accepts plus any accepted earlier this tick. Examining many posts (above)
+    // never spends more than maxGlobalPerDay replies/day.
+    const solDay = dayKey(nowIso);
+    let acceptedToday = existingSol.filter(
+      (d) => d.status !== 'skipped' && d.day === solDay
+    ).length;
+    let solNew = 0;
     for (const doc of solPlan) {
       if (doc.status !== 'candidate') {
-        // own-post / stale / cap skips: record them (idempotent, keeps them out
-        // of next tick's re-plan) and move on.
+        // own-post / stale / author-cap skips: record them (idempotent, keeps
+        // them out of next tick's re-plan) and move on.
         await ctx.db.put(doc, { db: 'requests' });
         continue;
       }
@@ -1223,6 +1238,15 @@ export async function scheduled(event, ctx) {
       if (verdict === 'skip') {
         await ctx.db.put(
           { ...doc, status: 'skipped', reason: 'not a solicitation' },
+          { db: 'requests' }
+        );
+        continue;
+      }
+      // A genuine call, but the day's replies are already spent: skip without
+      // burning an idea-derivation call. (Checked here, not at examine time.)
+      if (acceptedToday >= solCfg.maxGlobalPerDay) {
+        await ctx.db.put(
+          { ...doc, status: 'skipped', reason: 'global daily cap' },
           { db: 'requests' }
         );
         continue;
@@ -1238,10 +1262,11 @@ export async function scheduled(event, ctx) {
         { ...doc, status: 'pending-build', prompt: idea.prompt, promptKey: promptKey(idea.prompt) },
         { db: 'requests' }
       );
-      solAccepted += 1;
+      acceptedToday += 1;
+      solNew += 1;
       await log(ctx, { op: 'solicitation-accepted', uri: doc.uri, prompt: idea.prompt });
     }
-    await noteListenerState(ctx, { solLastPollAt: nowIso, solNewDocs: solAccepted });
+    await noteListenerState(ctx, { solLastPollAt: nowIso, solNewDocs: solNew });
   }
 
   // 2. Fire the builder lane on demand if mentions are queued (#3529) — the
