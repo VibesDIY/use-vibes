@@ -124,10 +124,80 @@ stays skipped — capacity is at mention time, it doesn't queue for tomorrow.
   burst would age the overflow out of page one — at that point the caps are
   saturated anyway.
 
+## Solicitation lane — proactively answer "drop your app link" calls
+
+The mention lane is reactive. The **solicitation lane** is proactive: instead of
+waiting for an `@`-mention, the same scheduled tick _searches_ Bluesky for open
+posts inviting people to share their startup/app links ("drop your startup/app
+link — let's drive some traffic") and, for each genuine one, builds a small app
+tailored to the poster and drops that live link in-thread.
+
+It reuses everything: the `requests` db, the `pending-build → building → built →
+replied` pipeline, and the CI builder lane. Only the source and the reply
+template differ. Solicitation docs carry `kind: 'solicitation'` (mentions are
+`kind: 'mention'`); the builder lane (`scripts/mention-builds.ts`) builds either.
+
+```
+Bluesky search (12h window, freshest first)
+      │  planSolicitations: own-post / stale / per-author + global caps
+      ▼
+   classifySolicitation (ctx.callAI): genuine open call? SHARE / SKIP
+      ▼
+   deriveSolicitationIdea: read the poster's OWN recent posts →
+      one FUN or USEFUL app idea they'd chuckle at (kind, never mean/weird)
+      → moderatePrompt → build prompt
+      ▼
+   solicitation doc  status: pending-build  →  (builder lane)  →  built
+      ▼
+   backend.js tick: buildSolicitationReply → in-thread reply  →  replied
+```
+
+**Individualization = the app, not the words.** The derived idea becomes the
+build _prompt_ (same untrusted-prompt → sandboxed-app threat model as a mention
+prompt); the reply text stays a fixed template, so the no-echo /
+prompt-injection defense holds. Solicitation replies get **no** claim DM (the
+public reply carries the link; DMing strangers who didn't mention us is not).
+
+### Enabling it (dark by default)
+
+The lane runs nothing until an owner writes a `config-solicitation` doc into the
+`oplog` db (admin mode / dashboard):
+
+```json
+{
+  "_id": "config-solicitation",
+  "kind": "config-solicitation",
+  "enabled": true,
+  "queries": ["drop your startup link", "drop your app link", "share what you're building"]
+}
+```
+
+`enabled:false` or an empty `queries` array ⇒ inert. All the caps below are
+optional overrides on the same doc; defaults live in `SOLICITATION_DEFAULTS`.
+
+| knob               | default | meaning                                             |
+| ------------------ | ------- | --------------------------------------------------- |
+| enabled            | false   | master switch — inert until an owner turns it on    |
+| queries            | []      | Bluesky search queries run each tick (max 6 used)   |
+| maxGlobalPerDay    | 8       | accepted solicitation replies per UTC day           |
+| maxPerAuthorPerDay | 1       | one reply per poster per UTC day — never pile on    |
+| maxNewPerTick      | 2       | burst brake per 1-minute tick                       |
+| maxRepliesPerTick  | 1       | replies posted per tick — slow, human-paced         |
+| maxPostAgeHours    | 12      | only answer fresh calls; older threads read as spam |
+| searchLimit        | 25      | posts fetched per query per tick                    |
+| authorFeedLimit    | 20      | of the poster's recent posts fed to the idea model  |
+
+Search uses `sort=latest` + a 12h `since` cutoff (fresh-first, windowed
+server-side); `planSolicitations` re-checks the age as a belt-and-suspenders.
+Idempotency is the same cursorless trick as mentions — a deterministic
+`sol-<did>-<rkey>` doc id means re-finding a post in a later tick is a no-op.
+
 ## Known limits / follow-ons (tracked in #3323)
 
 - Bluesky only; Threads/X listeners are follow-on (same doc protocol, new
-  listener lanes in this backend).
+  listener lanes in this backend). The **Threads-native** version of the
+  solicitation lane needs Threads Graph API credentials in the vault — the
+  search + individualize + reply shape ports directly once those exist.
 - Mention→reply latency is minutes (1m tick + 10m cron + build time), fine
   for a marketing bot; a queue-worker builder would shave it if it matters.
 - Claimable ownership (pin the vibe to the requester, attach on first login)
