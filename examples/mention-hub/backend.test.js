@@ -18,6 +18,7 @@ import {
   dispatchableWork,
   parseIntentVerdict,
   SOLICITATION_DEFAULTS,
+  loadSolicitationConfig,
   solicitationDocId,
   parseSolicitationVerdict,
   buildIdeaPrompt,
@@ -1310,5 +1311,159 @@ describe('scheduled — solicitation lane wiring', () => {
     expect(created.record.text).not.toContain('drive some traffic');
     expect(created.record.text).not.toContain('birdwatching');
     expect(JSON.stringify(created.record.embed)).not.toContain('birdwatching');
+  });
+});
+
+describe('loadSolicitationConfig — validated, dark-by-default overrides', () => {
+  const withDoc = (doc) => ({ db: { query: async () => (doc ? [doc] : []) } });
+
+  it('is dark with no config doc', async () => {
+    const cfg = await loadSolicitationConfig(withDoc(null));
+    expect(cfg.enabled).toBe(false);
+    expect(cfg.queries).toEqual([]);
+    expect(cfg.maxGlobalPerDay).toBe(SOLICITATION_DEFAULTS.maxGlobalPerDay);
+  });
+
+  it('accepts integer count overrides and trims/filters queries', async () => {
+    const cfg = await loadSolicitationConfig(
+      withDoc({
+        kind: 'config-solicitation',
+        enabled: true,
+        queries: ['drop your app', '', 7, '  spaced  '],
+        maxGlobalPerDay: 3,
+        maxRepliesPerTick: 2,
+      })
+    );
+    expect(cfg.enabled).toBe(true);
+    expect(cfg.queries).toEqual(['drop your app', 'spaced']);
+    expect(cfg.maxGlobalPerDay).toBe(3);
+    expect(cfg.maxRepliesPerTick).toBe(2);
+  });
+
+  it('rejects fractional / non-finite / negative count caps, keeping the default', async () => {
+    const cfg = await loadSolicitationConfig(
+      withDoc({
+        kind: 'config-solicitation',
+        maxGlobalPerDay: 0.5, // would round up at `count >= cap`
+        maxNewPerTick: Infinity,
+        maxPerAuthorPerDay: -1,
+        searchLimit: NaN,
+      })
+    );
+    expect(cfg.maxGlobalPerDay).toBe(SOLICITATION_DEFAULTS.maxGlobalPerDay);
+    expect(cfg.maxNewPerTick).toBe(SOLICITATION_DEFAULTS.maxNewPerTick);
+    expect(cfg.maxPerAuthorPerDay).toBe(SOLICITATION_DEFAULTS.maxPerAuthorPerDay);
+    expect(cfg.searchLimit).toBe(SOLICITATION_DEFAULTS.searchLimit);
+  });
+
+  it('allows a fractional maxPostAgeHours (hours), but rejects non-finite', async () => {
+    const ok = await loadSolicitationConfig(
+      withDoc({ kind: 'config-solicitation', maxPostAgeHours: 1.5 })
+    );
+    expect(ok.maxPostAgeHours).toBe(1.5);
+    const bad = await loadSolicitationConfig(
+      withDoc({ kind: 'config-solicitation', maxPostAgeHours: Infinity })
+    );
+    expect(bad.maxPostAgeHours).toBe(SOLICITATION_DEFAULTS.maxPostAgeHours);
+  });
+});
+
+describe('scheduled — solicitation kill switch freezes in-flight work', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const freshToken = {
+    _id: 'token-bsky',
+    kind: 'token',
+    platform: 'bsky',
+    token: 'vibesdiy.bsky.social:aaaa-bbbb-cccc-dddd',
+    did: 'did:plc:self',
+    handle: 'vibesdiy.bsky.social',
+    accessJwt: 'jwt-access',
+    refreshJwt: 'jwt-refresh',
+    refreshedAt: new Date().toISOString(),
+  };
+  const builtSol = {
+    _id: 'sol-did:plc:bob-3sol',
+    kind: 'solicitation',
+    status: 'built',
+    uri: 'at://did:plc:bob/app.bsky.feed.post/3sol',
+    cid: 'cid-3sol',
+    rootUri: 'at://did:plc:bob/app.bsky.feed.post/3sol',
+    rootCid: 'cid-3sol',
+    authorDid: 'did:plc:bob',
+    vibeUrl: 'https://vibes.diy/vibe/mentions/bird-bingo',
+    attempts: 0,
+    day: '2026-07-06',
+    createdAt: NOW,
+  };
+
+  it('does NOT reply to a built solicitation when the lane is disabled (no config)', async () => {
+    const f = fakeDb();
+    f.seed('vault', freshToken);
+    f.seed('requests', { ...builtSol });
+    const createSpy = vi.fn(() =>
+      json({ uri: 'at://did:plc:self/app.bsky.feed.post/x', cid: 'y' })
+    );
+    vi.stubGlobal(
+      'fetch',
+      xrpcStub([
+        ['listNotifications', () => json({ notifications: [] })],
+        ['createRecord', createSpy],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    expect(createSpy).not.toHaveBeenCalled();
+    expect(f.dbs.requests.get('sol-did:plc:bob-3sol').status).toBe('built'); // frozen, unchanged
+  });
+
+  it('does NOT dispatch the builder for a queued solicitation when the lane is disabled', async () => {
+    const f = fakeDb();
+    f.seed('vault', freshToken);
+    f.seed('vault', { _id: 'token-github', kind: 'token', platform: 'github', token: 'ghp_x' });
+    f.seed('requests', {
+      _id: 'sol-did:plc:bob-3pend',
+      kind: 'solicitation',
+      status: 'pending-build',
+      updatedAt: NOW,
+      day: '2026-07-06',
+    });
+    const dispatchSpy = vi.fn(() => new Response(null, { status: 204 }));
+    vi.stubGlobal(
+      'fetch',
+      xrpcStub([
+        ['listNotifications', () => json({ notifications: [] })],
+        ['dispatches', dispatchSpy],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    expect(dispatchSpy).not.toHaveBeenCalled(); // disabled ⇒ not counted ⇒ no dispatch
+  });
+
+  it('DOES dispatch the builder for a queued solicitation when the lane is enabled', async () => {
+    const f = fakeDb();
+    f.seed('vault', freshToken);
+    f.seed('vault', { _id: 'token-github', kind: 'token', platform: 'github', token: 'ghp_x' });
+    f.seed('oplog', {
+      _id: 'config-solicitation',
+      kind: 'config-solicitation',
+      enabled: true,
+      queries: [], // no new search this tick; just exercise dispatch of the queued doc
+    });
+    f.seed('requests', {
+      _id: 'sol-did:plc:bob-3pend',
+      kind: 'solicitation',
+      status: 'pending-build',
+      updatedAt: NOW,
+      day: '2026-07-06',
+    });
+    const dispatchSpy = vi.fn(() => new Response(null, { status: 204 }));
+    vi.stubGlobal(
+      'fetch',
+      xrpcStub([
+        ['listNotifications', () => json({ notifications: [] })],
+        ['dispatches', dispatchSpy],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    expect(dispatchSpy).toHaveBeenCalledOnce();
   });
 });
