@@ -30,6 +30,8 @@ const BSKY_HOST = 'https://bsky.social';
 // through. Everything else (notifications, createRecord, DMs) rides parity.
 export const BSKY_MAX_TEXT = 300; // code points, conservative for ZWJ emoji
 const MAX_REPLY_ATTEMPTS = 5;
+const MAX_LIKE_ATTEMPTS = 3;
+const MAX_SCREENSHOT_WAITS = 5; // ticks to wait for the publish-queue screenshot before replying imageless
 // Bluesky DMs (chat.bsky.convo.*) are served by proxying through the PDS with
 // this service header — the same way the official web client sends DMs, so the
 // call still rides the CORS-open egress lane. The app-password must have been
@@ -204,12 +206,28 @@ export function bskyPermalink(uri, handle) {
 // dead-lineage fallback only.
 const BSKY_SESSION_FRESH_MS = 30 * 60000;
 
+// The account's PDS host, read from the session didDoc. chat.bsky.convo.* must
+// be sent HERE (with the atproto-proxy header), NOT to the bsky.social
+// entryway: the entryway transparently forwards com.atproto.repo.* (so
+// likes/replies work against it) but does not proxy authed chat, returning
+// "Method Not Implemented" (#3591). createSession/refreshSession both return the
+// didDoc; the PDS is its AtprotoPersonalDataServer service endpoint.
+export function pdsHostFromDidDoc(didDoc) {
+  const services = didDoc && Array.isArray(didDoc.service) ? didDoc.service : [];
+  const pds = services.find((s) => s && (s.id === '#atproto_pds' || s.type === 'AtprotoPersonalDataServer'));
+  const ep = pds && typeof pds.serviceEndpoint === 'string' ? pds.serviceEndpoint : '';
+  return /^https:\/\//.test(ep) ? ep.replace(/\/+$/, '') : null;
+}
+
 async function bskySession(ctx, t) {
   const persist = async (data) => {
     const next = {
       ...t,
       did: data.did || t.did,
       handle: data.handle || t.handle,
+      // Persist the PDS host so chat DMs route correctly (#3591). Keep any
+      // previously-captured host if this response omits the didDoc.
+      pdsHost: pdsHostFromDidDoc(data.didDoc) || t.pdsHost || null,
       accessJwt: data.accessJwt,
       refreshJwt: data.refreshJwt,
       refreshedAt: new Date().toISOString(),
@@ -244,6 +262,21 @@ async function bskySession(ctx, t) {
   });
   if (!r.ok) return { r };
   return persist(r.data);
+}
+
+// Backfill the account PDS host when the session didn't carry a didDoc —
+// refreshSession commonly omits it, so `pdsHost` would otherwise only populate
+// on a credential re-paste (createSession). describeRepo is unauthenticated,
+// works on the entryway, and returns the didDoc. Runs once; no-ops thereafter.
+async function ensurePdsHost(ctx, t) {
+  if (t.pdsHost || !t.did) return t.pdsHost || null;
+  const r = await bskyFetch(`com.atproto.repo.describeRepo?repo=${encodeURIComponent(t.did)}`);
+  const host = r.ok ? pdsHostFromDidDoc(r.data && r.data.didDoc) : null;
+  if (!host) return null;
+  const next = { ...t, pdsHost: host };
+  await ctx.db.put(next, { db: 'vault' });
+  Object.assign(t, next); // later calls this tick see the backfilled host
+  return host;
 }
 
 // --- Pure mention-triage helpers (unit-tested in backend.test.js) ------------
@@ -747,31 +780,47 @@ async function enrichToken(ctx, t) {
 // Fetch the publish screenshot and turn it into an images embed. Best-effort:
 // any failure (egress-blocked, not yet captured, wrong content type) degrades
 // to the external link-card embed — the reply still ships.
-async function screenshotEmbed(m, accessJwt) {
-  if (!m.screenshotUrl) return null;
+// Fetch the app screenshot and upload it as a Bluesky image blob. Returns a
+// discriminated result so the reply can WAIT for a not-yet-captured screenshot
+// (the blog engine's wait-for-media-ready pattern) instead of posting an
+// imageless card the moment the app serves:
+//   { embed }         — ready and uploaded (app.bsky.embed.images)
+//   { pending: true } — not captured yet; retry next tick. The publish queue
+//                       writes the JPEG a beat after the app first answers 200,
+//                       so `built` can briefly precede the screenshot.
+//   { pending: false }— present but unusable (oversized / upload rejected);
+//                       don't spin — fall straight to the link card.
+// Bytes ride the CORS-parity egress lane: the screenshot host serves image/jpeg
+// with `Access-Control-Allow-Origin: *`, so this is a browser-faithful GET.
+async function fetchScreenshotEmbed(m, accessJwt) {
+  if (!m.screenshotUrl) return { pending: false };
   let res;
   try {
     res = await fetch(m.screenshotUrl);
   } catch {
-    return null;
+    return { pending: true }; // transient / not-yet-served
   }
   const contentType = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
-  if (!res.ok || !contentType.startsWith('image/')) return null;
+  if (res.status === 404) return { pending: true }; // queue hasn't written it yet
+  if (!res.ok || !contentType.startsWith('image/')) return { pending: true }; // placeholder/HTML → still settling
   const bytes = await res.arrayBuffer();
+  if (bytes.byteLength === 0) return { pending: true };
   // Bluesky rejects blobs >~1MB; the publish screenshot is a q85 720p JPEG
-  // (well under), but guard anyway rather than fail the createRecord.
-  if (bytes.byteLength === 0 || bytes.byteLength > 950000) return null;
+  // (well under), but a giant one won't shrink by waiting — give up on the image.
+  if (bytes.byteLength > 950000) return { pending: false };
   const up = await bskyUploadBlob(bytes, contentType, accessJwt);
-  if (!up.ok) return null;
+  if (!up.ok) return { pending: false };
   return {
-    $type: 'app.bsky.embed.images',
-    images: [
-      {
-        image: up.blob,
-        alt: 'Screenshot of the app built from this post',
-        aspectRatio: { width: 1280, height: 720 },
-      },
-    ],
+    embed: {
+      $type: 'app.bsky.embed.images',
+      images: [
+        {
+          image: up.blob,
+          alt: 'Screenshot of the app built from this post',
+          aspectRatio: { width: 1280, height: 720 },
+        },
+      ],
+    },
   };
 }
 
@@ -787,10 +836,23 @@ async function replyToMention(ctx, m, t, accessJwt) {
     return save({ status: 'error', error: `reply gave up after ${MAX_REPLY_ATTEMPTS} attempts` });
   }
   try {
+    // Prefer the app screenshot as a full image embed; wait a few ticks for the
+    // publish queue to write it before settling for a bare link card, so the
+    // reply reliably shows what was built (the blog engine's media-ready gate).
+    const shot = await fetchScreenshotEmbed(m, accessJwt);
+    if (!shot.embed && shot.pending && (m.screenshotWaits || 0) < MAX_SCREENSHOT_WAITS) {
+      await log(ctx, { op: 'reply-awaiting-screenshot', uri: m.uri, waits: (m.screenshotWaits || 0) + 1 });
+      // Defer without consuming a hard reply attempt; the doc stays `built` so
+      // next tick re-picks it. Bounded by MAX_SCREENSHOT_WAITS.
+      return ctx.db.put(
+        { ...m, screenshotWaits: (m.screenshotWaits || 0) + 1, updatedAt: new Date().toISOString() },
+        { db: 'requests' }
+      );
+    }
     // The fallback card is constant text like everything else we post: the
     // no-echo invariant covers embed metadata too — untrusted prompt text
     // must never ride into our outbound post body (Charlie review, #3329).
-    const embed = (await screenshotEmbed(m, accessJwt)) || {
+    const embed = shot.embed || {
       $type: 'app.bsky.embed.external',
       external: {
         uri: m.vibeUrl,
@@ -845,7 +907,7 @@ async function replyToMention(ctx, m, t, accessJwt) {
 // non-follower DMs, or a credential without DM scope, simply never gets the
 // nudge; the public reply already carried the live link). The doc stays
 // `replied` either way — the DM is an add-on, not a state.
-async function sendClaimDm(ctx, m, accessJwt) {
+async function sendClaimDm(ctx, m, accessJwt, pdsHost) {
   const attempts = (m.dmAttempts || 0) + 1;
   const save = (patch) =>
     ctx.db.put(
@@ -856,13 +918,13 @@ async function sendClaimDm(ctx, m, accessJwt) {
   const dm = buildClaimDm({ mention: m });
   if (dm.error) return save({ dmError: dm.error });
 
-  const conv = await bskyFetch(
-    `chat.bsky.convo.getConvoForMembers?members=${encodeURIComponent(m.authorDid)}`,
-    {
-      token: accessJwt,
-      proxy: BSKY_CHAT_PROXY,
-    }
-  );
+  // chat.bsky.convo.* must hit the account's own PDS, not the entryway (#3591).
+  const chatHost = pdsHost || BSKY_HOST;
+  const conv = await bskyFetch(`chat.bsky.convo.getConvoForMembers?members=${encodeURIComponent(m.authorDid)}`, {
+    token: accessJwt,
+    proxy: BSKY_CHAT_PROXY,
+    host: chatHost,
+  });
   const convoId = conv.ok ? conv.data.convo && conv.data.convo.id : null;
   if (!convoId) {
     await log(ctx, {
@@ -878,6 +940,7 @@ async function sendClaimDm(ctx, m, accessJwt) {
     body: { convoId, message: { text: dm.text, facets: dm.facets } },
     token: accessJwt,
     proxy: BSKY_CHAT_PROXY,
+    host: chatHost,
   });
   if (!r.ok) {
     await log(ctx, {
@@ -1081,6 +1144,79 @@ async function githubDispatch(ctx, token, queued) {
 }
 
 // Fire the builder lane on demand when mentions are waiting. The GitHub PAT
+// --- Accept acknowledgement: like the request post -------------------------
+// The first visible signal to a requester that we're building their vibe: as
+// soon as a mention clears the gates (status `pending-build`), like the post.
+// It fires before the build even dispatches — an instant "got it, on it" — and
+// is quiet + bounded like every other outbound call.
+
+// Pure like record (unit-tested). A like is a record in our own repo pointing
+// at the requester's post by strong ref (uri + cid).
+export function buildLikeRecord({ uri, cid, createdAt }) {
+  if (!uri || !cid) return { error: 'missing subject uri/cid' };
+  return { record: { $type: 'app.bsky.feed.like', subject: { uri, cid }, createdAt } };
+}
+
+// Like-state lives in its OWN doc (`like-<mentionId>` in the oplog db), NOT on
+// the mention doc. The mention doc is co-written by the builder — it claims work
+// with a last-write-wins `status: building` + fresh `updatedAt`. Any like write
+// to the mention doc races that claim: re-reading narrows but can't close the
+// read-to-write window (the builder can land between our query and put), and a
+// stale write would revert the claim and lose the recovery heartbeat (#60 /
+// Charlie review on #61). Keeping like-state in a separate doc means the like
+// path NEVER writes the mention doc, so there is no window to lose a claim in.
+const likeStateId = (mentionId) => `like-${mentionId}`;
+
+// Like one accepted mention. Records `likedAt` on success; on failure records
+// `likeError` and bumps `likeAttempts` (bounded by MAX_LIKE_ATTEMPTS). All
+// writes target the mention's like-state doc — never the mention doc itself.
+async function likeMention(ctx, m, accessJwt, botDid) {
+  const stateId = likeStateId(m._id);
+  const prev = (await ctx.db.query({ db: 'oplog' })).find((d) => d._id === stateId) || {
+    _id: stateId,
+    kind: 'like-state',
+    mentionId: m._id,
+    likeAttempts: 0,
+  };
+  const write = (patch) =>
+    ctx.db.put({ ...prev, kind: 'like-state', mentionId: m._id, likeAttempts: (prev.likeAttempts || 0) + 1, ...patch }, { db: 'oplog' });
+
+  const built = buildLikeRecord({ uri: m.uri, cid: m.cid, createdAt: new Date().toISOString() });
+  if (built.error) return write({ likeError: built.error });
+  const r = await bskyFetch('com.atproto.repo.createRecord', {
+    method: 'POST',
+    body: { repo: botDid, collection: 'app.bsky.feed.like', record: built.record },
+    token: accessJwt,
+  });
+  if (!r.ok) {
+    await log(ctx, { op: 'like-failed', uri: m.uri, error: r.message || r.egressDenied || r.transport });
+    return write({ likeError: r.message || r.egressDenied || 'like failed' });
+  }
+  await log(ctx, { op: 'like-sent', uri: m.uri });
+  await write({ likedAt: new Date().toISOString(), likeError: null, likeUri: r.data && r.data.uri });
+}
+
+// Sweep newly-accepted requests and like the ones we haven't yet. Scoped to
+// `pending-build` (the pre-build acceptance state) so it fires the same tick a
+// mention is accepted and stops once the runner claims it. Idempotency + the
+// attempt bound are read from the per-mention like-state docs, so the sweep
+// only READS the mention docs — a like that failed retries next tick, bounded
+// by MAX_LIKE_ATTEMPTS.
+async function likeAcceptedMentions(ctx, accessJwt, botDid) {
+  const mentions = (await ctx.db.query({ db: 'requests' })).filter(
+    (d) => d.kind === 'mention' && d.status === 'pending-build'
+  );
+  const stateById = new Map(
+    (await ctx.db.query({ db: 'oplog' })).filter((d) => d.kind === 'like-state').map((d) => [d.mentionId, d])
+  );
+  for (const m of mentions) {
+    const st = stateById.get(m._id);
+    if (st && st.likedAt) continue; // already liked
+    if (st && (st.likeAttempts || 0) >= MAX_LIKE_ATTEMPTS) continue; // gave up
+    await likeMention(ctx, m, accessJwt, botDid);
+  }
+}
+
 // lives in the same write-only vault as the Bluesky credential (#3529): pasted
 // on the dashboard, never synced to any browser, read here in admin mode.
 // Dark until it's pasted — a missing token no-ops silently.
@@ -1141,6 +1277,8 @@ export async function scheduled(event, ctx) {
     });
     return;
   }
+  // Resolve the account PDS host once (needed to route claim DMs, #3591).
+  await ensurePdsHost(ctx, s.t);
 
   const requestsAll = await ctx.db.query({ db: 'requests' });
   const existing = requestsAll.filter((d) => d.kind === 'mention');
@@ -1277,13 +1415,19 @@ export async function scheduled(event, ctx) {
     await noteListenerState(ctx, { solLastPollAt: nowIso, solNewDocs: solNew });
   }
 
-  // 2. Fire the builder lane on demand if mentions are queued (#3529) — the
+  // 2. Acknowledge each accepted request by liking its post — the first
+  // visible signal to the requester that we're building it, before the build
+  // even dispatches. Re-queries (not the start-of-tick snapshot) so mentions
+  // accepted this very tick get liked now.
+  await likeAcceptedMentions(ctx, s.accessJwt, s.t.did);
+
+  // 3. Fire the builder lane on demand if mentions are queued (#3529) — the
   // event-driven replacement for the polling cron. Debounced; dark until the
   // GITHUB_DISPATCH_TOKEN secret exists. Both lanes share this dispatcher, but
   // solicitation docs only count while the lane is active (kill-switch).
   await maybeDispatchBuilder(ctx, { includeSolicitations: solActive });
 
-  // 3. Reply to verified-live builds (the builder lane sets `built` only after
+  // 4. Reply to verified-live builds (the builder lane sets `built` only after
   // the published vibe answered 200). Each lane has its own per-tick reply cap.
   const builtMentions = existing.filter((d) => d.status === 'built' && d.vibeUrl);
   for (const m of builtMentions.slice(0, cfg.maxRepliesPerTick)) {
@@ -1298,7 +1442,7 @@ export async function scheduled(event, ctx) {
     }
   }
 
-  // 4. DM the requester a private claim (remix) link once the public reply has
+  // 5. DM the requester a private claim (remix) link once the public reply has
   // landed — an add-on to the public reply, not a new state. Docs replied this
   // tick are picked up next tick (this uses the start-of-tick snapshot, like
   // the reply loop). Quiet failure, bounded by MAX_DM_ATTEMPTS.
@@ -1307,6 +1451,6 @@ export async function scheduled(event, ctx) {
       d.status === 'replied' && d.vibeUrl && !d.dmSentAt && (d.dmAttempts || 0) < MAX_DM_ATTEMPTS
   );
   for (const m of claimable.slice(0, cfg.maxDmsPerTick)) {
-    await sendClaimDm(ctx, m, s.accessJwt);
+    await sendClaimDm(ctx, m, s.accessJwt, s.t.pdsHost);
   }
 }

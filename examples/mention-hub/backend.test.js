@@ -16,6 +16,8 @@ import {
   claimUrlFor,
   shouldDispatchBuilder,
   dispatchableWork,
+  buildLikeRecord,
+  pdsHostFromDidDoc,
   parseIntentVerdict,
   SOLICITATION_DEFAULTS,
   loadSolicitationConfig,
@@ -421,7 +423,7 @@ describe('scheduled — tick wiring', () => {
     expect(state.lastError).toBeNull();
   });
 
-  it('replies to a built mention with the link card fallback and marks it replied', async () => {
+  it('replies with the link card fallback once the screenshot wait is exhausted', async () => {
     const f = fakeDb();
     f.seed('vault', freshToken);
     f.seed('requests', {
@@ -436,6 +438,7 @@ describe('scheduled — tick wiring', () => {
       vibeUrl: 'https://vibes.diy/vibe/mentions/m-3lcaaa',
       screenshotUrl: 'https://m-3lcaaa--mentions.vibesdiy.app/screenshot.png',
       attempts: 0,
+      screenshotWaits: 5, // wait budget exhausted → post the imageless card now
       day: '2026-07-06',
       createdAt: NOW,
     });
@@ -444,7 +447,7 @@ describe('scheduled — tick wiring', () => {
       'fetch',
       xrpcStub([
         ['listNotifications', () => json({ notifications: [] })],
-        // Screenshot fetch fails → the reply must degrade to the external card.
+        // Screenshot still missing after the wait budget → degrade to the card.
         ['screenshot.png', () => new Response('nope', { status: 404 })],
         [
           'createRecord',
@@ -465,6 +468,87 @@ describe('scheduled — tick wiring', () => {
     // No-echo invariant covers embed metadata too: the card must be constant
     // text, never the requester's prompt (Charlie review, #3329).
     expect(JSON.stringify(created.record.embed)).not.toContain('pomodoro');
+  });
+
+  it('defers the reply while the screenshot is still pending, bumping screenshotWaits', async () => {
+    const f = fakeDb();
+    f.seed('vault', freshToken);
+    f.seed('requests', {
+      _id: 'mention-did:plc:alice-3wait',
+      kind: 'mention',
+      status: 'built',
+      uri: 'at://did:plc:alice/app.bsky.feed.post/3wait',
+      cid: 'cid-3wait',
+      rootUri: 'at://did:plc:alice/app.bsky.feed.post/3wait',
+      rootCid: 'cid-3wait',
+      prompt: 'a drum machine',
+      vibeUrl: 'https://vibes.diy/vibe/mentions/m-3wait',
+      screenshotUrl: 'https://m-3wait--mentions.cli-v2.vibesdiy.net/screenshot.png',
+      attempts: 0,
+      day: '2026-07-06',
+      createdAt: NOW,
+    });
+    const createSpy = vi.fn(() => json({ uri: 'at://x', cid: 'c' }));
+    vi.stubGlobal(
+      'fetch',
+      xrpcStub([
+        ['listNotifications', () => json({ notifications: [] })],
+        // Screenshot not written yet: reply must WAIT, not post an imageless card.
+        ['screenshot.png', () => new Response('nope', { status: 404 })],
+        ['createRecord', createSpy],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    const m = f.dbs.requests.get('mention-did:plc:alice-3wait');
+    expect(createSpy).not.toHaveBeenCalled(); // no reply posted this tick
+    expect(m.status).toBe('built'); // still awaiting the screenshot
+    expect(m.screenshotWaits).toBe(1);
+    expect(m.attempts).toBe(0); // a wait is not a hard reply attempt
+  });
+
+  it('embeds the screenshot once it lands after an earlier wait', async () => {
+    const f = fakeDb();
+    f.seed('vault', freshToken);
+    f.seed('requests', {
+      _id: 'mention-did:plc:alice-3land',
+      kind: 'mention',
+      status: 'built',
+      uri: 'at://did:plc:alice/app.bsky.feed.post/3land',
+      cid: 'cid-3land',
+      rootUri: 'at://did:plc:alice/app.bsky.feed.post/3land',
+      rootCid: 'cid-3land',
+      prompt: 'a maze game',
+      vibeUrl: 'https://vibes.diy/vibe/mentions/m-3land',
+      screenshotUrl: 'https://m-3land--mentions.cli-v2.vibesdiy.net/screenshot.png',
+      attempts: 0,
+      screenshotWaits: 2, // already waited twice; the screenshot is ready now
+      day: '2026-07-06',
+      createdAt: NOW,
+    });
+    let created;
+    vi.stubGlobal(
+      'fetch',
+      xrpcStub([
+        ['listNotifications', () => json({ notifications: [] })],
+        [
+          'screenshot.png',
+          () => new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { 'content-type': 'image/jpeg' } }),
+        ],
+        ['uploadBlob', () => json({ blob: { $type: 'blob', ref: { $link: 'bafk' }, mimeType: 'image/jpeg', size: 3 } })],
+        [
+          'createRecord',
+          (_url, init) => {
+            created = JSON.parse(init.body);
+            return json({ uri: 'at://did:plc:self/app.bsky.feed.post/3rep', cid: 'cid-rep' });
+          },
+        ],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    const m = f.dbs.requests.get('mention-did:plc:alice-3land');
+    expect(m.status).toBe('replied');
+    expect(created.record.embed.$type).toBe('app.bsky.embed.images');
+    expect(created.record.embed.images[0].image.ref.$link).toBe('bafk');
   });
 
   it('uploads the screenshot and embeds it as an image when the fetch succeeds', async () => {
@@ -909,6 +993,74 @@ describe('scheduled — claim DM wiring', () => {
   });
   const noNewMentions = (routes = []) =>
     xrpcStub([['listNotifications', () => json({ notifications: [] })], ...routes]);
+
+  it('routes chat calls to the account PDS host, not the entryway (#3591)', async () => {
+    const f = fakeDb();
+    const pdsHost = 'https://gomphidius.us-west.host.bsky.network';
+    f.seed('vault', { ...freshToken, pdsHost });
+    f.seed('requests', repliedDoc());
+    const urls = [];
+    vi.stubGlobal(
+      'fetch',
+      noNewMentions([
+        [
+          'getConvoForMembers',
+          (url) => {
+            urls.push(String(url));
+            return json({ convo: { id: 'convo-1' } });
+          },
+        ],
+        [
+          'sendMessage',
+          (url) => {
+            urls.push(String(url));
+            return json({ id: 'msg1' });
+          },
+        ],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    expect(urls).toHaveLength(2);
+    for (const u of urls) expect(u.startsWith(`${pdsHost}/xrpc/chat.bsky.convo.`)).toBe(true);
+    expect(f.dbs.requests.get('mention-did:plc:alice-3lcaaa').dmSentAt).toBeTruthy();
+  });
+
+  it('backfills pdsHost via describeRepo when the token lacks it, then routes the DM there', async () => {
+    const f = fakeDb();
+    const pdsHost = 'https://gomphidius.us-west.host.bsky.network';
+    f.seed('vault', freshToken); // no pdsHost yet (refreshSession omitted the didDoc)
+    f.seed('requests', repliedDoc());
+    const chatUrls = [];
+    vi.stubGlobal(
+      'fetch',
+      noNewMentions([
+        [
+          'describeRepo',
+          () => json({ did: 'did:plc:self', didDoc: { service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: pdsHost }] } }),
+        ],
+        [
+          'getConvoForMembers',
+          (url) => {
+            chatUrls.push(String(url));
+            return json({ convo: { id: 'convo-1' } });
+          },
+        ],
+        [
+          'sendMessage',
+          (url) => {
+            chatUrls.push(String(url));
+            return json({ id: 'msg1' });
+          },
+        ],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    // pdsHost is persisted on the token and the chat calls target it.
+    expect(f.dbs.vault.get('token-bsky').pdsHost).toBe(pdsHost);
+    expect(chatUrls).toHaveLength(2);
+    for (const u of chatUrls) expect(u.startsWith(`${pdsHost}/xrpc/chat.bsky.convo.`)).toBe(true);
+    expect(f.dbs.requests.get('mention-did:plc:alice-3lcaaa').dmSentAt).toBeTruthy();
+  });
 
   it('DMs the requester a claim link and stamps dmSentAt', async () => {
     const f = fakeDb();
@@ -1361,6 +1513,7 @@ describe('scheduled — solicitation lane wiring', () => {
       vibeUrl: 'https://vibes.diy/vibe/mentions/bird-bingo',
       screenshotUrl: 'https://bird-bingo--mentions.vibesdiy.app/screenshot.png',
       attempts: 0,
+      screenshotWaits: 5, // wait budget exhausted → post the imageless card now
       day: '2026-07-06',
       createdAt: NOW,
     });
@@ -1542,5 +1695,210 @@ describe('scheduled — solicitation kill switch freezes in-flight work', () => 
     );
     await scheduled({}, f.ctx);
     expect(dispatchSpy).toHaveBeenCalledOnce();
+  });
+});
+
+describe('like-on-accept — acknowledge the request before building (#3323)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const freshToken = {
+    _id: 'token-bsky',
+    kind: 'token',
+    platform: 'bsky',
+    token: 'vibesdiy.bsky.social:aaaa-bbbb-cccc-dddd',
+    did: 'did:plc:self',
+    handle: 'vibesdiy.bsky.social',
+    accessJwt: 'jwt-access',
+    refreshJwt: 'jwt-refresh',
+    refreshedAt: new Date().toISOString(),
+  };
+
+  it('buildLikeRecord — strong-ref like on the request post', () => {
+    const built = buildLikeRecord({ uri: 'at://did:plc:alice/app.bsky.feed.post/3lc', cid: 'cid-3lc', createdAt: NOW });
+    expect(built.record).toMatchObject({
+      $type: 'app.bsky.feed.like',
+      subject: { uri: 'at://did:plc:alice/app.bsky.feed.post/3lc', cid: 'cid-3lc' },
+      createdAt: NOW,
+    });
+  });
+
+  it('buildLikeRecord — a missing uri or cid is an error, not a malformed record', () => {
+    expect(buildLikeRecord({ uri: 'at://x', createdAt: NOW }).error).toBeTruthy();
+    expect(buildLikeRecord({ cid: 'c', createdAt: NOW }).error).toBeTruthy();
+  });
+
+  // Like-state lives in its own oplog doc, keyed `like-<mentionId>`, so the like
+  // path never writes the (builder-contended) mention doc.
+  const likeState = (f, mentionId) => f.dbs.oplog.get(`like-${mentionId}`);
+
+  it('likes a freshly-accepted mention and records it in a separate like-state doc', async () => {
+    const f = fakeDb();
+    f.seed('vault', freshToken);
+    let likeBody = null;
+    vi.stubGlobal(
+      'fetch',
+      xrpcStub([
+        ['listNotifications', () => json({ notifications: [notif({ rkey: '3like1' })] })],
+        [
+          'createRecord',
+          (_url, init) => {
+            likeBody = JSON.parse(init.body);
+            return json({ uri: 'at://did:plc:self/app.bsky.feed.like/abc', cid: 'cid-like' });
+          },
+        ],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    // The like is a record in OUR repo strong-ref'ing the request post.
+    expect(likeBody.collection).toBe('app.bsky.feed.like');
+    expect(likeBody.repo).toBe('did:plc:self');
+    expect(likeBody.record.$type).toBe('app.bsky.feed.like');
+    expect(likeBody.record.subject.uri).toContain('3like1');
+    // The mention doc is NOT touched by the like path — no like fields on it.
+    const doc = f.dbs.requests.get('mention-did:plc:alice-3like1');
+    expect(doc.status).toBe('pending-build');
+    expect(doc.likedAt).toBeUndefined();
+    // Like-state is recorded separately.
+    const st = likeState(f, 'mention-did:plc:alice-3like1');
+    expect(st.likedAt).toBeTruthy();
+    expect(st.likeError).toBeNull();
+  });
+
+  it('does not like a mention the intent gate rejected', async () => {
+    const f = fakeDb();
+    f.seed('vault', freshToken);
+    f.ctx.callAI = vi.fn(async () => 'SKIP');
+    const createSpy = vi.fn(() => json({ uri: 'at://x', cid: 'c' }));
+    vi.stubGlobal(
+      'fetch',
+      xrpcStub([
+        ['listNotifications', () => json({ notifications: [notif({ rkey: '3skip1' })] })],
+        ['createRecord', createSpy],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    expect(createSpy).not.toHaveBeenCalled();
+    const doc = f.dbs.requests.get('mention-did:plc:alice-3skip1');
+    expect(doc.status).toBe('skipped');
+    expect(likeState(f, 'mention-did:plc:alice-3skip1')).toBeUndefined();
+  });
+
+  it('never re-likes a mention whose like-state already has likedAt', async () => {
+    const f = fakeDb();
+    f.seed('vault', freshToken);
+    f.seed('requests', {
+      _id: 'mention-did:plc:alice-3done',
+      kind: 'mention',
+      status: 'pending-build',
+      uri: 'at://did:plc:alice/app.bsky.feed.post/3done',
+      cid: 'cid-3done',
+    });
+    f.seed('oplog', {
+      _id: 'like-mention-did:plc:alice-3done',
+      kind: 'like-state',
+      mentionId: 'mention-did:plc:alice-3done',
+      likedAt: '2026-07-06T00:00:00.000Z',
+      likeAttempts: 1,
+    });
+    const createSpy = vi.fn(() => json({ uri: 'at://x', cid: 'c' }));
+    vi.stubGlobal(
+      'fetch',
+      xrpcStub([
+        ['listNotifications', () => json({ notifications: [] })],
+        ['createRecord', createSpy],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    expect(createSpy).not.toHaveBeenCalled();
+  });
+
+  it('never writes the mention doc, so a concurrent builder claim cannot be lost', async () => {
+    const f = fakeDb();
+    f.seed('vault', freshToken);
+    f.seed('requests', {
+      _id: 'mention-did:plc:alice-3race',
+      kind: 'mention',
+      status: 'pending-build',
+      uri: 'at://did:plc:alice/app.bsky.feed.post/3race',
+      cid: 'cid-3race',
+      updatedAt: '2026-07-06T00:00:00.000Z',
+    });
+    // The builder claims the doc WHILE the like createRecord is in flight — the
+    // exact read-to-write window Charlie flagged. Because the like path only
+    // writes the separate like-state doc, the claim survives untouched.
+    const claimedAt = '2026-07-06T12:34:56.000Z';
+    vi.stubGlobal(
+      'fetch',
+      xrpcStub([
+        ['listNotifications', () => json({ notifications: [] })],
+        [
+          'createRecord',
+          () => {
+            f.seed('requests', {
+              _id: 'mention-did:plc:alice-3race',
+              kind: 'mention',
+              status: 'building',
+              uri: 'at://did:plc:alice/app.bsky.feed.post/3race',
+              cid: 'cid-3race',
+              buildAttempts: 1,
+              updatedAt: claimedAt,
+            });
+            return json({ uri: 'at://did:plc:self/app.bsky.feed.like/x', cid: 'cid-like' });
+          },
+        ],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    const doc = f.dbs.requests.get('mention-did:plc:alice-3race');
+    // The claim is intact — the like never wrote this doc.
+    expect(doc.status).toBe('building');
+    expect(doc.updatedAt).toBe(claimedAt);
+    expect(doc.buildAttempts).toBe(1);
+    expect(doc.likedAt).toBeUndefined();
+    // The like itself still happened, recorded separately.
+    expect(likeState(f, 'mention-did:plc:alice-3race').likedAt).toBeTruthy();
+  });
+
+  it('quiet-fails a like error in the like-state doc; mention doc stays untouched', async () => {
+    const f = fakeDb();
+    f.seed('vault', freshToken);
+    vi.stubGlobal(
+      'fetch',
+      xrpcStub([
+        ['listNotifications', () => json({ notifications: [notif({ rkey: '3err1' })] })],
+        ['createRecord', () => json({ error: 'RateLimitExceeded', message: 'slow down' }, 429)],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    const doc = f.dbs.requests.get('mention-did:plc:alice-3err1');
+    expect(doc.status).toBe('pending-build');
+    expect(doc.likeError).toBeUndefined(); // not on the mention doc
+    const st = likeState(f, 'mention-did:plc:alice-3err1');
+    expect(st.likedAt).toBeUndefined();
+    expect(st.likeError).toBeTruthy();
+    expect(st.likeAttempts).toBe(1);
+  });
+});
+
+describe('pdsHostFromDidDoc — chat must target the account PDS (#3591)', () => {
+  it('extracts the AtprotoPersonalDataServer endpoint and trims a trailing slash', () => {
+    const didDoc = {
+      service: [
+        { id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: 'https://gomphidius.us-west.host.bsky.network/' },
+      ],
+    };
+    expect(pdsHostFromDidDoc(didDoc)).toBe('https://gomphidius.us-west.host.bsky.network');
+  });
+
+  it('matches by service type when the id differs', () => {
+    const didDoc = { service: [{ id: '#pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: 'https://x.host.bsky.network' }] };
+    expect(pdsHostFromDidDoc(didDoc)).toBe('https://x.host.bsky.network');
+  });
+
+  it('returns null for a missing, empty, or non-https didDoc', () => {
+    expect(pdsHostFromDidDoc(undefined)).toBeNull();
+    expect(pdsHostFromDidDoc({})).toBeNull();
+    expect(pdsHostFromDidDoc({ service: [] })).toBeNull();
+    expect(pdsHostFromDidDoc({ service: [{ id: '#atproto_pds', serviceEndpoint: 'http://insecure.example' }] })).toBeNull();
   });
 });
