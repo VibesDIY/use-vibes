@@ -21,13 +21,13 @@
 export const config = { scheduled: { interval: '1m' } };
 
 const BSKY_HOST = 'https://bsky.social';
-// The unauthenticated, CORS-open AppView. Read-only feed reads (searchPosts,
-// getAuthorFeed) go here rather than through bsky.social: the entryway proxies
-// those to the AppView and the proxied responses intermittently fail the vibe
-// runtime's CORS-parity egress gate ('cors' denial), whereas public.api.bsky.app
-// serves them directly with ACAO * and needs no auth. Authenticated calls
-// (notifications, createRecord, DMs) stay on BSKY_HOST.
-const BSKY_APPVIEW = 'https://public.api.bsky.app';
+// searchPosts / getAuthorFeed both go through bsky.social with the session token:
+// searchPosts REQUIRES auth (the unauthenticated public AppView 403s it). The
+// entryway proxies these feed reads to the AppView and the proxied responses
+// fail the vibe runtime's CORS-parity egress gate ('cors' denial), so these two
+// exact paths are blessed on the platform egress lane instead (VibesDIY/vibes.diy
+// PLATFORM_EGRESS_LIST) — that's what lets the authenticated bsky.social search
+// through. Everything else (notifications, createRecord, DMs) rides parity.
 export const BSKY_MAX_TEXT = 300; // code points, conservative for ZWJ emoji
 const MAX_REPLY_ATTEMPTS = 5;
 // Bluesky DMs (chat.bsky.convo.*) are served by proxying through the PDS with
@@ -935,25 +935,23 @@ async function classifyBuildIntent(ctx, prompt) {
 // Search public posts inviting app-link drops. sort=latest + a `since` cutoff
 // does the fresh-first, last-N-hours windowing server-side; planSolicitations
 // re-checks the age as a belt-and-suspenders in case a PDS ignores `since`.
-async function bskySearchPosts(query, { limit = 25, since } = {}) {
+async function bskySearchPosts(query, { token, limit = 25, since } = {}) {
   const params = new URLSearchParams({ q: query, limit: String(limit), sort: 'latest' });
   if (since) params.set('since', since);
-  // Unauthenticated read on the CORS-open AppView (see BSKY_APPVIEW note).
-  return bskyFetch(`app.bsky.feed.searchPosts?${params.toString()}`, { host: BSKY_APPVIEW });
+  // Authenticated (searchPosts requires it); rides the platform egress lane.
+  return bskyFetch(`app.bsky.feed.searchPosts?${params.toString()}`, { token });
 }
 
 // The poster's own recent posts — raw material for an individualized idea.
 // Best-effort: any failure yields [] (the idea model just gets a thinner
-// corpus), never a hard error. Public AppView read, no auth needed.
-async function bskyAuthorPosts(did, { limit = 20 } = {}) {
+// corpus), never a hard error. Authenticated read, platform egress lane.
+async function bskyAuthorPosts(did, { token, limit = 20 } = {}) {
   const params = new URLSearchParams({
     actor: did,
     limit: String(limit),
     filter: 'posts_no_replies',
   });
-  const r = await bskyFetch(`app.bsky.feed.getAuthorFeed?${params.toString()}`, {
-    host: BSKY_APPVIEW,
-  });
+  const r = await bskyFetch(`app.bsky.feed.getAuthorFeed?${params.toString()}`, { token });
   if (!r.ok) return [];
   return (r.data.feed || [])
     .map((it) => it && it.post && it.post.record && it.post.record.text)
