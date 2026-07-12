@@ -1166,6 +1166,42 @@ describe('planSolicitations — search triage + guardrails', () => {
     expect(candidates).toHaveLength(1); // the second is left unwritten for next tick
     expect(out.every((d) => d.status !== 'skipped' || d.reason !== 'burst')).toBe(true);
   });
+
+  it('examines up to maxNewPerTick even when the reply cap is tiny (decoupled)', () => {
+    // 5 fresh posts from distinct authors, reply cap 2 but examine budget 5:
+    // ALL 5 become candidates (reply cap binds later, at accept time), so the
+    // real solicitation deeper in the list still reaches the classifier.
+    const posts = ['a', 'b', 'c', 'd', 'e'].map((rk, i) =>
+      post({ rkey: rk, did: `did:plc:${rk}` })
+    );
+    const out = planSolicitations({
+      posts,
+      selfDid: 'did:plc:self',
+      existing: [],
+      cfg: { ...cfg, maxGlobalPerDay: 2, maxNewPerTick: 5 },
+      nowIso: NOW,
+    });
+    expect(out.filter((d) => d.status === 'candidate')).toHaveLength(5);
+  });
+
+  it('stops examining once the day’s persisted replies hit the cap', () => {
+    const existing = [1, 2].map((i) => ({
+      _id: `sol-did:plc:x${i}-old`,
+      kind: 'solicitation',
+      status: 'replied',
+      authorDid: `did:plc:x${i}`,
+      day: dayKey(NOW),
+    }));
+    const out = planSolicitations({
+      posts: [post({ rkey: 'new' })],
+      selfDid: 'did:plc:self',
+      existing,
+      cfg: { ...cfg, maxGlobalPerDay: 2 },
+      nowIso: NOW,
+    });
+    expect(out[0].status).toBe('skipped');
+    expect(out[0].reason).toBe('global daily cap');
+  });
 });
 
 describe('scheduled — solicitation lane wiring', () => {
@@ -1264,6 +1300,47 @@ describe('scheduled — solicitation lane wiring', () => {
     const docs = [...f.dbs.requests.values()];
     expect(docs).toHaveLength(1);
     expect(docs[0].status).toBe('skipped');
+  });
+
+  it('caps replies at accept time: two genuine calls, cap 1 → one built, one capped', async () => {
+    const f = fakeDb();
+    f.seed('vault', freshToken);
+    enableSolicitation(f, { maxGlobalPerDay: 1, maxNewPerTick: 5 });
+    // Both classify SHARE and yield an idea — the cap, not the classifier, is
+    // what limits us to one reply.
+    f.ctx.callAI = vi.fn(async (prompt) =>
+      /SHARE or SKIP/.test(prompt) ? 'SHARE' : 'Build a tiny synth'
+    );
+    const twoPosts = [
+      {
+        uri: 'at://did:plc:aa/app.bsky.feed.post/p1',
+        cid: 'c1',
+        author: { did: 'did:plc:aa', handle: 'aa.bsky.social' },
+        record: { text: 'drop your app link below!' },
+        indexedAt: new Date().toISOString(),
+      },
+      {
+        uri: 'at://did:plc:bb/app.bsky.feed.post/p2',
+        cid: 'c2',
+        author: { did: 'did:plc:bb', handle: 'bb.bsky.social' },
+        record: { text: 'share your startup, lets drive traffic' },
+        indexedAt: new Date().toISOString(),
+      },
+    ];
+    vi.stubGlobal(
+      'fetch',
+      xrpcStub([
+        ['listNotifications', () => json({ notifications: [] })],
+        ['searchPosts', () => json({ posts: twoPosts })],
+        ['getAuthorFeed', () => json({ feed: [] })],
+      ])
+    );
+    await scheduled({}, f.ctx);
+    const sols = [...f.dbs.requests.values()].filter((d) => d.kind === 'solicitation');
+    expect(sols.filter((d) => d.status === 'pending-build')).toHaveLength(1);
+    expect(
+      sols.filter((d) => d.status === 'skipped' && d.reason === 'global daily cap')
+    ).toHaveLength(1);
   });
 
   it('replies to a built solicitation with the solicitation template, no echo', async () => {
