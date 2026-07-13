@@ -1268,12 +1268,18 @@ describe('isLikelyBotAccount — never proactively reply to automated accounts',
     );
   });
 
-  it('does NOT flag ordinary human posters', () => {
+  it('does NOT flag ordinary human posters (precision over recall)', () => {
     expect(isLikelyBotAccount({ handle: 'bob.bsky.social' })).toBe(false);
     expect(isLikelyBotAccount({ handle: 'jane-founder.bsky.social', displayName: 'Jane' })).toBe(
       false
     );
     expect(isLikelyBotAccount({ handle: 'feeder-schools.org' })).toBe(false); // "feed" not a bounded token
+    // A human fan of Hacker News, by handle or bio, is NOT a bot (label-anchored
+    // known-name match + bot-only display-name signal).
+    expect(isLikelyBotAccount({ handle: 'myhackernewsfan.bsky.social' })).toBe(false);
+    expect(
+      isLikelyBotAccount({ handle: 'alice.bsky.social', displayName: 'Hacker News fan' })
+    ).toBe(false);
     expect(isLikelyBotAccount({})).toBe(false);
   });
 });
@@ -1369,6 +1375,25 @@ describe('planSolicitations — search triage + guardrails', () => {
       nowIso: NOW,
     });
     expect(out[0].status).toBe('candidate');
+  });
+
+  it('cooldown holds for two same-author posts in ONE tick, even with maxPerAuthorPerDay > 1', () => {
+    // Regression (PR #68 review): the cooldown set was built only from persisted
+    // docs, so with maxPerAuthorPerDay:2 both fresh same-author posts passed and
+    // would be sent on later ticks — violating "once a month".
+    const posts = [
+      post({ rkey: 'p1' }),
+      post({ rkey: 'p2' }), // same author (default did:plc:bob)
+    ];
+    const out = planSolicitations({
+      posts,
+      selfDid: 'did:plc:self',
+      existing: [],
+      cfg: { ...cfg, maxPerAuthorPerDay: 2, authorCooldownDays: 30 },
+      nowIso: NOW,
+    });
+    expect(out.filter((d) => d.status === 'candidate')).toHaveLength(1);
+    expect(out.find((d) => d.status === 'skipped')?.reason).toBe('author cooldown');
   });
 
   it('skips stale posts past maxPostAgeHours', () => {

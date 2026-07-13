@@ -117,23 +117,29 @@ export const SOLICITATION_DEFAULTS = {
 // filter downstream (the LLM SHARE gate), and a false positive only costs the
 // PROACTIVE lane one poster — who can still @-mention us, since the reactive
 // mention lane never consults this gate.
+// Tokens matched at a boundary within the account-name label. "news" is
+// deliberately NOT here (too many real people/orgs); the strong bot markers are.
 const BOT_NAME_TOKENS =
-  /(^|[^a-z])(bot|bots|feed|feeds|rss|atom|headlines?|digest|aggregat\w*|syndicat\w*)([^a-z]|$)/i;
-const KNOWN_BOT_HANDLES = /(hacker\W?news|lobste\.?rs|slashdot|techmeme)/i;
+  /(^|[^a-z])(bot|bots|feed|feeds|rss|headlines?|digest|aggregat\w*|syndicat\w*)([^a-z]|$)/i;
+// Known aggregators, anchored to a label boundary (start or after a separator) so
+// a human handle like `myhackernewsfan` is NOT caught, while `hackernews` and
+// `hackernewsdaily` are.
+const KNOWN_BOT_HANDLES = /(^|[-_.])(hacker\W?news|lobste\.?rs|slashdot|techmeme)/i;
 
 export function isLikelyBotAccount(author) {
   const handle = String((author && author.handle) || '').toLowerCase();
   if (!handle) return false;
   const displayName = String((author && author.displayName) || '');
   // The account-name label is everything before the domain (…bsky.social, a
-  // custom domain, or a brid.gy bridge suffix). Bot markers live there or in the
-  // display name.
+  // custom domain, or a brid.gy bridge suffix) — bot markers live there.
   const label = handle.split('.')[0] || handle;
   if (/bots?$/.test(label)) return true; // hackernewsbot, weatherbot
   if (BOT_NAME_TOKENS.test(label)) return true; // news-feed, rss-mirror, daily-digest
-  if (KNOWN_BOT_HANDLES.test(handle)) return true; // hackernews.*, lobsters.*
-  if (/🤖/.test(displayName)) return true; // the "I am a bot" convention
-  if (BOT_NAME_TOKENS.test(displayName) || KNOWN_BOT_HANDLES.test(displayName)) return true;
+  if (KNOWN_BOT_HANDLES.test(label)) return true; // hackernews.*, lobsters.* (label-anchored)
+  // Display name: only the unambiguous "I am a bot" signals. A news/feed word in
+  // a human's bio ("Hacker News fan") must NOT trip the filter — precision matters
+  // more than recall here (a miss just faces the LLM SHARE gate next).
+  if (/🤖/.test(displayName) || /\bbots?\b/i.test(displayName)) return true;
   return false;
 }
 
@@ -726,6 +732,11 @@ export function planSolicitations({ posts, selfDid, existing, cfg, nowIso }) {
     out.push({ ...base, status: 'candidate' });
     acceptedThisTick += 1;
     authorCounts.set(authorDid, (authorCounts.get(authorDid) || 0) + 1);
+    // Charge the cooldown this tick too, not just from persisted docs: with a
+    // maxPerAuthorPerDay > 1 override, a second fresh post from the same author
+    // in the same tick would otherwise pass the cooldown (the set was built
+    // before the loop) and get sent on a later tick — violating "once a month".
+    if (cooldownStart) cooledDownAuthors.add(authorDid);
   }
   return out;
 }
