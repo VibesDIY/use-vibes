@@ -175,17 +175,30 @@ The lane runs nothing until an owner writes a `config-solicitation` doc into the
 `enabled:false` or an empty `queries` array ⇒ inert. All the caps below are
 optional overrides on the same doc; defaults live in `SOLICITATION_DEFAULTS`.
 
-| knob               | default | meaning                                             |
-| ------------------ | ------- | --------------------------------------------------- |
-| enabled            | false   | master switch — inert until an owner turns it on    |
-| queries            | []      | Bluesky search queries run each tick (max 6 used)   |
-| maxGlobalPerDay    | 8       | accepted solicitation replies per UTC day           |
-| maxPerAuthorPerDay | 1       | one reply per poster per UTC day — never pile on    |
-| maxNewPerTick      | 2       | burst brake per 1-minute tick                       |
-| maxRepliesPerTick  | 1       | replies posted per tick — slow, human-paced         |
-| maxPostAgeHours    | 12      | only answer fresh calls; older threads read as spam |
-| searchLimit        | 25      | posts fetched per query per tick                    |
-| authorFeedLimit    | 20      | of the poster's recent posts fed to the idea model  |
+| knob               | default | meaning                                                                         |
+| ------------------ | ------- | ------------------------------------------------------------------------------- |
+| enabled            | false   | master switch — inert until an owner turns it on                                |
+| queries            | []      | Bluesky search queries run each tick (max 6 used)                               |
+| maxGlobalPerDay    | 8       | accepted solicitation replies per UTC day                                       |
+| maxPerAuthorPerDay | 1       | one reply per poster per UTC day — never pile on                                |
+| authorCooldownDays | 30      | and never reply to the same poster twice inside ~a month (mentions bypass this) |
+| maxNewPerTick      | 2       | burst brake per 1-minute tick                                                   |
+| maxRepliesPerTick  | 1       | replies posted per tick — slow, human-paced                                     |
+| maxPostAgeHours    | 12      | only answer fresh calls; older threads read as spam                             |
+| searchLimit        | 25      | posts fetched per query per tick                                                |
+| authorFeedLimit    | 20      | of the poster's recent posts fed to the idea model                              |
+
+**Never replies to bots.** The proactive lane skips automated accounts
+(`isLikelyBotAccount`): a bot-suffixed / feed / RSS / aggregator handle or
+display name, and known news mirrors (Hacker News, Lobsters, …). News bots
+syndicate exactly the "what are you building" phrasing this lane searches for,
+so replying to them is bot-to-bot spam under a post no human is watching (the
+reply-bot-hn incident — we replied to `hackernewsbot.bsky.social`'s "Ask HN:
+What Are You Working On?" repost). It's a deterministic, high-precision handle
+signal; a false positive only costs the proactive lane one poster, who can
+still `@`-mention us (the reactive lane never consults this gate). The
+`authorCooldownDays` window likewise applies to the proactive lane only — an
+`@`-mention is always answered, "unless they mention us" notwithstanding.
 
 Search uses `sort=latest` + a 12h `since` cutoff (fresh-first, windowed
 server-side); `planSolicitations` re-checks the age as a belt-and-suspenders.

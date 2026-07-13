@@ -27,6 +27,7 @@ import {
   sanitizeIdea,
   buildSolicitationReply,
   planSolicitations,
+  isLikelyBotAccount,
   scheduled,
 } from './backend.js';
 
@@ -532,9 +533,19 @@ describe('scheduled — tick wiring', () => {
         ['listNotifications', () => json({ notifications: [] })],
         [
           'screenshot.png',
-          () => new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { 'content-type': 'image/jpeg' } }),
+          () =>
+            new Response(new Uint8Array([1, 2, 3]), {
+              status: 200,
+              headers: { 'content-type': 'image/jpeg' },
+            }),
         ],
-        ['uploadBlob', () => json({ blob: { $type: 'blob', ref: { $link: 'bafk' }, mimeType: 'image/jpeg', size: 3 } })],
+        [
+          'uploadBlob',
+          () =>
+            json({
+              blob: { $type: 'blob', ref: { $link: 'bafk' }, mimeType: 'image/jpeg', size: 3 },
+            }),
+        ],
         [
           'createRecord',
           (_url, init) => {
@@ -1036,7 +1047,19 @@ describe('scheduled — claim DM wiring', () => {
       noNewMentions([
         [
           'describeRepo',
-          () => json({ did: 'did:plc:self', didDoc: { service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: pdsHost }] } }),
+          () =>
+            json({
+              did: 'did:plc:self',
+              didDoc: {
+                service: [
+                  {
+                    id: '#atproto_pds',
+                    type: 'AtprotoPersonalDataServer',
+                    serviceEndpoint: pdsHost,
+                  },
+                ],
+              },
+            }),
         ],
         [
           'getConvoForMembers',
@@ -1221,6 +1244,40 @@ describe('buildSolicitationReply — fixed template, threaded, no echo', () => {
   });
 });
 
+describe('isLikelyBotAccount — never proactively reply to automated accounts', () => {
+  it('flags the incident account and other bot-suffixed handles', () => {
+    expect(isLikelyBotAccount({ handle: 'hackernewsbot.bsky.social' })).toBe(true);
+    expect(isLikelyBotAccount({ handle: 'weatherbot.bsky.social' })).toBe(true);
+    expect(isLikelyBotAccount({ handle: 'hn-headlines.bsky.social' })).toBe(true);
+  });
+
+  it('flags feed/aggregator name tokens and known aggregators', () => {
+    expect(isLikelyBotAccount({ handle: 'news-feed.bsky.social' })).toBe(true);
+    expect(isLikelyBotAccount({ handle: 'rss.example.com' })).toBe(true);
+    expect(isLikelyBotAccount({ handle: 'daily-digest.bsky.social' })).toBe(true);
+    expect(isLikelyBotAccount({ handle: 'hackernews.bsky.social' })).toBe(true);
+    expect(isLikelyBotAccount({ handle: 'lobsters.bsky.social' })).toBe(true);
+  });
+
+  it('flags the 🤖 / bot display-name convention even when the handle is clean', () => {
+    expect(
+      isLikelyBotAccount({ handle: 'cleanname.bsky.social', displayName: '🤖 Auto Feed' })
+    ).toBe(true);
+    expect(isLikelyBotAccount({ handle: 'cleanname.bsky.social', displayName: 'My RSS bot' })).toBe(
+      true
+    );
+  });
+
+  it('does NOT flag ordinary human posters', () => {
+    expect(isLikelyBotAccount({ handle: 'bob.bsky.social' })).toBe(false);
+    expect(isLikelyBotAccount({ handle: 'jane-founder.bsky.social', displayName: 'Jane' })).toBe(
+      false
+    );
+    expect(isLikelyBotAccount({ handle: 'feeder-schools.org' })).toBe(false); // "feed" not a bounded token
+    expect(isLikelyBotAccount({})).toBe(false);
+  });
+});
+
 describe('planSolicitations — search triage + guardrails', () => {
   const cfg = { ...SOLICITATION_DEFAULTS, maxNewPerTick: 5, maxGlobalPerDay: 20 };
   const post = (over = {}) => ({
@@ -1255,6 +1312,63 @@ describe('planSolicitations — search triage + guardrails', () => {
     });
     expect(out[0].status).toBe('skipped');
     expect(out[0].reason).toBe('own post');
+  });
+
+  it('skips bot / aggregator accounts (the reply-bot-hn incident)', () => {
+    const out = planSolicitations({
+      posts: [post({ handle: 'hackernewsbot.bsky.social', did: 'did:plc:hnbot' })],
+      selfDid: 'did:plc:self',
+      existing: [],
+      cfg,
+      nowIso: NOW,
+    });
+    expect(out[0].status).toBe('skipped');
+    expect(out[0].reason).toBe('bot account');
+  });
+
+  it('skips an author replied to inside the monthly cooldown window', () => {
+    const tenDaysAgo = new Date(new Date(NOW).getTime() - 10 * 86400000).toISOString();
+    const existing = [
+      {
+        _id: 'sol-did:plc:bob-old',
+        kind: 'solicitation',
+        status: 'replied',
+        authorDid: 'did:plc:bob',
+        day: dayKey(tenDaysAgo),
+        createdAt: tenDaysAgo,
+      },
+    ];
+    const out = planSolicitations({
+      posts: [post({ rkey: '3new' })],
+      selfDid: 'did:plc:self',
+      existing,
+      cfg: { ...cfg, authorCooldownDays: 30 },
+      nowIso: NOW,
+    });
+    expect(out[0].status).toBe('skipped');
+    expect(out[0].reason).toBe('author cooldown');
+  });
+
+  it('answers an author again once the cooldown window has passed', () => {
+    const longAgo = new Date(new Date(NOW).getTime() - 31 * 86400000).toISOString();
+    const existing = [
+      {
+        _id: 'sol-did:plc:bob-old',
+        kind: 'solicitation',
+        status: 'replied',
+        authorDid: 'did:plc:bob',
+        day: dayKey(longAgo),
+        createdAt: longAgo,
+      },
+    ];
+    const out = planSolicitations({
+      posts: [post({ rkey: '3new' })],
+      selfDid: 'did:plc:self',
+      existing,
+      cfg: { ...cfg, authorCooldownDays: 30 },
+      nowIso: NOW,
+    });
+    expect(out[0].status).toBe('candidate');
   });
 
   it('skips stale posts past maxPostAgeHours', () => {
@@ -1714,7 +1828,11 @@ describe('like-on-accept — acknowledge the request before building (#3323)', (
   };
 
   it('buildLikeRecord — strong-ref like on the request post', () => {
-    const built = buildLikeRecord({ uri: 'at://did:plc:alice/app.bsky.feed.post/3lc', cid: 'cid-3lc', createdAt: NOW });
+    const built = buildLikeRecord({
+      uri: 'at://did:plc:alice/app.bsky.feed.post/3lc',
+      cid: 'cid-3lc',
+      createdAt: NOW,
+    });
     expect(built.record).toMatchObject({
       $type: 'app.bsky.feed.like',
       subject: { uri: 'at://did:plc:alice/app.bsky.feed.post/3lc', cid: 'cid-3lc' },
@@ -1884,14 +2002,26 @@ describe('pdsHostFromDidDoc — chat must target the account PDS (#3591)', () =>
   it('extracts the AtprotoPersonalDataServer endpoint and trims a trailing slash', () => {
     const didDoc = {
       service: [
-        { id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: 'https://gomphidius.us-west.host.bsky.network/' },
+        {
+          id: '#atproto_pds',
+          type: 'AtprotoPersonalDataServer',
+          serviceEndpoint: 'https://gomphidius.us-west.host.bsky.network/',
+        },
       ],
     };
     expect(pdsHostFromDidDoc(didDoc)).toBe('https://gomphidius.us-west.host.bsky.network');
   });
 
   it('matches by service type when the id differs', () => {
-    const didDoc = { service: [{ id: '#pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: 'https://x.host.bsky.network' }] };
+    const didDoc = {
+      service: [
+        {
+          id: '#pds',
+          type: 'AtprotoPersonalDataServer',
+          serviceEndpoint: 'https://x.host.bsky.network',
+        },
+      ],
+    };
     expect(pdsHostFromDidDoc(didDoc)).toBe('https://x.host.bsky.network');
   });
 
@@ -1899,6 +2029,10 @@ describe('pdsHostFromDidDoc — chat must target the account PDS (#3591)', () =>
     expect(pdsHostFromDidDoc(undefined)).toBeNull();
     expect(pdsHostFromDidDoc({})).toBeNull();
     expect(pdsHostFromDidDoc({ service: [] })).toBeNull();
-    expect(pdsHostFromDidDoc({ service: [{ id: '#atproto_pds', serviceEndpoint: 'http://insecure.example' }] })).toBeNull();
+    expect(
+      pdsHostFromDidDoc({
+        service: [{ id: '#atproto_pds', serviceEndpoint: 'http://insecure.example' }],
+      })
+    ).toBeNull();
   });
 });

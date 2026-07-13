@@ -98,6 +98,7 @@ export const SOLICITATION_DEFAULTS = {
   enabled: false, // master switch — inert until on; turning it off also freezes in-flight work (dispatch + reply)
   queries: [], // Bluesky search queries run each tick, e.g. ['drop your startup link']
   maxPerAuthorPerDay: 1, // one reply per poster per UTC day — never pile onto anyone
+  authorCooldownDays: 30, // and never proactively reply to the same poster twice inside this window (~a month). Mentions bypass this entirely — someone who @-mentions us always gets answered.
   maxGlobalPerDay: 8, // REPLY ceiling for the proactive lane, enforced post-classification
   maxNewPerTick: 12, // posts EXAMINED (classified) per tick — decoupled from the reply cap
   maxRepliesPerTick: 1, // replies posted per tick — deliberately slow, human-paced
@@ -105,6 +106,36 @@ export const SOLICITATION_DEFAULTS = {
   searchLimit: 25, // posts fetched per query per tick
   authorFeedLimit: 20, // of the poster's recent posts fed to the idea model
 };
+
+// Never proactively reply to automated accounts. The proactive lane searches for
+// posts that read like "what are you building" invitations, and news/aggregator
+// bots (Hacker News mirrors, RSS-to-Bluesky feeds) syndicate exactly that phrasing
+// — so replying to them is bot-to-bot spam under an automated post that no human
+// is watching (the reply-bot-hn incident: we replied to hackernewsbot.bsky.social's
+// "Ask HN: What Are You Working On?" repost). This is a deterministic handle/
+// display-name signal, deliberately high-precision: a miss just leaves one more
+// filter downstream (the LLM SHARE gate), and a false positive only costs the
+// PROACTIVE lane one poster — who can still @-mention us, since the reactive
+// mention lane never consults this gate.
+const BOT_NAME_TOKENS =
+  /(^|[^a-z])(bot|bots|feed|feeds|rss|atom|headlines?|digest|aggregat\w*|syndicat\w*)([^a-z]|$)/i;
+const KNOWN_BOT_HANDLES = /(hacker\W?news|lobste\.?rs|slashdot|techmeme)/i;
+
+export function isLikelyBotAccount(author) {
+  const handle = String((author && author.handle) || '').toLowerCase();
+  if (!handle) return false;
+  const displayName = String((author && author.displayName) || '');
+  // The account-name label is everything before the domain (…bsky.social, a
+  // custom domain, or a brid.gy bridge suffix). Bot markers live there or in the
+  // display name.
+  const label = handle.split('.')[0] || handle;
+  if (/bots?$/.test(label)) return true; // hackernewsbot, weatherbot
+  if (BOT_NAME_TOKENS.test(label)) return true; // news-feed, rss-mirror, daily-digest
+  if (KNOWN_BOT_HANDLES.test(handle)) return true; // hackernews.*, lobsters.*
+  if (/🤖/.test(displayName)) return true; // the "I am a bot" convention
+  if (BOT_NAME_TOKENS.test(displayName) || KNOWN_BOT_HANDLES.test(displayName)) return true;
+  return false;
+}
 
 // --- Bluesky XRPC client (ported from vibes/meta-hub/backend.js) -------------
 // The XRPC API is fully CORS-open (ACAO *), so these calls ride the CORS-parity
@@ -214,7 +245,9 @@ const BSKY_SESSION_FRESH_MS = 30 * 60000;
 // didDoc; the PDS is its AtprotoPersonalDataServer service endpoint.
 export function pdsHostFromDidDoc(didDoc) {
   const services = didDoc && Array.isArray(didDoc.service) ? didDoc.service : [];
-  const pds = services.find((s) => s && (s.id === '#atproto_pds' || s.type === 'AtprotoPersonalDataServer'));
+  const pds = services.find(
+    (s) => s && (s.id === '#atproto_pds' || s.type === 'AtprotoPersonalDataServer')
+  );
   const ep = pds && typeof pds.serviceEndpoint === 'string' ? pds.serviceEndpoint : '';
   return /^https:\/\//.test(ep) ? ep.replace(/\/+$/, '') : null;
 }
@@ -601,6 +634,20 @@ export function planSolicitations({ posts, selfDid, existing, cfg, nowIso }) {
   const out = [];
   let acceptedThisTick = 0;
   const nowMs = new Date(nowIso).getTime();
+  // Per-author cooldown: don't proactively reply to the same poster more than
+  // once inside authorCooldownDays (~a month). A poster who @-mentions us is a
+  // different lane (kind 'mention') and never hits this — "unless they mention
+  // us". Older docs may carry only `day`; normalize to a comparable ISO stamp.
+  const cooldownDays = Number.isFinite(cfg.authorCooldownDays) ? cfg.authorCooldownDays : 0;
+  const cooldownStart =
+    cooldownDays > 0 ? new Date(nowMs - cooldownDays * 86400000).toISOString() : null;
+  const cooledDownAuthors = new Set();
+  if (cooldownStart) {
+    for (const d of accepted) {
+      const ts = d.createdAt || (d.day ? `${d.day}T00:00:00.000Z` : '');
+      if (ts && ts >= cooldownStart) cooledDownAuthors.add(d.authorDid);
+    }
+  }
   const freshestFirst = (posts || [])
     .filter((p) => p && p.uri && p.cid)
     .sort((a, b) => ((a.indexedAt || '') > (b.indexedAt || '') ? -1 : 1));
@@ -636,6 +683,11 @@ export function planSolicitations({ posts, selfDid, existing, cfg, nowIso }) {
       skip('own post');
       continue;
     }
+    // Never proactively reply to bots/aggregators (the reply-bot-hn incident).
+    if (isLikelyBotAccount(p.author)) {
+      skip('bot account');
+      continue;
+    }
     // Freshness gate: search re-returns the same posts every tick, and an old
     // "drop your link" thread has moved on — answering it now reads as spam.
     if (
@@ -647,6 +699,13 @@ export function planSolicitations({ posts, selfDid, existing, cfg, nowIso }) {
     }
     if ((authorCounts.get(authorDid) || 0) >= cfg.maxPerAuthorPerDay) {
       skip('author daily cap');
+      continue;
+    }
+    // Then the monthly cooldown: even under the daily cap, one proactive reply
+    // per poster per ~month. Checked after the daily cap so a same-day repeat
+    // still reads as the daily cap; a prior-day reply inside the window lands here.
+    if (cooldownStart && cooledDownAuthors.has(authorDid)) {
+      skip('author cooldown');
       continue;
     }
     // Once the day's REPLY budget is already spent (persisted accepts), stop
@@ -709,6 +768,7 @@ export async function loadSolicitationConfig(ctx) {
   // malformed limits — so reject anything non-integer and keep the default.
   for (const k of [
     'maxPerAuthorPerDay',
+    'authorCooldownDays',
     'maxGlobalPerDay',
     'maxNewPerTick',
     'maxRepliesPerTick',
@@ -841,11 +901,19 @@ async function replyToMention(ctx, m, t, accessJwt) {
     // reply reliably shows what was built (the blog engine's media-ready gate).
     const shot = await fetchScreenshotEmbed(m, accessJwt);
     if (!shot.embed && shot.pending && (m.screenshotWaits || 0) < MAX_SCREENSHOT_WAITS) {
-      await log(ctx, { op: 'reply-awaiting-screenshot', uri: m.uri, waits: (m.screenshotWaits || 0) + 1 });
+      await log(ctx, {
+        op: 'reply-awaiting-screenshot',
+        uri: m.uri,
+        waits: (m.screenshotWaits || 0) + 1,
+      });
       // Defer without consuming a hard reply attempt; the doc stays `built` so
       // next tick re-picks it. Bounded by MAX_SCREENSHOT_WAITS.
       return ctx.db.put(
-        { ...m, screenshotWaits: (m.screenshotWaits || 0) + 1, updatedAt: new Date().toISOString() },
+        {
+          ...m,
+          screenshotWaits: (m.screenshotWaits || 0) + 1,
+          updatedAt: new Date().toISOString(),
+        },
         { db: 'requests' }
       );
     }
@@ -920,11 +988,14 @@ async function sendClaimDm(ctx, m, accessJwt, pdsHost) {
 
   // chat.bsky.convo.* must hit the account's own PDS, not the entryway (#3591).
   const chatHost = pdsHost || BSKY_HOST;
-  const conv = await bskyFetch(`chat.bsky.convo.getConvoForMembers?members=${encodeURIComponent(m.authorDid)}`, {
-    token: accessJwt,
-    proxy: BSKY_CHAT_PROXY,
-    host: chatHost,
-  });
+  const conv = await bskyFetch(
+    `chat.bsky.convo.getConvoForMembers?members=${encodeURIComponent(m.authorDid)}`,
+    {
+      token: accessJwt,
+      proxy: BSKY_CHAT_PROXY,
+      host: chatHost,
+    }
+  );
   const convoId = conv.ok ? conv.data.convo && conv.data.convo.id : null;
   if (!convoId) {
     await log(ctx, {
@@ -1179,7 +1250,16 @@ async function likeMention(ctx, m, accessJwt, botDid) {
     likeAttempts: 0,
   };
   const write = (patch) =>
-    ctx.db.put({ ...prev, kind: 'like-state', mentionId: m._id, likeAttempts: (prev.likeAttempts || 0) + 1, ...patch }, { db: 'oplog' });
+    ctx.db.put(
+      {
+        ...prev,
+        kind: 'like-state',
+        mentionId: m._id,
+        likeAttempts: (prev.likeAttempts || 0) + 1,
+        ...patch,
+      },
+      { db: 'oplog' }
+    );
 
   const built = buildLikeRecord({ uri: m.uri, cid: m.cid, createdAt: new Date().toISOString() });
   if (built.error) return write({ likeError: built.error });
@@ -1189,11 +1269,19 @@ async function likeMention(ctx, m, accessJwt, botDid) {
     token: accessJwt,
   });
   if (!r.ok) {
-    await log(ctx, { op: 'like-failed', uri: m.uri, error: r.message || r.egressDenied || r.transport });
+    await log(ctx, {
+      op: 'like-failed',
+      uri: m.uri,
+      error: r.message || r.egressDenied || r.transport,
+    });
     return write({ likeError: r.message || r.egressDenied || 'like failed' });
   }
   await log(ctx, { op: 'like-sent', uri: m.uri });
-  await write({ likedAt: new Date().toISOString(), likeError: null, likeUri: r.data && r.data.uri });
+  await write({
+    likedAt: new Date().toISOString(),
+    likeError: null,
+    likeUri: r.data && r.data.uri,
+  });
 }
 
 // Sweep newly-accepted requests and like the ones we haven't yet. Scoped to
@@ -1207,7 +1295,9 @@ async function likeAcceptedMentions(ctx, accessJwt, botDid) {
     (d) => d.kind === 'mention' && d.status === 'pending-build'
   );
   const stateById = new Map(
-    (await ctx.db.query({ db: 'oplog' })).filter((d) => d.kind === 'like-state').map((d) => [d.mentionId, d])
+    (await ctx.db.query({ db: 'oplog' }))
+      .filter((d) => d.kind === 'like-state')
+      .map((d) => [d.mentionId, d])
   );
   for (const m of mentions) {
     const st = stateById.get(m._id);
