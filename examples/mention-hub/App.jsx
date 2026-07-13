@@ -413,15 +413,24 @@ export default function App() {
                     </span>
                   </div>
                   <p className="text-[12px] text-stone-400 mt-[4px] max-w-[520px]">
-                    The same proactive lane on Threads. Needs a Threads token in the Technical tab
-                    and the <code>threads_keyword_search</code> permission approved by Meta; until
-                    then search finds nothing. Bots and the monthly per-person limit apply here too.
+                    This toggle is the <strong>proactive search</strong> lane on Threads — it needs
+                    a token <em>and</em> Meta's <code>threads_keyword_search</code> approval; until
+                    that lands, search finds nothing. Replying to people who{' '}
+                    <strong>@-mention @{threadsTokenStatus?.handle || 'you'}</strong> starts as soon
+                    as a token is pasted (Technical tab) — no toggle, no review needed. Bots and the
+                    monthly per-person limit apply to the search lane here too.
                   </p>
-                  {threadsEnabled && !threadsTokenStatus?.hasToken ? (
-                    <p className="text-[12px] text-amber-400 mt-[4px]">
-                      On, but no Threads token pasted yet — nothing will post until it is.
+                  {threadsTokenStatus?.hasToken ? (
+                    <p className="text-[12px] text-emerald-400/80 mt-[4px]">
+                      Token live — the @-mention lane is running. Last mentions check:{' '}
+                      {listener?.threadsMentionsPollAt?.slice(11, 19) || '—'}
                     </p>
-                  ) : null}
+                  ) : (
+                    <p className="text-[12px] text-amber-400 mt-[4px]">
+                      No Threads token pasted yet — paste one in the Technical tab to start the
+                      @-mention lane.
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={toggleThreads}

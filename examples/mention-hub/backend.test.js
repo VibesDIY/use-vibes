@@ -27,10 +27,13 @@ import {
   sanitizeIdea,
   buildSolicitationReply,
   solicitationReplyText,
+  mentionReplyText,
   planSolicitations,
   isLikelyBotAccount,
   threadsPostToNormalized,
   threadsSolicitationDocId,
+  threadsMentionDocId,
+  planThreadsMentions,
   THREADS_MAX_TEXT,
   scheduled,
 } from './backend.js';
@@ -1307,6 +1310,87 @@ describe('Threads proactive lane — pure helpers', () => {
     const bot = out.find((d) => d._id === 'sol-threads-2');
     expect(human).toMatchObject({ status: 'candidate', platform: 'threads' });
     expect(bot).toMatchObject({ status: 'skipped', reason: 'bot account' });
+  });
+});
+
+describe('planThreadsMentions — reactive @-mention lane on Threads', () => {
+  const cfg = { ...DEFAULTS };
+  const mention = (over = {}) => ({
+    id: over.id || '18001',
+    text: over.text ?? '@vibes_diy make me a pomodoro timer',
+    username: over.username || 'someone',
+    permalink: 'https://www.threads.net/@someone/post/abc',
+    timestamp: over.timestamp || NOW,
+  });
+
+  it('accepts a fresh mention as pending-build, prompt extracted, tagged threads', () => {
+    const out = planThreadsMentions({
+      mentions: [mention()],
+      selfHandle: 'vibes_diy',
+      existing: [],
+      cfg,
+      nowIso: NOW,
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      kind: 'mention',
+      platform: 'threads',
+      status: 'pending-build',
+      prompt: 'make me a pomodoro timer',
+      cid: '18001',
+      authorHandle: 'someone',
+    });
+    expect(out[0]._id).toBe('mention-threads-18001');
+  });
+
+  it('is idempotent and skips our own posts, moderation, and the age gate', () => {
+    const existing = [{ _id: 'mention-threads-18001', kind: 'mention', platform: 'threads' }];
+    expect(
+      planThreadsMentions({
+        mentions: [mention()],
+        selfHandle: 'vibes_diy',
+        existing,
+        cfg,
+        nowIso: NOW,
+      })
+    ).toHaveLength(0);
+
+    const self = planThreadsMentions({
+      mentions: [mention({ username: 'vibes_diy' })],
+      selfHandle: 'vibes_diy',
+      existing: [],
+      cfg,
+      nowIso: NOW,
+    });
+    expect(self[0]).toMatchObject({ status: 'skipped', reason: 'own post' });
+
+    const stale = planThreadsMentions({
+      mentions: [
+        mention({ timestamp: new Date(new Date(NOW).getTime() - 5 * 86400000).toISOString() }),
+      ],
+      selfHandle: 'vibes_diy',
+      existing: [],
+      cfg: { ...cfg, maxMentionAgeDays: 2 },
+      nowIso: NOW,
+    });
+    expect(stale[0]).toMatchObject({ status: 'skipped', reason: 'stale mention' });
+
+    const linky = planThreadsMentions({
+      mentions: [mention({ text: '@vibes_diy build https://evil.example' })],
+      selfHandle: 'vibes_diy',
+      existing: [],
+      cfg,
+      nowIso: NOW,
+    });
+    expect(linky[0].status).toBe('skipped');
+  });
+
+  it('threadsMentionDocId is deterministic and null-safe; mentionReplyText carries the vibe url', () => {
+    expect(threadsMentionDocId('18001')).toBe('mention-threads-18001');
+    expect(threadsMentionDocId('')).toBeNull();
+    expect(mentionReplyText('https://vibes.diy/vibe/mentions/foo')).toContain(
+      'https://vibes.diy/vibe/mentions/foo'
+    );
   });
 });
 

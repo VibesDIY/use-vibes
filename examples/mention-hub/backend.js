@@ -504,9 +504,16 @@ export function buildClaimDm({ mention }) {
   return { text, facets: bskyLinkFacets(text), claimUrl };
 }
 
+// The fixed mention-reply text, shared by every platform's reply builder
+// (Bluesky record, Threads post). Platform-agnostic — our own constant string,
+// so the no-echo invariant holds everywhere.
+export function mentionReplyText(vibeUrl) {
+  return `Built it — try it live: ${vibeUrl}\n\nMake your own at https://vibes.diy`;
+}
+
 // The in-thread reply. Fixed template — never model output, never error text.
 export function buildReplyRecord({ mention, vibeUrl, createdAt, embed }) {
-  const text = `Built it — try it live: ${vibeUrl}\n\nMake your own at https://vibes.diy`;
+  const text = mentionReplyText(vibeUrl);
   if ([...text].length > BSKY_MAX_TEXT)
     return { error: `reply text is ${[...text].length} chars (max ${BSKY_MAX_TEXT})` };
   return {
@@ -1293,6 +1300,107 @@ export function threadsSolicitationDocId(p) {
   return id ? `sol-threads-${id}`.replace(/[^a-zA-Z0-9:._-]/g, '_') : null;
 }
 
+// Deterministic id for a Threads @-mention (cursorless idempotency, like
+// mentionDocId — the me/mentions page has no cursor, so re-reads must no-op).
+export function threadsMentionDocId(id) {
+  const s = String(id || '');
+  return s ? `mention-threads-${s}`.replace(/[^a-zA-Z0-9:._-]/g, '_') : null;
+}
+
+// Triage a page of Threads @-mentions into mention docs, enforcing the SAME
+// guardrails as planMentions (dedupe, per-author + global daily caps, moderation,
+// stale-age) against existing Threads mention docs. Pure — clock/db state in as
+// args. No bot filter: an @-mention is opt-in, so we answer it even from a bot
+// (parity with the Bluesky mention lane). `mentions` are already normalized to
+// { id, text, username, permalink, timestamp }.
+export function planThreadsMentions({ mentions, selfHandle, existing, cfg, nowIso }) {
+  const day = dayKey(nowIso);
+  const existingIds = new Set(existing.map((d) => d._id));
+  const accepted = existing.filter((d) => d.kind === 'mention' && d.status !== 'skipped');
+  const windowStart = new Date(
+    new Date(nowIso).getTime() - cfg.dedupeWindowDays * 86400000
+  ).toISOString();
+  const recentKeys = new Set(
+    accepted.filter((d) => (d.createdAt || '') >= windowStart).map((d) => d.promptKey)
+  );
+  let todayCount = accepted.filter((d) => d.day === day).length;
+  const authorCounts = new Map();
+  for (const d of accepted) {
+    if (d.day === day) authorCounts.set(d.authorDid, (authorCounts.get(d.authorDid) || 0) + 1);
+  }
+
+  const out = [];
+  let acceptedThisTick = 0;
+  const nowMs = new Date(nowIso).getTime();
+  const oldestFirst = (mentions || [])
+    .filter((m) => m && m.id)
+    .sort((a, b) => ((a.timestamp || '') < (b.timestamp || '') ? -1 : 1));
+
+  for (const m of oldestFirst) {
+    const id = threadsMentionDocId(m.id);
+    if (!id || existingIds.has(id)) continue;
+    existingIds.add(id);
+    const username = m.username || '';
+    const base = {
+      _id: id,
+      kind: 'mention',
+      platform: 'threads',
+      uri: m.permalink || '',
+      cid: String(m.id), // the reply target (reply_to_id)
+      authorDid: username ? `threads:${username}` : null,
+      authorHandle: username,
+      text: m.text || '',
+      indexedAt: m.timestamp || nowIso,
+      day,
+      attempts: 0,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+    const skip = (reason) =>
+      out.push({ ...base, prompt: base.prompt || '', status: 'skipped', reason });
+
+    if (selfHandle && username === selfHandle) {
+      skip('own post');
+      continue;
+    }
+    if (
+      cfg.maxMentionAgeDays > 0 &&
+      nowMs - new Date(base.indexedAt).getTime() > cfg.maxMentionAgeDays * 86400000
+    ) {
+      skip('stale mention');
+      continue;
+    }
+    const prompt = extractPrompt(base.text, selfHandle);
+    const key = promptKey(prompt);
+    base.prompt = prompt;
+    base.promptKey = key;
+    const mod = moderatePrompt(prompt, cfg);
+    if (mod.ok !== true) {
+      skip(mod.reason);
+      continue;
+    }
+    if (recentKeys.has(key)) {
+      skip('duplicate prompt');
+      continue;
+    }
+    if ((authorCounts.get(base.authorDid) || 0) >= cfg.maxPerAuthorPerDay) {
+      skip('author daily cap');
+      continue;
+    }
+    if (todayCount >= cfg.maxGlobalPerDay) {
+      skip('global daily cap');
+      continue;
+    }
+    if (acceptedThisTick >= cfg.maxNewPerTick) continue; // burst brake — leave for next tick
+    out.push({ ...base, status: 'pending-build' });
+    acceptedThisTick += 1;
+    todayCount += 1;
+    authorCounts.set(base.authorDid, (authorCounts.get(base.authorDid) || 0) + 1);
+    recentKeys.add(key);
+  }
+  return out;
+}
+
 // Resolve the Threads user id from the pasted token (minting IS the check — /me
 // answers with id+username, persisted on the vault doc like bskySession does).
 async function threadsSession(ctx, t) {
@@ -1327,6 +1435,19 @@ async function threadsSearchPosts(query, { token, limit = 25, since } = {}) {
   return { ok: true, posts: ((r.data && r.data.data) || []).map(threadsPostToNormalized) };
 }
 
+// Read @-mentions of the account (the reactive lane). Needs the mentions/replies
+// permission on the token; returns items already in planThreadsMentions' shape
+// ({ id, text, username, permalink, timestamp }). No keyword_search / app-review
+// dependency — this is the path that works before the search permission lands.
+async function threadsMentions({ token, limit = 25 } = {}) {
+  const r = await threadsFetch('me/mentions', {
+    token,
+    query: { fields: 'id,text,username,permalink,timestamp', limit: String(limit) },
+  });
+  if (!r.ok) return r;
+  return { ok: true, mentions: (r.data && r.data.data) || [] };
+}
+
 // Post the in-thread reply for a built Threads solicitation. Two-call publish:
 // create a TEXT container replying to the post, then publish it. Quiet failure +
 // MAX_REPLY_ATTEMPTS bound, exactly like replyToMention. Fixed template text
@@ -1341,7 +1462,9 @@ async function threadsReply(ctx, m, t, userId) {
     await log(ctx, { op: 'reply-gave-up', uri: m.uri, platform: 'threads' });
     return save({ status: 'error', error: `reply gave up after ${MAX_REPLY_ATTEMPTS} attempts` });
   }
-  const text = solicitationReplyText(m.vibeUrl);
+  // Same fixed templates as Bluesky, chosen by lane; no-echo holds either way.
+  const text =
+    m.kind === 'solicitation' ? solicitationReplyText(m.vibeUrl) : mentionReplyText(m.vibeUrl);
   if ([...text].length > THREADS_MAX_TEXT)
     return save({ status: 'error', error: `reply text too long for threads` });
   try {
@@ -1559,7 +1682,7 @@ async function likeMention(ctx, m, accessJwt, botDid) {
 // by MAX_LIKE_ATTEMPTS.
 async function likeAcceptedMentions(ctx, accessJwt, botDid) {
   const mentions = (await ctx.db.query({ db: 'requests' })).filter(
-    (d) => d.kind === 'mention' && d.status === 'pending-build'
+    (d) => d.kind === 'mention' && (d.platform || 'bsky') === 'bsky' && d.status === 'pending-build'
   );
   const stateById = new Map(
     (await ctx.db.query({ db: 'oplog' }))
@@ -1641,7 +1764,12 @@ export async function scheduled(event, ctx) {
   await ensurePdsHost(ctx, s.t);
 
   const requestsAll = await ctx.db.query({ db: 'requests' });
-  const existing = requestsAll.filter((d) => d.kind === 'mention');
+  const existing = requestsAll.filter(
+    (d) => d.kind === 'mention' && (d.platform || 'bsky') === 'bsky'
+  );
+  const existingThreadsMentions = requestsAll.filter(
+    (d) => d.kind === 'mention' && d.platform === 'threads'
+  );
   const existingSol = requestsAll.filter(
     (d) => d.kind === 'solicitation' && (d.platform || 'bsky') === 'bsky'
   );
@@ -1654,18 +1782,20 @@ export async function scheduled(event, ctx) {
   // for work already in flight, matching the documented dark-by-default contract.
   const solActive = solCfg.enabled === true;
 
-  // Threads (Meta) proactive lane: independent switch, and it needs its own token
-  // in the vault. Resolve the user id once; if there's no token / it needs
-  // re-auth / the switch is off, threadsUserId stays null and the whole lane
-  // no-ops (dark-by-default, same as an un-pasted Bluesky credential).
+  // Threads (Meta): resolve the user id whenever a token is pasted and healthy —
+  // NOT gated on the proactive switch, because the reactive @-mention lane should
+  // run as soon as a credential exists (like the Bluesky mention lane), while the
+  // proactive SEARCH lane additionally needs `threadsEnabled`. No token / needs
+  // re-auth ⇒ threadsUserId stays null and every Threads lane no-ops.
   const threadsVault = (await ctx.db.query({ db: 'vault' })).filter(
     (d) => d.kind === 'token' && d.platform === 'threads'
   );
   const threadsToken = threadsVault[0];
   await projectThreadsTokenStatus(ctx, threadsToken);
   let threadsUserId = null;
-  const threadsActive = solCfg.threadsEnabled === true;
-  if (threadsActive && threadsToken && threadsToken.token && !threadsToken.needsReauth) {
+  const threadsReady = !!(threadsToken && threadsToken.token && !threadsToken.needsReauth);
+  const threadsActive = solCfg.threadsEnabled === true; // proactive SEARCH lane switch
+  if (threadsReady) {
     const ts = await threadsSession(ctx, threadsToken);
     if (ts.userId) {
       threadsUserId = ts.userId;
@@ -1723,6 +1853,53 @@ export async function scheduled(event, ctx) {
       lastPollAt: nowIso,
       lastError: rList.message || rList.egressDenied || rList.transport,
     });
+  }
+
+  // 1-threads. The reactive @-mention lane on Threads: read me/mentions, same
+  // guardrails + intent gate as Bluesky, queue build requests as
+  // platform:'threads' mention docs. Runs whenever a Threads token is healthy —
+  // no keyword_search / app-review dependency (that's only the proactive lane).
+  if (threadsUserId) {
+    const rm = await threadsMentions({ token: threadsToken.token, limit: 25 });
+    if (rm.ok) {
+      const tPlan = planThreadsMentions({
+        mentions: rm.mentions,
+        selfHandle: threadsToken.username || null,
+        existing: existingThreadsMentions,
+        cfg,
+        nowIso,
+      });
+      for (const doc of tPlan) {
+        if (doc.status === 'pending-build') {
+          const verdict = await classifyBuildIntent(ctx, doc.prompt);
+          if (verdict === null) continue; // transient AI failure → re-plan next tick
+          if (verdict === 'skip') {
+            await ctx.db.put(
+              { ...doc, status: 'skipped', reason: 'not a build request' },
+              { db: 'requests' }
+            );
+            continue;
+          }
+        }
+        await ctx.db.put(doc, { db: 'requests' });
+        if (doc.status === 'pending-build')
+          await log(ctx, {
+            op: 'mention-accepted',
+            platform: 'threads',
+            uri: doc.uri,
+            prompt: doc.prompt,
+          });
+      }
+      await noteListenerState(ctx, {
+        threadsMentionsPollAt: nowIso,
+        threadsMentionsNew: tPlan.length,
+      });
+    } else {
+      await noteListenerState(ctx, {
+        threadsMentionsPollAt: nowIso,
+        threadsMentionsError: rm.message || rm.egressDenied || rm.transport,
+      });
+    }
   }
 
   // 1b. Search: proactively find open "drop your app link" calls and queue an
@@ -1917,8 +2094,17 @@ export async function scheduled(event, ctx) {
       await replyToMention(ctx, m, s.t, s.accessJwt);
     }
   }
-  // Threads replies ride the two-call publish; same per-tick reply cap, same
-  // freeze semantics (disabling the lane stops built Threads docs from posting).
+  // Threads replies ride the two-call publish; same fixed templates + per-tick
+  // caps as Bluesky. Mentions reply whenever a Threads token is live; solicitation
+  // replies additionally require the proactive switch (its freeze semantics).
+  if (threadsUserId) {
+    const builtThreadsMentions = existingThreadsMentions.filter(
+      (d) => d.status === 'built' && d.vibeUrl
+    );
+    for (const m of builtThreadsMentions.slice(0, cfg.maxRepliesPerTick)) {
+      await threadsReply(ctx, m, threadsToken, threadsUserId);
+    }
+  }
   if (threadsActive && threadsUserId) {
     const builtThreads = existingThreadsSol.filter((d) => d.status === 'built' && d.vibeUrl);
     for (const m of builtThreads.slice(0, solCfg.maxRepliesPerTick)) {

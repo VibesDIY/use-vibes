@@ -218,20 +218,32 @@ feed. Threads solicitation docs carry `platform: 'threads'`; Bluesky docs are
 `platform: 'bsky'` (a legacy doc with no field is treated as bsky), and caps are
 counted per platform.
 
-### Activating it (dark by default, and independent of the Bluesky switch)
+Threads has **two** sub-lanes, gated differently:
 
-1. **Meta developer app** with the **`threads_keyword_search`** permission —
-   this one goes through Meta app review. Until it's approved, `keyword_search`
-   returns only your own posts, so the lane finds nothing (fails safe).
+- **Reactive @-mention lane** (`me/mentions`): answers anyone who `@`-mentions the
+  account. Runs as soon as a healthy token is pasted — **no `threadsEnabled`
+  toggle, no keyword_search review**. Needs the mentions/replies permission on the
+  token (`threads_manage_replies`), plus `threads_content_publish` to reply. Same
+  guardrails + intent classifier as the Bluesky mention lane; docs are
+  `kind:'mention', platform:'threads'`.
+- **Proactive search lane** (`keyword_search`): the toggle below. Additionally
+  needs `threadsEnabled:true` AND Meta's app-reviewed **`threads_keyword_search`**
+  — until that's approved, search returns only your own posts (fails safe).
+
+### Activating (dark by default, independent of the Bluesky switch)
+
+1. **Meta developer app** with `threads_basic` + `threads_content_publish` +
+   `threads_manage_replies` (mentions) — enough for the reactive lane — and, for
+   the proactive lane, **`threads_keyword_search`** (app review).
 2. **Long-lived Threads user token** → paste it in the dashboard's **Technical →
    Threads credential** box (write-only vault, `_id: token-threads`,
-   `platform: 'threads'`). The next tick resolves the account id/username and
-   shows it as active.
-3. **Turn the lane on**: the **Solicitation replies · Threads** toggle in the
-   planner (writes `threadsEnabled: true` + `threadsQueries` onto the
-   `config-solicitation` doc). `threadsEnabled:false` (or no token) freezes the
-   whole Threads lane — search, dispatch, and reply — exactly like the Bluesky
-   kill-switch.
+   `platform: 'threads'`). The next tick resolves the account id/username, shows
+   it active, and the **@-mention lane starts immediately**.
+3. **Turn on proactive search** (optional, after the keyword_search review): the
+   **Solicitation replies · Threads** toggle (writes `threadsEnabled: true` +
+   `threadsQueries` onto the `config-solicitation` doc). `threadsEnabled:false`
+   freezes only the search lane's find/dispatch/reply; the @-mention lane keeps
+   running on the token alone (parity with Bluesky mentions, which have no switch).
 
 Config fields on the same `config-solicitation` doc: `threadsEnabled` (bool) and
 `threadsQueries` (string[]); the shared caps (`maxGlobalPerDay`, cooldown, etc.)
