@@ -205,12 +205,47 @@ server-side); `planSolicitations` re-checks the age as a belt-and-suspenders.
 Idempotency is the same cursorless trick as mentions — a deterministic
 `sol-<did>-<rkey>` doc id means re-finding a post in a later tick is a no-op.
 
+## Threads (Meta) proactive lane
+
+The solicitation lane also runs on **Threads**, gated by its own switch and its
+own token — same `requests` db, same guardrails (`planSolicitations` with
+`platform: 'threads'`, so the bot-account skip and the monthly per-author
+cooldown apply identically), same CI builder lane. Only the network I/O differs:
+Threads search is `keyword_search`, and a reply is a two-call publish (create a
+TEXT container with `reply_to_id`, then `threads_publish`). Individualization uses
+just the matched post's text — the Threads API can't read an arbitrary poster's
+feed. Threads solicitation docs carry `platform: 'threads'`; Bluesky docs are
+`platform: 'bsky'` (a legacy doc with no field is treated as bsky), and caps are
+counted per platform.
+
+### Activating it (dark by default, and independent of the Bluesky switch)
+
+1. **Meta developer app** with the **`threads_keyword_search`** permission —
+   this one goes through Meta app review. Until it's approved, `keyword_search`
+   returns only your own posts, so the lane finds nothing (fails safe).
+2. **Long-lived Threads user token** → paste it in the dashboard's **Technical →
+   Threads credential** box (write-only vault, `_id: token-threads`,
+   `platform: 'threads'`). The next tick resolves the account id/username and
+   shows it as active.
+3. **Turn the lane on**: the **Solicitation replies · Threads** toggle in the
+   planner (writes `threadsEnabled: true` + `threadsQueries` onto the
+   `config-solicitation` doc). `threadsEnabled:false` (or no token) freezes the
+   whole Threads lane — search, dispatch, and reply — exactly like the Bluesky
+   kill-switch.
+
+Config fields on the same `config-solicitation` doc: `threadsEnabled` (bool) and
+`threadsQueries` (string[]); the shared caps (`maxGlobalPerDay`, cooldown, etc.)
+apply per platform.
+
+> Not yet exercised against the live Threads API — the exact `keyword_search`
+> params and create/publish field names follow Meta's docs and want one smoke
+> test the first time a real token is pasted. Everything the unit tests cover
+> (triage, ids, reply text, config validation) is platform-pure.
+
 ## Known limits / follow-ons (tracked in #3323)
 
-- Bluesky only; Threads/X listeners are follow-on (same doc protocol, new
-  listener lanes in this backend). The **Threads-native** version of the
-  solicitation lane needs Threads Graph API credentials in the vault — the
-  search + individualize + reply shape ports directly once those exist.
+- X (Twitter) listener is still a follow-on (same doc protocol, new listener lane
+  in this backend).
 - Mention→reply latency is minutes (1m tick + 10m cron + build time), fine
   for a marketing bot; a queue-worker builder would shave it if it matters.
 - Claimable ownership (pin the vibe to the requester, attach on first login)

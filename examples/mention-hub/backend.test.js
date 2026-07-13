@@ -26,8 +26,12 @@ import {
   buildIdeaPrompt,
   sanitizeIdea,
   buildSolicitationReply,
+  solicitationReplyText,
   planSolicitations,
   isLikelyBotAccount,
+  threadsPostToNormalized,
+  threadsSolicitationDocId,
+  THREADS_MAX_TEXT,
   scheduled,
 } from './backend.js';
 
@@ -1241,6 +1245,68 @@ describe('buildSolicitationReply — fixed template, threaded, no echo', () => {
     });
     expect(error).toBeUndefined();
     expect([...record.text].length).toBeLessThanOrEqual(BSKY_MAX_TEXT);
+  });
+});
+
+describe('Threads proactive lane — pure helpers', () => {
+  const media = {
+    id: '17900000000000000',
+    text: 'what are you building this week?',
+    username: 'devfounder',
+    permalink: 'https://www.threads.net/@devfounder/post/abc',
+    timestamp: '2026-07-06T10:00:00+0000',
+  };
+
+  it('threadsPostToNormalized maps a Threads media into the shared post shape', () => {
+    const p = threadsPostToNormalized(media);
+    expect(p).toMatchObject({
+      uri: media.permalink,
+      cid: media.id,
+      author: { did: 'threads:devfounder', handle: 'devfounder' },
+      record: { text: media.text },
+      indexedAt: media.timestamp,
+    });
+  });
+
+  it('threadsSolicitationDocId is deterministic and platform-scoped', () => {
+    const p = threadsPostToNormalized(media);
+    expect(threadsSolicitationDocId(p)).toBe(`sol-threads-${media.id}`);
+    expect(threadsSolicitationDocId({ cid: '' })).toBeNull();
+  });
+
+  it('solicitationReplyText fits the Threads limit and echoes only the vibe URL', () => {
+    const text = solicitationReplyText('https://vibes.diy/vibe/mentions/foo');
+    expect([...text].length).toBeLessThanOrEqual(THREADS_MAX_TEXT);
+    expect(text).toContain('https://vibes.diy/vibe/mentions/foo');
+  });
+
+  it('planSolicitations(platform:threads) tags docs, applies the bot filter, and counts per-platform', () => {
+    const post = (over) => threadsPostToNormalized({ ...media, ...over });
+    // A bsky solicitation already accepted today must NOT count against the
+    // Threads global cap — budgets are per platform.
+    const existing = [
+      {
+        _id: 'sol-did:plc:x-old',
+        kind: 'solicitation',
+        platform: 'bsky',
+        status: 'replied',
+        authorDid: 'did:plc:x',
+        day: dayKey(NOW),
+      },
+    ];
+    const out = planSolicitations({
+      posts: [post({ id: '1', username: 'devfounder' }), post({ id: '2', username: 'newsbot' })],
+      selfDid: 'threads:mentions',
+      existing,
+      cfg: { ...SOLICITATION_DEFAULTS, maxGlobalPerDay: 1, maxNewPerTick: 5 },
+      nowIso: NOW,
+      platform: 'threads',
+      docId: threadsSolicitationDocId,
+    });
+    const human = out.find((d) => d._id === 'sol-threads-1');
+    const bot = out.find((d) => d._id === 'sol-threads-2');
+    expect(human).toMatchObject({ status: 'candidate', platform: 'threads' });
+    expect(bot).toMatchObject({ status: 'skipped', reason: 'bot account' });
   });
 });
 

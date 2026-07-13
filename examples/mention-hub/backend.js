@@ -97,6 +97,8 @@ export const DEFAULTS = {
 export const SOLICITATION_DEFAULTS = {
   enabled: false, // master switch — inert until on; turning it off also freezes in-flight work (dispatch + reply)
   queries: [], // Bluesky search queries run each tick, e.g. ['drop your startup link']
+  threadsEnabled: false, // independent master switch for the Threads (Meta) proactive lane — needs a Threads token in the vault too
+  threadsQueries: [], // Threads keyword_search queries run each tick
   maxPerAuthorPerDay: 1, // one reply per poster per UTC day — never pile onto anyone
   authorCooldownDays: 30, // and never proactively reply to the same poster twice inside this window (~a month). Mentions bypass this entirely — someone who @-mentions us always gets answered.
   maxGlobalPerDay: 8, // REPLY ceiling for the proactive lane, enforced post-classification
@@ -599,8 +601,15 @@ export function sanitizeIdea(text) {
 // never the poster's text. The individualization is the app itself (a bespoke,
 // live, remixable build), not the words. Threaded onto the solicitation post
 // exactly like buildReplyRecord threads onto a mention.
+// The fixed solicitation reply text, shared by every platform's reply builder
+// (Bluesky record, Threads post). Platform-agnostic — only the link matters, and
+// it's our own constant string, so the no-echo invariant holds everywhere.
+export function solicitationReplyText(vibeUrl) {
+  return `Couldn't resist — built you a little app to drop in the thread. Live + yours to remix: ${vibeUrl}\n\nMake your own by chatting: https://vibes.diy`;
+}
+
 export function buildSolicitationReply({ solicitation, vibeUrl, createdAt, embed }) {
-  const text = `Couldn't resist — built you a little app to drop in the thread. Live + yours to remix: ${vibeUrl}\n\nMake your own by chatting: https://vibes.diy`;
+  const text = solicitationReplyText(vibeUrl);
   if ([...text].length > BSKY_MAX_TEXT)
     return { error: `reply text is ${[...text].length} chars (max ${BSKY_MAX_TEXT})` };
   return {
@@ -627,10 +636,23 @@ export function buildSolicitationReply({ solicitation, vibeUrl, createdAt, embed
 // live/fresh ones first"). It emits up to maxNewPerTick candidates to EXAMINE;
 // the daily REPLY cap (maxGlobalPerDay) is enforced later, at accept time — so
 // a small reply cap never starves how many posts reach the classifier.
-export function planSolicitations({ posts, selfDid, existing, cfg, nowIso }) {
+export function planSolicitations({
+  posts,
+  selfDid,
+  existing,
+  cfg,
+  nowIso,
+  platform = 'bsky',
+  docId = (p) => solicitationDocId(p.uri),
+}) {
   const day = dayKey(nowIso);
   const existingIds = new Set(existing.map((d) => d._id));
-  const accepted = existing.filter((d) => d.kind === 'solicitation' && d.status !== 'skipped');
+  // Caps and cooldown are counted PER platform: a legacy doc with no `platform`
+  // field is treated as bsky, so the Bluesky lane's budgets are unchanged.
+  const accepted = existing.filter(
+    (d) =>
+      d.kind === 'solicitation' && d.status !== 'skipped' && (d.platform || 'bsky') === platform
+  );
   let todayCount = accepted.filter((d) => d.day === day).length;
   const authorCounts = new Map();
   for (const d of accepted) {
@@ -659,7 +681,7 @@ export function planSolicitations({ posts, selfDid, existing, cfg, nowIso }) {
     .sort((a, b) => ((a.indexedAt || '') > (b.indexedAt || '') ? -1 : 1));
 
   for (const p of freshestFirst) {
-    const id = solicitationDocId(p.uri);
+    const id = docId(p);
     if (!id || existingIds.has(id)) continue;
     existingIds.add(id);
     const record = p.record || {};
@@ -668,6 +690,7 @@ export function planSolicitations({ posts, selfDid, existing, cfg, nowIso }) {
       _id: id,
       kind: 'solicitation',
       source: 'search',
+      platform,
       uri: p.uri,
       cid: p.cid,
       // A top-level solicitation post is its own thread root; reply refs mirror
@@ -773,6 +796,13 @@ export async function loadSolicitationConfig(ctx) {
       .filter((q) => typeof q === 'string' && q.trim().length > 0)
       .map((q) => q.trim());
   }
+  // Threads lane: independent enable + its own query list, same validation shape.
+  cfg.threadsEnabled = cfgDoc.threadsEnabled === true;
+  if (Array.isArray(cfgDoc.threadsQueries)) {
+    cfg.threadsQueries = cfgDoc.threadsQueries
+      .filter((q) => typeof q === 'string' && q.trim().length > 0)
+      .map((q) => q.trim());
+  }
   // Count caps are budgets — they MUST be non-negative integers. A fractional
   // cap silently rounds up at the `count >= cap` check (e.g. maxGlobalPerDay
   // 0.5 lets one build through a sub-1 ceiling), and Infinity/NaN produce
@@ -805,6 +835,31 @@ async function projectTokenStatus(ctx, t) {
     platform: 'bsky',
     handle: (t && t.handle) || null,
     did: (t && t.did) || null,
+    refreshedAt: (t && t.refreshedAt) || null,
+    needsReauth: !!(t && t.needsReauth),
+    lastError: (t && t.lastError) || null,
+    hasToken: !!(t && t.token),
+  };
+  const prev = statuses.find((s) => s._id === next._id);
+  const changed =
+    !prev ||
+    ['handle', 'did', 'refreshedAt', 'needsReauth', 'lastError', 'hasToken'].some(
+      (k) => prev[k] !== next[k]
+    );
+  if (changed) await ctx.db.put({ ...next, at: new Date().toISOString() }, { db: 'oplog' });
+}
+
+// Redacted Threads token status for the dashboard (the vault stays write-only —
+// the dashboard can't read the token, only this projection). Mirrors
+// projectTokenStatus so the console shows whether a Threads credential is live.
+async function projectThreadsTokenStatus(ctx, t) {
+  const statuses = (await ctx.db.query({ db: 'oplog' })).filter((d) => d.kind === 'token-status');
+  const next = {
+    _id: 'status-threads',
+    kind: 'token-status',
+    platform: 'threads',
+    handle: (t && t.username) || null,
+    did: (t && t.userId) || null,
     refreshedAt: (t && t.refreshedAt) || null,
     needsReauth: !!(t && t.needsReauth),
     lastError: (t && t.lastError) || null,
@@ -1134,10 +1189,16 @@ async function classifySolicitation(ctx, postText) {
 // { prompt } on success, { skip: reason } when the idea is unusable/unsafe, or
 // null on a transient failure (defer to a later tick — the deterministic doc id
 // means the post is simply re-planned).
-async function deriveSolicitationIdea(ctx, doc, accessJwt, cfg) {
-  const posts = doc.authorDid
-    ? await bskyAuthorPosts(doc.authorDid, { token: accessJwt, limit: cfg.authorFeedLimit })
-    : [];
+async function deriveSolicitationIdea(ctx, doc, accessJwt, cfg, opts = {}) {
+  // Bluesky gives us the poster's whole recent feed to individualize from;
+  // Threads' API can't read an arbitrary user's feed, so the caller passes the
+  // matched post text as a thinner corpus (`opts.posts`). Either way the idea is
+  // derived from untrusted text and only ever becomes the build PROMPT.
+  const posts = opts.posts
+    ? opts.posts
+    : doc.authorDid
+      ? await bskyAuthorPosts(doc.authorDid, { token: accessJwt, limit: cfg.authorFeedLimit })
+      : [];
   let raw;
   try {
     raw = await ctx.callAI(buildIdeaPrompt(posts), { max_tokens: 60 });
@@ -1152,6 +1213,195 @@ async function deriveSolicitationIdea(ctx, doc, accessJwt, cfg) {
   const mod = moderatePrompt(idea, DEFAULTS);
   if (mod.ok !== true) return { skip: `idea ${mod.reason}` };
   return { prompt: idea };
+}
+
+// --- Threads (Meta) proactive lane -------------------------------------------
+// The Bluesky solicitation lane ported to Threads: same doc protocol, same
+// guardrails (planSolicitations with platform:'threads'), same CI builder lane —
+// only the network I/O differs. Threads publishing is TWO calls (create a media
+// container, then publish it) and a reply is threaded via `reply_to_id` rather
+// than Bluesky's root/parent strong refs. Dark until an owner BOTH flips
+// `threadsEnabled` in the config-solicitation doc AND pastes a long-lived Threads
+// token (`kind:'token', platform:'threads'`) into the write-only vault.
+//
+// NOTE: the exact keyword_search params and the create/publish field names follow
+// Meta's Threads Graph API and need one live smoke test once a token exists —
+// there's no way to exercise the real API from CI. Everything the unit tests
+// cover (triage, ids, reply text, config) is platform-pure.
+const THREADS_HOST = 'https://graph.threads.net';
+const THREADS_API_VERSION = 'v1.0';
+export const THREADS_MAX_TEXT = 500; // Threads post character limit
+
+// All Threads Graph params (incl. POST bodies) ride the query string, the way the
+// Graph API accepts them. `access_token` is appended here so no caller forgets it.
+async function threadsFetch(path, { method = 'GET', token, query = {} } = {}) {
+  const params = new URLSearchParams(query);
+  if (token) params.set('access_token', token);
+  let res;
+  try {
+    res = await fetch(`${THREADS_HOST}/${THREADS_API_VERSION}/${path}?${params.toString()}`, {
+      method,
+    });
+  } catch (e) {
+    return { ok: false, transport: String((e && e.message) || e) };
+  }
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    data = { raw: true };
+  }
+  if (data && data.vibesEgressDenied) return { ok: false, egressDenied: data.gate || true };
+  if (!res.ok) {
+    const err = (data && data.error) || {};
+    return {
+      ok: false,
+      status: res.status,
+      code: err.code,
+      message: err.message || `HTTP ${res.status}`,
+    };
+  }
+  return { ok: true, data };
+}
+
+// Normalize one Threads keyword_search result into the same post shape
+// planSolicitations consumes (so all guardrails are shared). A top-level Threads
+// post is its own thread root; the numeric media id doubles as the reply target
+// (`reply_to_id`) and the doc `cid`. Exported for unit tests.
+export function threadsPostToNormalized(m) {
+  const id = m && m.id != null ? String(m.id) : '';
+  const username = (m && m.username) || '';
+  return {
+    uri: (m && m.permalink) || (id ? `https://www.threads.net/@${username}/post/${id}` : ''),
+    cid: id,
+    author: { did: username ? `threads:${username}` : null, handle: username, displayName: '' },
+    record: { text: (m && m.text) || '' },
+    indexedAt: (m && m.timestamp) || '',
+  };
+}
+
+// Deterministic, platform-scoped doc id (mirrors solicitationDocId's cursorless
+// idempotency). Keyed on the Threads media id carried in the normalized `cid`.
+export function threadsSolicitationDocId(p) {
+  const id = String((p && p.cid) || '');
+  return id ? `sol-threads-${id}`.replace(/[^a-zA-Z0-9:._-]/g, '_') : null;
+}
+
+// Resolve the Threads user id from the pasted token (minting IS the check — /me
+// answers with id+username, persisted on the vault doc like bskySession does).
+async function threadsSession(ctx, t) {
+  if (t.userId) return { userId: t.userId, t };
+  const r = await threadsFetch('me', { token: t.token, query: { fields: 'id,username' } });
+  if (!r.ok) return { r };
+  const next = {
+    ...t,
+    userId: r.data.id,
+    username: r.data.username || t.username || null,
+    needsReauth: false,
+    lastError: null,
+  };
+  await ctx.db.put(next, { db: 'vault' });
+  Object.assign(t, next);
+  return { userId: r.data.id, t: next };
+}
+
+// Search public Threads posts by keyword. Requires the `threads_keyword_search`
+// permission (Meta app review); until that's approved the endpoint returns only
+// the authenticated user's own posts, so the lane simply finds nothing.
+async function threadsSearchPosts(query, { token, limit = 25, since } = {}) {
+  const q = {
+    q: query,
+    search_type: 'RECENT',
+    fields: 'id,text,username,permalink,timestamp',
+    limit: String(limit),
+  };
+  if (since) q.since = since;
+  const r = await threadsFetch('keyword_search', { token, query: q });
+  if (!r.ok) return r;
+  return { ok: true, posts: ((r.data && r.data.data) || []).map(threadsPostToNormalized) };
+}
+
+// Post the in-thread reply for a built Threads solicitation. Two-call publish:
+// create a TEXT container replying to the post, then publish it. Quiet failure +
+// MAX_REPLY_ATTEMPTS bound, exactly like replyToMention. Fixed template text
+// (solicitationReplyText) — no echo of the poster's words.
+async function threadsReply(ctx, m, t, userId) {
+  const save = (patch) =>
+    ctx.db.put(
+      { ...m, ...patch, attempts: (m.attempts || 0) + 1, updatedAt: new Date().toISOString() },
+      { db: 'requests' }
+    );
+  if ((m.attempts || 0) >= MAX_REPLY_ATTEMPTS) {
+    await log(ctx, { op: 'reply-gave-up', uri: m.uri, platform: 'threads' });
+    return save({ status: 'error', error: `reply gave up after ${MAX_REPLY_ATTEMPTS} attempts` });
+  }
+  const text = solicitationReplyText(m.vibeUrl);
+  if ([...text].length > THREADS_MAX_TEXT)
+    return save({ status: 'error', error: `reply text too long for threads` });
+  try {
+    const create = await threadsFetch(`${userId}/threads`, {
+      method: 'POST',
+      token: t.token,
+      query: { media_type: 'TEXT', text, reply_to_id: m.cid },
+    });
+    if (!create.ok) {
+      if (create.status === 401) {
+        await ctx.db.put({ ...t, needsReauth: true, lastError: create.message }, { db: 'vault' });
+        await log(ctx, {
+          op: 'reply-held',
+          uri: m.uri,
+          platform: 'threads',
+          error: 'token needs re-auth',
+        });
+        return save({ status: 'built' });
+      }
+      await log(ctx, {
+        op: 'reply-failed',
+        uri: m.uri,
+        platform: 'threads',
+        error: create.message || create.egressDenied || create.transport,
+      });
+      return save({ status: 'built' }); // retry next tick, bounded by MAX_REPLY_ATTEMPTS
+    }
+    const creationId = create.data && (create.data.id || create.data.creation_id);
+    if (!creationId) {
+      await log(ctx, {
+        op: 'reply-failed',
+        uri: m.uri,
+        platform: 'threads',
+        error: 'no creation id',
+      });
+      return save({ status: 'built' });
+    }
+    const pub = await threadsFetch(`${userId}/threads_publish`, {
+      method: 'POST',
+      token: t.token,
+      query: { creation_id: creationId },
+    });
+    if (!pub.ok) {
+      await log(ctx, {
+        op: 'reply-failed',
+        uri: m.uri,
+        platform: 'threads',
+        error: pub.message || pub.egressDenied || pub.transport,
+      });
+      return save({ status: 'built' });
+    }
+    await save({
+      status: 'replied',
+      replyId: (pub.data && pub.data.id) || null,
+      repliedAt: new Date().toISOString(),
+    });
+    await log(ctx, {
+      op: 'replied',
+      uri: m.uri,
+      platform: 'threads',
+      vibeUrl: m.vibeUrl,
+      replyId: pub.data && pub.data.id,
+    });
+  } catch (e) {
+    await save({ status: 'built', lastError: String((e && e.message) || e) });
+  }
 }
 
 // Work the builder can act on (pure, unit-tested): freshly `pending-build`
@@ -1321,19 +1571,22 @@ async function likeAcceptedMentions(ctx, accessJwt, botDid) {
 // lives in the same write-only vault as the Bluesky credential (#3529): pasted
 // on the dashboard, never synced to any browser, read here in admin mode.
 // Dark until it's pasted — a missing token no-ops silently.
-async function maybeDispatchBuilder(ctx, { includeSolicitations = false } = {}) {
+async function maybeDispatchBuilder(ctx, { activePlatforms = new Set() } = {}) {
   const ghVault = (await ctx.db.query({ db: 'vault' })).filter(
     (d) => d.kind === 'token' && d.platform === 'github'
   );
   const token = ghVault[0] && ghVault[0].token;
   if (!token) return;
 
-  // When the solicitation lane is inactive it's a hard freeze, not just "stop
-  // finding new ones": already-queued solicitation docs must NOT dispatch (or
-  // reply) — so exclude them from the builder count unless the lane is on. The
-  // mention lane is always counted.
+  // When a solicitation lane is inactive it's a hard freeze, not just "stop
+  // finding new ones": already-queued solicitation docs for that platform must
+  // NOT dispatch (or reply). So a solicitation doc counts only while ITS platform
+  // lane is active (a legacy doc with no platform is bsky). The mention lane is
+  // always counted.
   const requests = (await ctx.db.query({ db: 'requests' })).filter(
-    (d) => d.kind === 'mention' || (includeSolicitations && d.kind === 'solicitation')
+    (d) =>
+      d.kind === 'mention' ||
+      (d.kind === 'solicitation' && activePlatforms.has(d.platform || 'bsky'))
   );
   const nowMs = Date.now();
   // Count stale `building` docs alongside `pending-build` so a crashed runner's
@@ -1383,12 +1636,44 @@ export async function scheduled(event, ctx) {
 
   const requestsAll = await ctx.db.query({ db: 'requests' });
   const existing = requestsAll.filter((d) => d.kind === 'mention');
-  const existingSol = requestsAll.filter((d) => d.kind === 'solicitation');
-  // The solicitation lane's master switch. When off (or no config doc), the
-  // whole lane is frozen — not just search, but the shared builder dispatch and
-  // the reply loop too — so flipping enabled:false is a real emergency stop for
-  // work already in flight, matching the documented dark-by-default contract.
+  const existingSol = requestsAll.filter(
+    (d) => d.kind === 'solicitation' && (d.platform || 'bsky') === 'bsky'
+  );
+  const existingThreadsSol = requestsAll.filter(
+    (d) => d.kind === 'solicitation' && d.platform === 'threads'
+  );
+  // Each solicitation lane has its own master switch. When off (or no config
+  // doc), that lane is frozen — not just search, but the shared builder dispatch
+  // and the reply loop too — so flipping enabled:false is a real emergency stop
+  // for work already in flight, matching the documented dark-by-default contract.
   const solActive = solCfg.enabled === true;
+
+  // Threads (Meta) proactive lane: independent switch, and it needs its own token
+  // in the vault. Resolve the user id once; if there's no token / it needs
+  // re-auth / the switch is off, threadsUserId stays null and the whole lane
+  // no-ops (dark-by-default, same as an un-pasted Bluesky credential).
+  const threadsVault = (await ctx.db.query({ db: 'vault' })).filter(
+    (d) => d.kind === 'token' && d.platform === 'threads'
+  );
+  const threadsToken = threadsVault[0];
+  await projectThreadsTokenStatus(ctx, threadsToken);
+  let threadsUserId = null;
+  const threadsActive = solCfg.threadsEnabled === true;
+  if (threadsActive && threadsToken && threadsToken.token && !threadsToken.needsReauth) {
+    const ts = await threadsSession(ctx, threadsToken);
+    if (ts.userId) {
+      threadsUserId = ts.userId;
+    } else {
+      await ctx.db.put(
+        {
+          ...threadsToken,
+          needsReauth: ts.r && ts.r.status === 401,
+          lastError: (ts.r && (ts.r.message || ts.r.egressDenied)) || 'threads session failed',
+        },
+        { db: 'vault' }
+      );
+    }
+  }
 
   // 1. Listen: one page of the newest notifications. Deterministic doc ids
   // make reprocessing idempotent, so no cursor bookkeeping is needed; a burst
@@ -1516,17 +1801,101 @@ export async function scheduled(event, ctx) {
     await noteListenerState(ctx, { solLastPollAt: nowIso, solNewDocs: solNew });
   }
 
+  // 1c. Threads search: the same proactive lane on Meta's Threads. Identical
+  // triage (planSolicitations, platform:'threads') and pipeline; only the search
+  // API and the reply mechanics differ. Individualization uses just the matched
+  // post text — the Threads API can't read an arbitrary poster's feed.
+  if (threadsActive && threadsUserId && solCfg.threadsQueries.length > 0) {
+    const sinceUnix = String(Math.floor((nowMs - solCfg.maxPostAgeHours * 3600000) / 1000));
+    const seenPosts = new Map();
+    for (const q of solCfg.threadsQueries.slice(0, 6)) {
+      const rs = await threadsSearchPosts(q, {
+        token: threadsToken.token,
+        limit: solCfg.searchLimit,
+        since: sinceUnix,
+      });
+      if (rs.ok) {
+        for (const post of rs.posts || []) if (post && post.cid) seenPosts.set(post.cid, post);
+      } else {
+        await noteListenerState(ctx, {
+          threadsLastError: rs.message || rs.egressDenied || rs.transport,
+        });
+      }
+    }
+    const solPlan = planSolicitations({
+      posts: [...seenPosts.values()],
+      selfDid: threadsToken.userId ? `threads:${threadsToken.username || ''}` : null,
+      existing: existingThreadsSol,
+      cfg: solCfg,
+      nowIso,
+      platform: 'threads',
+      docId: threadsSolicitationDocId,
+    });
+    const solDay = dayKey(nowIso);
+    let acceptedToday = existingThreadsSol.filter(
+      (d) => d.status !== 'skipped' && d.day === solDay
+    ).length;
+    let threadsNew = 0;
+    for (const doc of solPlan) {
+      if (doc.status !== 'candidate') {
+        await ctx.db.put(doc, { db: 'requests' });
+        continue;
+      }
+      const verdict = await classifySolicitation(ctx, doc.text);
+      if (verdict === null) continue;
+      if (verdict === 'skip') {
+        await ctx.db.put(
+          { ...doc, status: 'skipped', reason: 'not a solicitation' },
+          { db: 'requests' }
+        );
+        continue;
+      }
+      if (acceptedToday >= solCfg.maxGlobalPerDay) {
+        await ctx.db.put(
+          { ...doc, status: 'skipped', reason: 'global daily cap' },
+          { db: 'requests' }
+        );
+        continue;
+      }
+      // Individualize from the matched post text only (no author-feed API).
+      const idea = await deriveSolicitationIdea(ctx, doc, null, solCfg, {
+        posts: [doc.text].filter(Boolean),
+      });
+      if (idea === null) continue;
+      if (idea.skip) {
+        await ctx.db.put({ ...doc, status: 'skipped', reason: idea.skip }, { db: 'requests' });
+        continue;
+      }
+      await ctx.db.put(
+        { ...doc, status: 'pending-build', prompt: idea.prompt, promptKey: promptKey(idea.prompt) },
+        { db: 'requests' }
+      );
+      acceptedToday += 1;
+      threadsNew += 1;
+      await log(ctx, {
+        op: 'solicitation-accepted',
+        platform: 'threads',
+        uri: doc.uri,
+        prompt: idea.prompt,
+      });
+    }
+    await noteListenerState(ctx, { threadsLastPollAt: nowIso, threadsNewDocs: threadsNew });
+  }
+
   // 2. Acknowledge each accepted request by liking its post — the first
   // visible signal to the requester that we're building it, before the build
   // even dispatches. Re-queries (not the start-of-tick snapshot) so mentions
   // accepted this very tick get liked now.
   await likeAcceptedMentions(ctx, s.accessJwt, s.t.did);
 
-  // 3. Fire the builder lane on demand if mentions are queued (#3529) — the
+  // 3. Fire the builder lane on demand if work is queued (#3529) — the
   // event-driven replacement for the polling cron. Debounced; dark until the
-  // GITHUB_DISPATCH_TOKEN secret exists. Both lanes share this dispatcher, but
-  // solicitation docs only count while the lane is active (kill-switch).
-  await maybeDispatchBuilder(ctx, { includeSolicitations: solActive });
+  // GITHUB_DISPATCH_TOKEN secret exists. All lanes share this one dispatcher;
+  // a solicitation doc counts only while ITS platform lane is active (kill-switch).
+  const activePlatforms = new Set();
+  if (solActive) activePlatforms.add('bsky');
+  if (threadsActive && threadsUserId) activePlatforms.add('threads');
+  await maybeDispatchBuilder(ctx, { activePlatforms });
 
   // 4. Reply to verified-live builds (the builder lane sets `built` only after
   // the published vibe answered 200). Each lane has its own per-tick reply cap.
@@ -1540,6 +1909,14 @@ export async function scheduled(event, ctx) {
     const builtSol = existingSol.filter((d) => d.status === 'built' && d.vibeUrl);
     for (const m of builtSol.slice(0, solCfg.maxRepliesPerTick)) {
       await replyToMention(ctx, m, s.t, s.accessJwt);
+    }
+  }
+  // Threads replies ride the two-call publish; same per-tick reply cap, same
+  // freeze semantics (disabling the lane stops built Threads docs from posting).
+  if (threadsActive && threadsUserId) {
+    const builtThreads = existingThreadsSol.filter((d) => d.status === 'built' && d.vibeUrl);
+    for (const m of builtThreads.slice(0, solCfg.maxRepliesPerTick)) {
+      await threadsReply(ctx, m, threadsToken, threadsUserId);
     }
   }
 
