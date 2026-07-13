@@ -1268,6 +1268,12 @@ async function threadsFetch(path, { method = 'GET', token, query = {} } = {}) {
 // planSolicitations consumes (so all guardrails are shared). A top-level Threads
 // post is its own thread root; the numeric media id doubles as the reply target
 // (`reply_to_id`) and the doc `cid`. Exported for unit tests.
+//
+// displayName is intentionally '': keyword_search returns `username` but no
+// display name (that would need a per-author user lookup), so isLikelyBotAccount
+// runs HANDLE-ONLY on Threads — its 🤖/display-name branch is Bluesky-only. The
+// handle signal (…bot / feed / rss / known-mirror) is the strong one and catches
+// the accounts this lane actually hits.
 export function threadsPostToNormalized(m) {
   const id = m && m.id != null ? String(m.id) : '';
   const username = (m && m.username) || '';
