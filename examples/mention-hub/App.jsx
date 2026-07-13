@@ -111,8 +111,11 @@ export default function App() {
   const { can, ready } = useVibe('vault');
 
   // The raw credential never syncs here (write-only vault); the dashboard
-  // reads the redacted `token-status` projection the backend mirrors.
-  const tokenStatus = logQ('kind', { key: 'token-status' }).docs[0];
+  // reads the redacted `token-status` projections the backend mirrors (one per
+  // platform).
+  const tokenStatuses = logQ('kind', { key: 'token-status' }).docs;
+  const tokenStatus = tokenStatuses.find((d) => d.platform === 'bsky') || tokenStatuses[0];
+  const threadsTokenStatus = tokenStatuses.find((d) => d.platform === 'threads');
   const listener = logQ('kind', { key: 'listener-state' }).docs[0];
   const configDoc = logQ('kind', { key: 'config' }).docs[0];
   const solConfigDoc = logQ('kind', { key: 'config-solicitation' }).docs[0];
@@ -128,6 +131,7 @@ export default function App() {
 
   const [tab, setTab] = useState('planner');
   const [credential, setCredential] = useState('');
+  const [threadsCred, setThreadsCred] = useState('');
   const [githubPat, setGithubPat] = useState('');
   const [justSaved, setJustSaved] = useState(null);
   const [cfgDraft, setCfgDraft] = useState(null);
@@ -163,6 +167,26 @@ export default function App() {
     });
     setCredential('');
     setJustSaved('bsky');
+    setTimeout(() => setJustSaved(null), 2500);
+  };
+
+  // The long-lived Threads (Meta) token for the proactive Threads lane. Same
+  // write-only vault; the backend resolves the user id from it on the next tick.
+  const saveThreadsCred = async () => {
+    if (!threadsCred.trim()) return;
+    await vaultDb.put({
+      _id: 'token-threads',
+      kind: 'token',
+      platform: 'threads',
+      token: threadsCred.trim(),
+      pastedAt: new Date().toISOString(),
+      userId: null,
+      username: null,
+      needsReauth: false,
+      lastError: null,
+    });
+    setThreadsCred('');
+    setJustSaved('threads');
     setTimeout(() => setJustSaved(null), 2500);
   };
 
@@ -206,21 +230,26 @@ export default function App() {
     });
   };
   const solEnabled = !!solConfigDoc?.enabled;
+  const threadsEnabled = !!solConfigDoc?.threadsEnabled;
   const solCap = solConfigDoc?.maxGlobalPerDay ?? 8;
   const sf = solForm ?? {
     maxGlobalPerDay: solCap,
     queriesText: (solConfigDoc?.queries || []).join('\n'),
+    threadsQueriesText: (solConfigDoc?.threadsQueries || []).join('\n'),
   };
   const toggleSol = () => saveSol({ enabled: !solEnabled });
+  const toggleThreads = () => saveSol({ threadsEnabled: !threadsEnabled });
   const saveSolForm = async () => {
-    const queries = sf.queriesText
-      .split('\n')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const toLines = (txt) =>
+      (txt || '')
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean);
     const cap = Number(sf.maxGlobalPerDay);
     await saveSol({
       maxGlobalPerDay: Number.isInteger(cap) && cap >= 0 ? cap : undefined,
-      queries,
+      queries: toLines(sf.queriesText),
+      threadsQueries: toLines(sf.threadsQueriesText),
     });
     setSolForm(null);
   };
@@ -368,6 +397,92 @@ export default function App() {
               ) : null}
             </section>
 
+            {/* Same proactive lane, on Threads (Meta) */}
+            <section className="border border-stone-700 rounded-[8px] p-[16px] space-y-[12px]">
+              <div className="flex items-start justify-between gap-[12px] flex-wrap">
+                <div>
+                  <div className="text-[15px] font-bold flex items-center gap-[8px]">
+                    <span
+                      className={`inline-block w-[10px] h-[10px] rounded-full ${
+                        threadsEnabled ? 'bg-emerald-400' : 'bg-stone-500'
+                      }`}
+                    />
+                    Solicitation replies · Threads
+                    <span className={threadsEnabled ? 'text-emerald-400' : 'text-stone-500'}>
+                      {threadsEnabled ? 'ON' : 'OFF'}
+                    </span>
+                  </div>
+                  <p className="text-[12px] text-stone-400 mt-[4px] max-w-[520px]">
+                    This toggle is the <strong>proactive search</strong> lane on Threads — it needs
+                    a token <em>and</em> Meta's <code>threads_keyword_search</code> approval; until
+                    that lands, search finds nothing. Replying to people who{' '}
+                    <strong>@-mention @{threadsTokenStatus?.handle || 'you'}</strong> starts as soon
+                    as a token is pasted (Technical tab) — no toggle, no review needed. Bots and the
+                    monthly per-person limit apply to the search lane here too.
+                  </p>
+                  {threadsTokenStatus?.hasToken ? (
+                    <p className="text-[12px] text-emerald-400/80 mt-[4px]">
+                      Token live — the @-mention lane is running. Last mentions check:{' '}
+                      {listener?.threadsMentionsPollAt?.slice(11, 19) || '—'}
+                    </p>
+                  ) : (
+                    <p className="text-[12px] text-amber-400 mt-[4px]">
+                      No Threads token pasted yet — paste one in the Technical tab to start the
+                      @-mention lane.
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={toggleThreads}
+                  role="switch"
+                  aria-checked={threadsEnabled}
+                  className={`shrink-0 w-[52px] h-[28px] rounded-full p-[3px] transition-colors ${
+                    threadsEnabled ? 'bg-emerald-500' : 'bg-stone-600'
+                  }`}
+                >
+                  <span
+                    className={`block w-[22px] h-[22px] rounded-full bg-white transition-transform ${
+                      threadsEnabled ? 'translate-x-[24px]' : ''
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="text-[12px] text-stone-500">
+                last search: {listener?.threadsLastPollAt?.slice(11, 19) || '—'}
+                {listener?.threadsLastError ? (
+                  <span className="text-red-400"> · {listener.threadsLastError}</span>
+                ) : null}
+              </div>
+
+              <label className="text-[12px] text-stone-400 space-y-[4px] block">
+                Topics we watch on Threads (one search per line)
+                <textarea
+                  value={sf.threadsQueriesText}
+                  onChange={(e) => setSolForm({ ...sf, threadsQueriesText: e.target.value })}
+                  rows={4}
+                  placeholder={'what are you building\ndrop your app link\nshare your startup'}
+                  className="w-full bg-stone-900 border border-stone-700 rounded-[6px] px-[10px] py-[6px] text-[12px] text-stone-200"
+                />
+              </label>
+              {solForm ? (
+                <div className="flex gap-[8px]">
+                  <button
+                    onClick={saveSolForm}
+                    className="bg-[#FEDD00] text-stone-900 font-bold text-[12px] px-[14px] py-[6px] rounded-[6px]"
+                  >
+                    save topics &amp; limit
+                  </button>
+                  <button
+                    onClick={() => setSolForm(null)}
+                    className="text-stone-400 text-[12px] px-[10px] py-[6px]"
+                  >
+                    cancel
+                  </button>
+                </div>
+              ) : null}
+            </section>
+
             {/* Little stat row */}
             <div className="grid grid-cols-3 gap-[8px]">
               {[
@@ -469,6 +584,57 @@ export default function App() {
               <p className="text-[11px] text-stone-500">
                 Write-only vault: the paste never syncs back to any browser. The next tick verifies
                 it and shows the handle above.
+              </p>
+            </section>
+
+            <section className="border border-stone-700 rounded-[8px] p-[12px] space-y-[8px]">
+              <h2 className="text-[14px] font-bold">Threads credential</h2>
+              {threadsTokenStatus ? (
+                <div className="text-[12px] text-stone-400">
+                  {threadsTokenStatus.hasToken ? (
+                    <>
+                      <span
+                        className={
+                          threadsTokenStatus.needsReauth ? 'text-red-400' : 'text-emerald-400'
+                        }
+                      >
+                        {threadsTokenStatus.needsReauth ? 'needs re-auth' : 'active'}
+                      </span>
+                      {threadsTokenStatus.handle
+                        ? ` as @${threadsTokenStatus.handle}`
+                        : ' (verifying…)'}
+                      {threadsTokenStatus.lastError ? (
+                        <span className="text-red-400"> — {threadsTokenStatus.lastError}</span>
+                      ) : null}
+                    </>
+                  ) : (
+                    'no token pasted yet'
+                  )}
+                </div>
+              ) : (
+                <div className="text-[12px] text-stone-500">
+                  waiting for the first scheduled tick…
+                </div>
+              )}
+              <div className="flex gap-[8px]">
+                <input
+                  type="password"
+                  value={threadsCred}
+                  onChange={(e) => setThreadsCred(e.target.value)}
+                  placeholder="long-lived Threads Graph API token"
+                  className="flex-1 bg-stone-900 border border-stone-700 rounded-[6px] px-[10px] py-[6px] text-[12px]"
+                />
+                <button
+                  onClick={saveThreadsCred}
+                  className="bg-[#FEDD00] text-stone-900 font-bold text-[12px] px-[14px] py-[6px] rounded-[6px]"
+                >
+                  {justSaved === 'threads' ? 'saved ✓' : 'save'}
+                </button>
+              </div>
+              <p className="text-[11px] text-stone-500">
+                Meta developer app with the <code>threads_keyword_search</code> permission
+                (app-reviewed), then a long-lived user token. Same write-only vault; the next tick
+                resolves the account and shows it above.
               </p>
             </section>
 

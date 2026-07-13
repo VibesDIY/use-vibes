@@ -26,7 +26,15 @@ import {
   buildIdeaPrompt,
   sanitizeIdea,
   buildSolicitationReply,
+  solicitationReplyText,
+  mentionReplyText,
   planSolicitations,
+  isLikelyBotAccount,
+  threadsPostToNormalized,
+  threadsSolicitationDocId,
+  threadsMentionDocId,
+  planThreadsMentions,
+  THREADS_MAX_TEXT,
   scheduled,
 } from './backend.js';
 
@@ -532,9 +540,19 @@ describe('scheduled — tick wiring', () => {
         ['listNotifications', () => json({ notifications: [] })],
         [
           'screenshot.png',
-          () => new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { 'content-type': 'image/jpeg' } }),
+          () =>
+            new Response(new Uint8Array([1, 2, 3]), {
+              status: 200,
+              headers: { 'content-type': 'image/jpeg' },
+            }),
         ],
-        ['uploadBlob', () => json({ blob: { $type: 'blob', ref: { $link: 'bafk' }, mimeType: 'image/jpeg', size: 3 } })],
+        [
+          'uploadBlob',
+          () =>
+            json({
+              blob: { $type: 'blob', ref: { $link: 'bafk' }, mimeType: 'image/jpeg', size: 3 },
+            }),
+        ],
         [
           'createRecord',
           (_url, init) => {
@@ -1036,7 +1054,19 @@ describe('scheduled — claim DM wiring', () => {
       noNewMentions([
         [
           'describeRepo',
-          () => json({ did: 'did:plc:self', didDoc: { service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: pdsHost }] } }),
+          () =>
+            json({
+              did: 'did:plc:self',
+              didDoc: {
+                service: [
+                  {
+                    id: '#atproto_pds',
+                    type: 'AtprotoPersonalDataServer',
+                    serviceEndpoint: pdsHost,
+                  },
+                ],
+              },
+            }),
         ],
         [
           'getConvoForMembers',
@@ -1221,6 +1251,189 @@ describe('buildSolicitationReply — fixed template, threaded, no echo', () => {
   });
 });
 
+describe('Threads proactive lane — pure helpers', () => {
+  const media = {
+    id: '17900000000000000',
+    text: 'what are you building this week?',
+    username: 'devfounder',
+    permalink: 'https://www.threads.net/@devfounder/post/abc',
+    timestamp: '2026-07-06T10:00:00+0000',
+  };
+
+  it('threadsPostToNormalized maps a Threads media into the shared post shape', () => {
+    const p = threadsPostToNormalized(media);
+    expect(p).toMatchObject({
+      uri: media.permalink,
+      cid: media.id,
+      author: { did: 'threads:devfounder', handle: 'devfounder' },
+      record: { text: media.text },
+      indexedAt: media.timestamp,
+    });
+  });
+
+  it('threadsSolicitationDocId is deterministic and platform-scoped', () => {
+    const p = threadsPostToNormalized(media);
+    expect(threadsSolicitationDocId(p)).toBe(`sol-threads-${media.id}`);
+    expect(threadsSolicitationDocId({ cid: '' })).toBeNull();
+  });
+
+  it('solicitationReplyText fits the Threads limit and echoes only the vibe URL', () => {
+    const text = solicitationReplyText('https://vibes.diy/vibe/mentions/foo');
+    expect([...text].length).toBeLessThanOrEqual(THREADS_MAX_TEXT);
+    expect(text).toContain('https://vibes.diy/vibe/mentions/foo');
+  });
+
+  it('planSolicitations(platform:threads) tags docs, applies the bot filter, and counts per-platform', () => {
+    const post = (over) => threadsPostToNormalized({ ...media, ...over });
+    // A bsky solicitation already accepted today must NOT count against the
+    // Threads global cap — budgets are per platform.
+    const existing = [
+      {
+        _id: 'sol-did:plc:x-old',
+        kind: 'solicitation',
+        platform: 'bsky',
+        status: 'replied',
+        authorDid: 'did:plc:x',
+        day: dayKey(NOW),
+      },
+    ];
+    const out = planSolicitations({
+      posts: [post({ id: '1', username: 'devfounder' }), post({ id: '2', username: 'newsbot' })],
+      selfDid: 'threads:mentions',
+      existing,
+      cfg: { ...SOLICITATION_DEFAULTS, maxGlobalPerDay: 1, maxNewPerTick: 5 },
+      nowIso: NOW,
+      platform: 'threads',
+      docId: threadsSolicitationDocId,
+    });
+    const human = out.find((d) => d._id === 'sol-threads-1');
+    const bot = out.find((d) => d._id === 'sol-threads-2');
+    expect(human).toMatchObject({ status: 'candidate', platform: 'threads' });
+    expect(bot).toMatchObject({ status: 'skipped', reason: 'bot account' });
+  });
+});
+
+describe('planThreadsMentions — reactive @-mention lane on Threads', () => {
+  const cfg = { ...DEFAULTS };
+  const mention = (over = {}) => ({
+    id: over.id || '18001',
+    text: over.text ?? '@vibes_diy make me a pomodoro timer',
+    username: over.username || 'someone',
+    permalink: 'https://www.threads.net/@someone/post/abc',
+    timestamp: over.timestamp || NOW,
+  });
+
+  it('accepts a fresh mention as pending-build, prompt extracted, tagged threads', () => {
+    const out = planThreadsMentions({
+      mentions: [mention()],
+      selfHandle: 'vibes_diy',
+      existing: [],
+      cfg,
+      nowIso: NOW,
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      kind: 'mention',
+      platform: 'threads',
+      status: 'pending-build',
+      prompt: 'make me a pomodoro timer',
+      cid: '18001',
+      authorHandle: 'someone',
+    });
+    expect(out[0]._id).toBe('mention-threads-18001');
+  });
+
+  it('is idempotent and skips our own posts, moderation, and the age gate', () => {
+    const existing = [{ _id: 'mention-threads-18001', kind: 'mention', platform: 'threads' }];
+    expect(
+      planThreadsMentions({
+        mentions: [mention()],
+        selfHandle: 'vibes_diy',
+        existing,
+        cfg,
+        nowIso: NOW,
+      })
+    ).toHaveLength(0);
+
+    const self = planThreadsMentions({
+      mentions: [mention({ username: 'vibes_diy' })],
+      selfHandle: 'vibes_diy',
+      existing: [],
+      cfg,
+      nowIso: NOW,
+    });
+    expect(self[0]).toMatchObject({ status: 'skipped', reason: 'own post' });
+
+    const stale = planThreadsMentions({
+      mentions: [
+        mention({ timestamp: new Date(new Date(NOW).getTime() - 5 * 86400000).toISOString() }),
+      ],
+      selfHandle: 'vibes_diy',
+      existing: [],
+      cfg: { ...cfg, maxMentionAgeDays: 2 },
+      nowIso: NOW,
+    });
+    expect(stale[0]).toMatchObject({ status: 'skipped', reason: 'stale mention' });
+
+    const linky = planThreadsMentions({
+      mentions: [mention({ text: '@vibes_diy build https://evil.example' })],
+      selfHandle: 'vibes_diy',
+      existing: [],
+      cfg,
+      nowIso: NOW,
+    });
+    expect(linky[0].status).toBe('skipped');
+  });
+
+  it('threadsMentionDocId is deterministic and null-safe; mentionReplyText carries the vibe url', () => {
+    expect(threadsMentionDocId('18001')).toBe('mention-threads-18001');
+    expect(threadsMentionDocId('')).toBeNull();
+    expect(mentionReplyText('https://vibes.diy/vibe/mentions/foo')).toContain(
+      'https://vibes.diy/vibe/mentions/foo'
+    );
+  });
+});
+
+describe('isLikelyBotAccount — never proactively reply to automated accounts', () => {
+  it('flags the incident account and other bot-suffixed handles', () => {
+    expect(isLikelyBotAccount({ handle: 'hackernewsbot.bsky.social' })).toBe(true);
+    expect(isLikelyBotAccount({ handle: 'weatherbot.bsky.social' })).toBe(true);
+    expect(isLikelyBotAccount({ handle: 'hn-headlines.bsky.social' })).toBe(true);
+  });
+
+  it('flags feed/aggregator name tokens and known aggregators', () => {
+    expect(isLikelyBotAccount({ handle: 'news-feed.bsky.social' })).toBe(true);
+    expect(isLikelyBotAccount({ handle: 'rss.example.com' })).toBe(true);
+    expect(isLikelyBotAccount({ handle: 'daily-digest.bsky.social' })).toBe(true);
+    expect(isLikelyBotAccount({ handle: 'hackernews.bsky.social' })).toBe(true);
+    expect(isLikelyBotAccount({ handle: 'lobsters.bsky.social' })).toBe(true);
+  });
+
+  it('flags the 🤖 / bot display-name convention even when the handle is clean', () => {
+    expect(
+      isLikelyBotAccount({ handle: 'cleanname.bsky.social', displayName: '🤖 Auto Feed' })
+    ).toBe(true);
+    expect(isLikelyBotAccount({ handle: 'cleanname.bsky.social', displayName: 'My RSS bot' })).toBe(
+      true
+    );
+  });
+
+  it('does NOT flag ordinary human posters (precision over recall)', () => {
+    expect(isLikelyBotAccount({ handle: 'bob.bsky.social' })).toBe(false);
+    expect(isLikelyBotAccount({ handle: 'jane-founder.bsky.social', displayName: 'Jane' })).toBe(
+      false
+    );
+    expect(isLikelyBotAccount({ handle: 'feeder-schools.org' })).toBe(false); // "feed" not a bounded token
+    // A human fan of Hacker News, by handle or bio, is NOT a bot (label-anchored
+    // known-name match + bot-only display-name signal).
+    expect(isLikelyBotAccount({ handle: 'myhackernewsfan.bsky.social' })).toBe(false);
+    expect(
+      isLikelyBotAccount({ handle: 'alice.bsky.social', displayName: 'Hacker News fan' })
+    ).toBe(false);
+    expect(isLikelyBotAccount({})).toBe(false);
+  });
+});
+
 describe('planSolicitations — search triage + guardrails', () => {
   const cfg = { ...SOLICITATION_DEFAULTS, maxNewPerTick: 5, maxGlobalPerDay: 20 };
   const post = (over = {}) => ({
@@ -1255,6 +1468,82 @@ describe('planSolicitations — search triage + guardrails', () => {
     });
     expect(out[0].status).toBe('skipped');
     expect(out[0].reason).toBe('own post');
+  });
+
+  it('skips bot / aggregator accounts (the reply-bot-hn incident)', () => {
+    const out = planSolicitations({
+      posts: [post({ handle: 'hackernewsbot.bsky.social', did: 'did:plc:hnbot' })],
+      selfDid: 'did:plc:self',
+      existing: [],
+      cfg,
+      nowIso: NOW,
+    });
+    expect(out[0].status).toBe('skipped');
+    expect(out[0].reason).toBe('bot account');
+  });
+
+  it('skips an author replied to inside the monthly cooldown window', () => {
+    const tenDaysAgo = new Date(new Date(NOW).getTime() - 10 * 86400000).toISOString();
+    const existing = [
+      {
+        _id: 'sol-did:plc:bob-old',
+        kind: 'solicitation',
+        status: 'replied',
+        authorDid: 'did:plc:bob',
+        day: dayKey(tenDaysAgo),
+        createdAt: tenDaysAgo,
+      },
+    ];
+    const out = planSolicitations({
+      posts: [post({ rkey: '3new' })],
+      selfDid: 'did:plc:self',
+      existing,
+      cfg: { ...cfg, authorCooldownDays: 30 },
+      nowIso: NOW,
+    });
+    expect(out[0].status).toBe('skipped');
+    expect(out[0].reason).toBe('author cooldown');
+  });
+
+  it('answers an author again once the cooldown window has passed', () => {
+    const longAgo = new Date(new Date(NOW).getTime() - 31 * 86400000).toISOString();
+    const existing = [
+      {
+        _id: 'sol-did:plc:bob-old',
+        kind: 'solicitation',
+        status: 'replied',
+        authorDid: 'did:plc:bob',
+        day: dayKey(longAgo),
+        createdAt: longAgo,
+      },
+    ];
+    const out = planSolicitations({
+      posts: [post({ rkey: '3new' })],
+      selfDid: 'did:plc:self',
+      existing,
+      cfg: { ...cfg, authorCooldownDays: 30 },
+      nowIso: NOW,
+    });
+    expect(out[0].status).toBe('candidate');
+  });
+
+  it('cooldown holds for two same-author posts in ONE tick, even with maxPerAuthorPerDay > 1', () => {
+    // Regression (PR #68 review): the cooldown set was built only from persisted
+    // docs, so with maxPerAuthorPerDay:2 both fresh same-author posts passed and
+    // would be sent on later ticks — violating "once a month".
+    const posts = [
+      post({ rkey: 'p1' }),
+      post({ rkey: 'p2' }), // same author (default did:plc:bob)
+    ];
+    const out = planSolicitations({
+      posts,
+      selfDid: 'did:plc:self',
+      existing: [],
+      cfg: { ...cfg, maxPerAuthorPerDay: 2, authorCooldownDays: 30 },
+      nowIso: NOW,
+    });
+    expect(out.filter((d) => d.status === 'candidate')).toHaveLength(1);
+    expect(out.find((d) => d.status === 'skipped')?.reason).toBe('author cooldown');
   });
 
   it('skips stale posts past maxPostAgeHours', () => {
@@ -1714,7 +2003,11 @@ describe('like-on-accept — acknowledge the request before building (#3323)', (
   };
 
   it('buildLikeRecord — strong-ref like on the request post', () => {
-    const built = buildLikeRecord({ uri: 'at://did:plc:alice/app.bsky.feed.post/3lc', cid: 'cid-3lc', createdAt: NOW });
+    const built = buildLikeRecord({
+      uri: 'at://did:plc:alice/app.bsky.feed.post/3lc',
+      cid: 'cid-3lc',
+      createdAt: NOW,
+    });
     expect(built.record).toMatchObject({
       $type: 'app.bsky.feed.like',
       subject: { uri: 'at://did:plc:alice/app.bsky.feed.post/3lc', cid: 'cid-3lc' },
@@ -1884,14 +2177,26 @@ describe('pdsHostFromDidDoc — chat must target the account PDS (#3591)', () =>
   it('extracts the AtprotoPersonalDataServer endpoint and trims a trailing slash', () => {
     const didDoc = {
       service: [
-        { id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: 'https://gomphidius.us-west.host.bsky.network/' },
+        {
+          id: '#atproto_pds',
+          type: 'AtprotoPersonalDataServer',
+          serviceEndpoint: 'https://gomphidius.us-west.host.bsky.network/',
+        },
       ],
     };
     expect(pdsHostFromDidDoc(didDoc)).toBe('https://gomphidius.us-west.host.bsky.network');
   });
 
   it('matches by service type when the id differs', () => {
-    const didDoc = { service: [{ id: '#pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: 'https://x.host.bsky.network' }] };
+    const didDoc = {
+      service: [
+        {
+          id: '#pds',
+          type: 'AtprotoPersonalDataServer',
+          serviceEndpoint: 'https://x.host.bsky.network',
+        },
+      ],
+    };
     expect(pdsHostFromDidDoc(didDoc)).toBe('https://x.host.bsky.network');
   });
 
@@ -1899,6 +2204,10 @@ describe('pdsHostFromDidDoc — chat must target the account PDS (#3591)', () =>
     expect(pdsHostFromDidDoc(undefined)).toBeNull();
     expect(pdsHostFromDidDoc({})).toBeNull();
     expect(pdsHostFromDidDoc({ service: [] })).toBeNull();
-    expect(pdsHostFromDidDoc({ service: [{ id: '#atproto_pds', serviceEndpoint: 'http://insecure.example' }] })).toBeNull();
+    expect(
+      pdsHostFromDidDoc({
+        service: [{ id: '#atproto_pds', serviceEndpoint: 'http://insecure.example' }],
+      })
+    ).toBeNull();
   });
 });

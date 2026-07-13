@@ -175,29 +175,89 @@ The lane runs nothing until an owner writes a `config-solicitation` doc into the
 `enabled:false` or an empty `queries` array ⇒ inert. All the caps below are
 optional overrides on the same doc; defaults live in `SOLICITATION_DEFAULTS`.
 
-| knob               | default | meaning                                             |
-| ------------------ | ------- | --------------------------------------------------- |
-| enabled            | false   | master switch — inert until an owner turns it on    |
-| queries            | []      | Bluesky search queries run each tick (max 6 used)   |
-| maxGlobalPerDay    | 8       | accepted solicitation replies per UTC day           |
-| maxPerAuthorPerDay | 1       | one reply per poster per UTC day — never pile on    |
-| maxNewPerTick      | 2       | burst brake per 1-minute tick                       |
-| maxRepliesPerTick  | 1       | replies posted per tick — slow, human-paced         |
-| maxPostAgeHours    | 12      | only answer fresh calls; older threads read as spam |
-| searchLimit        | 25      | posts fetched per query per tick                    |
-| authorFeedLimit    | 20      | of the poster's recent posts fed to the idea model  |
+| knob               | default | meaning                                                                         |
+| ------------------ | ------- | ------------------------------------------------------------------------------- |
+| enabled            | false   | master switch — inert until an owner turns it on                                |
+| queries            | []      | Bluesky search queries run each tick (max 6 used)                               |
+| maxGlobalPerDay    | 8       | accepted solicitation replies per UTC day                                       |
+| maxPerAuthorPerDay | 1       | one reply per poster per UTC day — never pile on                                |
+| authorCooldownDays | 30      | and never reply to the same poster twice inside ~a month (mentions bypass this) |
+| maxNewPerTick      | 2       | burst brake per 1-minute tick                                                   |
+| maxRepliesPerTick  | 1       | replies posted per tick — slow, human-paced                                     |
+| maxPostAgeHours    | 12      | only answer fresh calls; older threads read as spam                             |
+| searchLimit        | 25      | posts fetched per query per tick                                                |
+| authorFeedLimit    | 20      | of the poster's recent posts fed to the idea model                              |
+
+**Never replies to bots.** The proactive lane skips automated accounts
+(`isLikelyBotAccount`): a bot-suffixed / feed / RSS / aggregator handle or
+display name, and known news mirrors (Hacker News, Lobsters, …). News bots
+syndicate exactly the "what are you building" phrasing this lane searches for,
+so replying to them is bot-to-bot spam under a post no human is watching (the
+reply-bot-hn incident — we replied to `hackernewsbot.bsky.social`'s "Ask HN:
+What Are You Working On?" repost). It's a deterministic, high-precision handle
+signal; a false positive only costs the proactive lane one poster, who can
+still `@`-mention us (the reactive lane never consults this gate). The
+`authorCooldownDays` window likewise applies to the proactive lane only — an
+`@`-mention is always answered, "unless they mention us" notwithstanding.
 
 Search uses `sort=latest` + a 12h `since` cutoff (fresh-first, windowed
 server-side); `planSolicitations` re-checks the age as a belt-and-suspenders.
 Idempotency is the same cursorless trick as mentions — a deterministic
 `sol-<did>-<rkey>` doc id means re-finding a post in a later tick is a no-op.
 
+## Threads (Meta) proactive lane
+
+The solicitation lane also runs on **Threads**, gated by its own switch and its
+own token — same `requests` db, same guardrails (`planSolicitations` with
+`platform: 'threads'`, so the bot-account skip and the monthly per-author
+cooldown apply identically), same CI builder lane. Only the network I/O differs:
+Threads search is `keyword_search`, and a reply is a two-call publish (create a
+TEXT container with `reply_to_id`, then `threads_publish`). Individualization uses
+just the matched post's text — the Threads API can't read an arbitrary poster's
+feed. Threads solicitation docs carry `platform: 'threads'`; Bluesky docs are
+`platform: 'bsky'` (a legacy doc with no field is treated as bsky), and caps are
+counted per platform.
+
+Threads has **two** sub-lanes, gated differently:
+
+- **Reactive @-mention lane** (`me/mentions`): answers anyone who `@`-mentions the
+  account. Runs as soon as a healthy token is pasted — **no `threadsEnabled`
+  toggle, no keyword_search review**. Needs the mentions/replies permission on the
+  token (`threads_manage_replies`), plus `threads_content_publish` to reply. Same
+  guardrails + intent classifier as the Bluesky mention lane; docs are
+  `kind:'mention', platform:'threads'`.
+- **Proactive search lane** (`keyword_search`): the toggle below. Additionally
+  needs `threadsEnabled:true` AND Meta's app-reviewed **`threads_keyword_search`**
+  — until that's approved, search returns only your own posts (fails safe).
+
+### Activating (dark by default, independent of the Bluesky switch)
+
+1. **Meta developer app** with `threads_basic` + `threads_content_publish` +
+   `threads_manage_replies` (mentions) — enough for the reactive lane — and, for
+   the proactive lane, **`threads_keyword_search`** (app review).
+2. **Long-lived Threads user token** → paste it in the dashboard's **Technical →
+   Threads credential** box (write-only vault, `_id: token-threads`,
+   `platform: 'threads'`). The next tick resolves the account id/username, shows
+   it active, and the **@-mention lane starts immediately**.
+3. **Turn on proactive search** (optional, after the keyword_search review): the
+   **Solicitation replies · Threads** toggle (writes `threadsEnabled: true` +
+   `threadsQueries` onto the `config-solicitation` doc). `threadsEnabled:false`
+   freezes only the search lane's find/dispatch/reply; the @-mention lane keeps
+   running on the token alone (parity with Bluesky mentions, which have no switch).
+
+Config fields on the same `config-solicitation` doc: `threadsEnabled` (bool) and
+`threadsQueries` (string[]); the shared caps (`maxGlobalPerDay`, cooldown, etc.)
+apply per platform.
+
+> Not yet exercised against the live Threads API — the exact `keyword_search`
+> params and create/publish field names follow Meta's docs and want one smoke
+> test the first time a real token is pasted. Everything the unit tests cover
+> (triage, ids, reply text, config validation) is platform-pure.
+
 ## Known limits / follow-ons (tracked in #3323)
 
-- Bluesky only; Threads/X listeners are follow-on (same doc protocol, new
-  listener lanes in this backend). The **Threads-native** version of the
-  solicitation lane needs Threads Graph API credentials in the vault — the
-  search + individualize + reply shape ports directly once those exist.
+- X (Twitter) listener is still a follow-on (same doc protocol, new listener lane
+  in this backend).
 - Mention→reply latency is minutes (1m tick + 10m cron + build time), fine
   for a marketing bot; a queue-worker builder would shave it if it matters.
 - Claimable ownership (pin the vibe to the requester, attach on first login)
