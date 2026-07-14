@@ -71,6 +71,6 @@
     "rimraf": "^6.0.1",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.36.0",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.10"
   }
 }
