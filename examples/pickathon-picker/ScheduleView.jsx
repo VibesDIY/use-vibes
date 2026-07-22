@@ -2,6 +2,7 @@ import React from 'react';
 import { toFestivalDate, festivalDayFor, fmtTime as fmtTimeUtil } from './festival-utils.js';
 import { lineupTag, eventCardStyle, eventCardBg } from './styles.js';
 import NoteField from './NoteField.jsx';
+import { HeartIcon } from './icons.jsx';
 
 function GapStrip({ startMs, endMs, allDayEvents, fmtTime }) {
   const count = allDayEvents.filter((e) => {
@@ -164,7 +165,12 @@ export default function ScheduleView({
                               onClick={() => onToggleFavorite(item.data)}
                               className={`p-[1px] rounded-lg m-0.5  text-xs font-bold px-0.5 ${myFavIds && myFavIds.has(item.data.eventId) ? 'bg-[#CD6C0C] text-white' : 'bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9]'}`}
                             >
-                              {myFavIds && myFavIds.has(item.data.eventId) ? '♥' : '♡'}
+                              <HeartIcon
+                                state={
+                                  myFavIds && myFavIds.has(item.data.eventId) ? 'full' : 'empty'
+                                }
+                                size={16}
+                              />
                             </button>
                           )}
                         </div>

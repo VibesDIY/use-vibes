@@ -1,6 +1,7 @@
 import React from 'react';
 import { FESTIVAL_TZ, fmtTime, fmtDate } from './festival-utils.js';
 import { lineupTag, eventCardStyle, eventCardBg } from './styles.js';
+import { HeartIcon } from './icons.jsx';
 
 function EventCard({ event, isMine, isFriendPick, canWrite, toggleFavorite, c, showDate }) {
   const tag = lineupTag(event);
@@ -32,7 +33,7 @@ function EventCard({ event, isMine, isFriendPick, canWrite, toggleFavorite, c, s
             onClick={() => toggleFavorite(event)}
             className={isMine ? c.favToggleOn : c.favToggleOff}
           >
-            {isMine ? '♥' : '♡'}
+            <HeartIcon state={isMine ? 'full' : 'empty'} />
           </button>
         )}
       </div>

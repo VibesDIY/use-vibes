@@ -21,6 +21,7 @@ import BrowseView from './BrowseView.jsx';
 import FavoritesView from './FavoritesView.jsx';
 import FriendsView, { ALL_FRIENDS } from './FriendsView.jsx';
 import ShiftsView from './ShiftsView.jsx';
+import { ClipboardIcon, CheckIcon } from './icons.jsx';
 
 // Re-stamp a locally-stored doc onto the freshly signed-in handle when useFireproof's
 // anonymousLocal store migrates local → cloud on first login. Owned docs are keyed by
@@ -59,57 +60,6 @@ const clearFriendParamFromUrl = () => {
 // Stable index functions — passed to useLiveQuery so Fireproof doesn't rebuild the
 // query on every render (an inline arrow is a new reference each time).
 const byTypeUser = (doc) => [doc.type, doc.userId];
-
-// A layered Pacific-Northwest forestscape for the header's bottom edge: two rows of
-// tiered Christmas trees at varying heights that overlap, drawn once as a static SVG
-// (no animation → zero repaint tax). Each tree is three stacked tiers with stepped
-// ledges down both flanks up to a pointy top. The back row is a shade darker and
-// shorter (depth); the interleaved front row is the nav color so it reads continuous
-// with the green stripe below. viewBox is 1200 wide, baseline y=40.
-const RIDGE_BASELINE = 116;
-const tree = (cx, w, h) => {
-  const B = RIDGE_BASELINE;
-  const y1 = B - h / 3;
-  const y2 = B - (2 * h) / 3;
-  const y3 = B - h;
-  const x = (k) => Math.round((cx + k * w) * 10) / 10;
-  const y = (v) => Math.round(v * 10) / 10;
-  return (
-    `M${x(-1)},${B} L${x(-0.375)},${y(y1)} L${x(-0.7)},${y(y1)} ` +
-    `L${x(-0.275)},${y(y2)} L${x(-0.5)},${y(y2)} L${x(0)},${y(y3)} ` +
-    `L${x(0.5)},${y(y2)} L${x(0.275)},${y(y2)} L${x(0.7)},${y(y1)} ` +
-    `L${x(0.375)},${y(y1)} L${x(1)},${B} Z`
-  );
-};
-// Deterministic PRNG (mulberry32) seeded with a constant so the "random" forest is
-// stable across renders/reloads — the layout is scattered but reproducible.
-const rng = (() => {
-  let s = 0x9e3779b9;
-  return () => {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-})();
-// A scattered row: `count` trees across the 1200 viewBox, each centered in its slot
-// but jittered, with randomized width/height. Trees are ~3x larger than before and
-// tall enough that peaks reach near the header top and valleys dip near its bottom.
-const genRow = (count, minW, maxW, minH, maxH) => {
-  const step = 1200 / count;
-  const out = [];
-  for (let i = 0; i < count; i++) {
-    const cx = step * (i + 0.5) + (rng() - 0.5) * step * 0.7;
-    const w = minW + rng() * (maxW - minW);
-    const h = minH + rng() * (maxH - minH);
-    out.push(tree(cx, w, h));
-  }
-  return out.join(' ');
-};
-// Back row: shorter + darker for depth. Front row: taller, nav-colored. ~17 trees
-// total keeps the same average spacing as before, now with much larger trees.
-const FOREST_BACK = genRow(9, 90, 130, 66, 104);
-const FOREST_FRONT = genRow(8, 85, 120, 92, 112);
 
 const migratePickathonDoc = (doc, handle) => {
   if (doc.type === 'favorite')
@@ -718,17 +668,8 @@ export default function PickathonPicker() {
   return (
     <div className={`min-h-screen ${c.pageBg}`} style={{ touchAction: 'manipulation' }}>
       <div className={`max-w-6xl mx-auto ${c.cardBg} shadow-2xl ${c.border} overflow-hidden`}>
-        <div className={`${c.headerBg} ${c.border} p-2.5 relative isolate`}>
-          <svg
-            className="absolute inset-x-0 bottom-0 w-full h-[116px] z-0 pointer-events-none"
-            viewBox="0 0 1200 116"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <path d={FOREST_BACK} className="fill-[#5A8F35] dark:fill-[#17260f]" />
-            <path d={FOREST_FRONT} className="fill-[#71AD44] dark:fill-[#1d3015]" />
-          </svg>
-          <div className="flex items-start justify-between gap-1 flex-wrap relative z-10">
+        <div className={`${c.headerBg} ${c.border} p-2.5`}>
+          <div className="flex items-start justify-between gap-1 flex-wrap">
             <div className="flex items-center gap-1">
               <a
                 href="https://pickathon.com"
@@ -750,7 +691,7 @@ export default function PickathonPicker() {
           </div>
           {error && error.includes('cached') && (
             <div
-              className={`mt-0.5 ${c.pinkBg} text-white px-[3px] py-0.5 rounded-lg text-sm font-bold relative z-10`}
+              className={`mt-0.5 ${c.pinkBg} text-white px-[3px] py-0.5 rounded-lg text-sm font-bold`}
             >
               {error}
             </div>
@@ -776,7 +717,7 @@ export default function PickathonPicker() {
                   {viewName === 'browse' && `All Events`}
                   {viewName === 'bands' && `Bands`}
                   {viewName === 'favorites' && `Favorites (${myFavIds.size})`}
-                  {viewName === 'friends' && `🙋‍♀️ Follows`}
+                  {viewName === 'friends' && `Follows`}
                   {viewName === 'shifts' && `Extras`}
                   {viewName === 'schedule' &&
                     `My Faves${myFavIds.size > 0 ? ` (${myFavIds.size})` : ''}`}
@@ -944,7 +885,7 @@ export default function PickathonPicker() {
                             className={c.btnPink}
                             title="Subscribe in your phone's calendar — it follows your faves live. iOS may warn about an insecure connection; tap Continue (the feed itself is served over https). Share the link and friends can subscribe to your picks."
                           >
-                            🔁 Subscribe on iPhone
+                            Subscribe on iPhone
                           </a>
                         )}
                         {icsSubPath && (
@@ -954,7 +895,7 @@ export default function PickathonPicker() {
                             title="Copy the subscription URL — paste into Google Calendar (From URL) or send to a friend"
                             aria-label="Copy subscription link"
                           >
-                            {icsCopied ? '✓' : '📋'}
+                            {icsCopied ? <CheckIcon size={18} /> : <ClipboardIcon size={18} />}
                           </button>
                         )}
                       </div>
