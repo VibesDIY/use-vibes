@@ -1,6 +1,7 @@
 import React from 'react';
 import { fmtDate, fmtTime } from './festival-utils.js';
 import { eventCardBg } from './styles.js';
+import { HeartIcon, StarIcon } from './icons.jsx';
 
 export default function BandsView({
   bandsList,
@@ -116,7 +117,10 @@ export default function BandsView({
                         onClick={() => toggleAllBand(band)}
                         className={`shrink-0 text-2xl p-1.5 rounded-2xl m-0.5  font-bold transition-all ${allFaved ? 'bg-[#CD6C0C] text-white hover:opacity-90' : anyFav ? 'bg-[#CD6C0C]/40 text-white hover:opacity-90' : 'bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#BACD32] dark:hover:bg-[#2c3510]'}`}
                       >
-                        {allFaved ? '♥' : anyFav ? '◐' : '♡'}
+                        <HeartIcon
+                          state={allFaved ? 'full' : anyFav ? 'half' : 'empty'}
+                          size={24}
+                        />
                       </button>
                     )}
                     <div className="flex-1 min-w-0">
@@ -126,8 +130,12 @@ export default function BandsView({
                           {lineupLabel}
                         </span>
                         {superMode && band.events.some((e) => favCounts[e.eventId] > 0) && (
-                          <span className={c.badge} title="Total picks across sets">
-                            ★ {band.events.reduce((n, e) => n + (favCounts[e.eventId] || 0), 0)}
+                          <span
+                            className={`${c.badge} inline-flex items-center gap-0.5`}
+                            title="Total picks across sets"
+                          >
+                            <StarIcon size={12} />{' '}
+                            {band.events.reduce((n, e) => n + (favCounts[e.eventId] || 0), 0)}
                           </span>
                         )}
                       </div>
@@ -145,7 +153,10 @@ export default function BandsView({
                                 onClick={() => toggleFavorite(e)}
                                 className={`text-sm px-0.5 py-[0.5px] rounded-lg m-0.5  font-bold transition-all ${myFavIds.has(e.eventId) ? 'bg-[#CD6C0C] text-white' : 'bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#BACD32] dark:hover:bg-[#2c3510]'}`}
                               >
-                                {myFavIds.has(e.eventId) ? '♥' : '♡'}
+                                <HeartIcon
+                                  state={myFavIds.has(e.eventId) ? 'full' : 'empty'}
+                                  size={16}
+                                />
                               </button>
                             )}
                             <span className={`text-sm font-bold ${c.bodyText}`}>
