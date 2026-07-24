@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { FESTIVAL, SCHEDULE } from './festival-config.js';
-import { SCHEDULE_BY_ID, BACKEND_TZ } from './backend.js';
+import { SCHEDULE_BY_ID, BACKEND_TZ, BACKEND_DB, BACKEND_NAME } from './backend.js';
 
 describe('backend snapshot stays in sync with festival-config', () => {
   it("has exactly the config's entries", () => {
@@ -20,5 +20,11 @@ describe('backend snapshot stays in sync with festival-config', () => {
   });
   it('agrees on the timezone', () => {
     expect(BACKEND_TZ).toBe(FESTIVAL.tz);
+  });
+  it('agrees on the database name', () => {
+    expect(BACKEND_DB).toBe(FESTIVAL.dbName);
+  });
+  it('agrees on the festival name', () => {
+    expect(BACKEND_NAME).toBe(FESTIVAL.name);
   });
 });
