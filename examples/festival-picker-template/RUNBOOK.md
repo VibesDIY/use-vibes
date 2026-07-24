@@ -131,11 +131,14 @@ the lineup means editing both and pushing. All times are naive strings in `FESTI
 `FESTIVAL.tier` declares how complete the data is: `full` (every set has a day, start,
 end, and stage) or `lineup` (bands only, times not announced yet).
 
-The tier drives the nav. `visibleTabs(tier)` in `festival-utils.js` names the four
-canonical tabs a tier supports — `browse`/`favorites`/`shifts`/`schedule` on `full`,
-just `browse`/`favorites` on `lineup` — and `App.jsx` maps its extra tabs onto those
-four through `TAB_TIER_KEY` (`bands` rides with `browse`; `now` and `friends` need set
-times, so they ride with `schedule`). On a `lineup`-tier festival the time-based views
+The tier drives the nav. `visibleTabs(tier)` in `festival-utils.js` names the canonical
+tabs a tier supports — `browse`/`favorites`/`shifts`/`schedule`/`friends` on `full`,
+`browse`/`favorites`/`friends` on `lineup` — and `App.jsx` maps its extra tabs onto
+those through `TAB_TIER_KEY` (`bands` rides with `browse`; `now` needs set times, so it
+rides with `schedule`). Follows survive every tier on purpose: following someone shows
+their FAVORITES, which exist whether or not times have been announced, and that sharing
+loop is the point of the app — undated picks render as one group with no day header.
+On a `lineup`-tier festival the time-based views
 and every `.ics` download/subscribe control are hidden, the flat Favorites list becomes
 the way to see your own picks, and cards render band + link with no empty time chips.
 Re-pushing with `tier: "full"` once times are announced turns the rest back on.

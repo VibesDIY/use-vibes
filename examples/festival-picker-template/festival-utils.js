@@ -61,13 +61,18 @@ export const FESTIVAL_2026 = {
   stages: FESTIVAL.stages,
 };
 
-// Which of the four canonical tabs a festival's data can actually support. A
+// Which of the canonical tabs a festival's data can actually support. A
 // `lineup`-tier festival has bands but no set times (every SCHEDULE entry carries a
 // null day/start/end/stage), so every time-based view — the personal day-by-day
 // schedule and the extras/shifts planner built on top of it — has nothing to render
-// and is dropped. App.jsx maps its own extra tabs onto these four (see NAV_TABS).
+// and is dropped. `friends` is NOT time-based: following someone shows their
+// FAVORITES, which exist whether or not set times have been announced, so it survives
+// every tier — it's the sharing loop the picker exists for. App.jsx maps its own extra
+// tabs onto these canonical ones (see NAV_TABS).
 export const visibleTabs = (tier) =>
-  tier === 'lineup' ? ['browse', 'favorites'] : ['browse', 'favorites', 'shifts', 'schedule'];
+  tier === 'lineup'
+    ? ['browse', 'favorites', 'friends']
+    : ['browse', 'favorites', 'shifts', 'schedule', 'friends'];
 
 // The static-data variant of this template: the schedule is a module constant, so it
 // is synchronously available on first render — no feed fetch, no cache, no loading

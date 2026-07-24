@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ScheduleView from './ScheduleView.jsx';
+import { lineupTag, eventCardStyle, eventCardBg } from './styles.js';
 
 // Sentinel for selectedFriend meaning "everyone I follow" — the unified
 // schedule. `*` can't appear in a real handle, so it can't collide.
@@ -62,6 +63,12 @@ export default function FriendsView({
       setTimeout(() => setCopied(false), 2000);
     });
   };
+
+  // Picks split by whether they have a set time yet: undated ones can't be grouped
+  // by festival day, so they get their own group below instead of vanishing.
+  const picks = friendFavoriteEvents || [];
+  const undatedPicks = picks.filter((e) => !e.start);
+  const hasDatedPicks = picks.length > undatedPicks.length || (friendShifts || []).length > 0;
 
   const followingActive = following.filter((f) => f.state === 'active');
   const followingRequested = following.filter((f) => f.state === 'requested');
@@ -306,25 +313,74 @@ export default function FriendsView({
               Close
             </button>
           </div>
-          <ScheduleView
-            days={displayDays}
-            getDateForDay={getDateForDay}
-            buildSchedule={makeFriendSchedule}
-            fmtTime={fmtTime}
-            notes={null}
-            c={c}
-            shiftStartRaw={shiftStartRaw}
-            shiftEndRaw={shiftEndRaw}
-            emptyMessage={
-              selectedFriend === ALL_FRIENDS
-                ? 'Nobody you follow has picked any events yet.'
-                : "They haven't picked any events yet — or their account is private and hasn't approved you yet."
-            }
-            canWrite={false}
-            onToggleFavorite={canWrite ? toggleFavorite : null}
-            myFavIds={myFavIds}
-            ViewerTag={ViewerTag}
-          />
+          {/* A lineup-tier festival has announced bands but no set times, so these picks
+              carry no festival day and never reach the day-grouped ScheduleView below.
+              They render as one undated group — the same fallback BrowseView uses — so
+              following someone works before the schedule drops. */}
+          {undatedPicks.length > 0 && (
+            <div className={c.schedDay}>
+              <div className="space-y-0.5">
+                {undatedPicks.map((event) => {
+                  const tag = lineupTag(event);
+                  return (
+                    <div
+                      key={event.eventId}
+                      className={`rounded-[12px] m-0.5 p-[7px] ${eventCardBg}`}
+                      style={eventCardStyle(event)}
+                    >
+                      <div className="flex items-center gap-0.5 flex-wrap mb-[1px]">
+                        <h4 className={`font-black ${c.bodyText}`}>{event.title}</h4>
+                        <span className="px-0.5 py-[0.5px] rounded-full text-xs font-black m-0.5 uppercase bg-[#BACD32] text-[#4A4A4A]">
+                          {tag.label}
+                        </span>
+                        {canWrite && toggleFavorite && (
+                          <button
+                            onClick={() => toggleFavorite(event)}
+                            className={`p-[1px] rounded-lg m-0.5 text-xs font-bold px-0.5 ${myFavIds && myFavIds.has(event.eventId) ? 'bg-[#CD6C0C] text-white' : 'bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9]'}`}
+                          >
+                            {myFavIds && myFavIds.has(event.eventId) ? '♥' : '♡'}
+                          </button>
+                        )}
+                      </div>
+                      {event.venueTitle && (
+                        <p className={`text-sm font-bold ${c.bodyText}`}>{event.venueTitle}</p>
+                      )}
+                      {ViewerTag && Array.isArray(event.pickedBy) && event.pickedBy.length > 0 && (
+                        <div className="flex items-center gap-0.5 flex-wrap mt-0.5">
+                          {event.pickedBy.map((h) => (
+                            <ViewerTag key={h} userHandle={h} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {/* Only the dated half goes through ScheduleView. When there is nothing at
+              all we still render it, because it owns the empty message. */}
+          {(hasDatedPicks || undatedPicks.length === 0) && (
+            <ScheduleView
+              days={displayDays}
+              getDateForDay={getDateForDay}
+              buildSchedule={makeFriendSchedule}
+              fmtTime={fmtTime}
+              notes={null}
+              c={c}
+              shiftStartRaw={shiftStartRaw}
+              shiftEndRaw={shiftEndRaw}
+              emptyMessage={
+                selectedFriend === ALL_FRIENDS
+                  ? 'Nobody you follow has picked any events yet.'
+                  : "They haven't picked any events yet — or their account is private and hasn't approved you yet."
+              }
+              canWrite={false}
+              onToggleFavorite={canWrite ? toggleFavorite : null}
+              myFavIds={myFavIds}
+              ViewerTag={ViewerTag}
+            />
+          )}
         </div>
       )}
     </div>

@@ -34,18 +34,19 @@ const DAY_ORDER = FESTIVAL.dates.map((d) => festivalDayFor(`${d}T12:00:00`));
 const DAY_DATES = Object.fromEntries(FESTIVAL.dates.map((d, i) => [DAY_ORDER[i], d]));
 const FALLBACK_START = `${FESTIVAL.dates[0]}T00:00:00`;
 
-// Tier gating for the nav. visibleTabs() names the four canonical tabs a tier can
-// support; this template ships three more, so each extra rides on the canonical tab it
-// shares its data requirements with: `bands` is a plain lineup listing (browse), while
-// `now` (what's on stage) and `friends` (day-by-day follow schedules) can only render
-// against set times, so they ride with `schedule` and vanish on a `lineup`-tier
-// festival. Adding a tab means adding it here with the canonical tab it depends on.
+// Tier gating for the nav. visibleTabs() names the canonical tabs a tier can support;
+// this template ships two more, so each extra rides on the canonical tab it shares its
+// data requirements with: `bands` is a plain lineup listing (browse), while `now`
+// (what's on stage) can only render against set times, so it rides with `schedule` and
+// vanishes on a `lineup`-tier festival. `friends` is canonical and tier-independent —
+// following someone shows their favorites, which exist without set times.
+// Adding a tab means adding it here with the canonical tab it depends on.
 const TAB_TIER_KEY = {
   now: 'schedule',
   browse: 'browse',
   bands: 'browse',
   favorites: 'favorites',
-  friends: 'schedule',
+  friends: 'friends',
   shifts: 'shifts',
   schedule: 'schedule',
 };
@@ -373,9 +374,9 @@ export default function FestivalPicker() {
     handledFriendRef.current.add(linkedFriend);
     const go = () => {
       setSelectedFriend(linkedFriend);
-      // A lineup-tier festival has no follows tab to land on — the follow still
-      // happens, we just don't strand the user on an unrendered view.
-      if (NAV_TABS.includes('friends')) setView('friends');
+      // Follows survive every tier, so the scanned link always lands on the view
+      // that shows the newly followed person's picks.
+      setView('friends');
     };
     if (followedHandles.has(linkedFriend)) {
       go();
