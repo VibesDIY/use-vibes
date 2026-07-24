@@ -1,4 +1,4 @@
-// Pickathon Picker backend: serve faves schedules as .ics.
+// Festival Picker backend: serve faves schedules as .ics.
 //
 // POST /_api/faves.ics  { items: [{ id, title, start, end, location?, url? }] }
 //   → 200 text/calendar attachment (pickathon-faves.ics) — one-shot download of
@@ -11,8 +11,8 @@
 //   (a handle in the URL invited swapping in someone else's), shareable on
 //   purpose, and revocable (delete the doc; the feed drains). It is still a
 //   live feed: new picks flow to every subscriber without re-subscribing, and
-//   set times come from a fresh join against the live pickathon.com schedule
-//   feed (platform egress) on every refresh.
+//   set times come from the embedded schedule snapshot below — no egress, so a
+//   refresh can never fail on someone else's server being down.
 //
 // How the anonymous GET learns a user's favorites: it can't read the db —
 // ctx.db.query denies anonymous callers outright, and denies access-fn-bound
@@ -24,28 +24,48 @@
 // isolate per vibe, so the cache is visible across lanes; after an isolate
 // eviction the next tick (≤1m) repopulates it. Until then the GET serves the
 // never-empty anchor-only calendar (see ANCHOR_ITEMS) so ADDING a subscription
-// always validates; a transient feed failure still 502s so established
-// subscribers keep previously-synced events.
+// always validates.
 //
 // Privacy: a feed is reachable only through its random token, so nothing is
 // exposed to handle-guessing. Notes never leave the db; shifts are included
 // only with shareWithFriends; users without a token have no aggregate at all.
 //
 // This file runs ALONE in the backend isolate — no import resolution — so the
-// few festival-utils timezone helpers it needs are duplicated here on purpose.
+// few festival-utils timezone helpers it needs are duplicated here on purpose,
+// and the schedule is embedded rather than imported from festival-config.js.
 
 export const config = { scheduled: { interval: '1m' } };
 
-const FESTIVAL_TZ = 'America/Los_Angeles';
+// >>> SCHEDULE SNAPSHOT (generated from festival-config.js — keep in sync)
+export const BACKEND_TZ = 'America/Chicago';
+export const SCHEDULE_BY_ID = {
+  'act-1': {
+    band: 'First Act',
+    day: '2026-07-30',
+    start: '2026-07-30T18:00:00',
+    end: '2026-07-30T19:00:00',
+    stage: 'Main Stage',
+    url: 'https://example.com/lineup',
+  },
+  'act-2': {
+    band: 'Second Act',
+    day: '2026-07-31',
+    start: '2026-07-31T20:00:00',
+    end: '2026-07-31T21:30:00',
+    stage: 'Main Stage',
+    url: 'https://example.com/lineup',
+  },
+};
+// <<< SCHEDULE SNAPSHOT
 
 const hasExplicitTZ = (s) => /([+-]\d\d:\d\d|Z)$/.test(s);
 const ensureT = (s = '') => (s.includes('T') ? s : s.replace(' ', 'T'));
 
 // Same offset trick as festival-utils.js: format the instant in the festival
 // zone, re-read it as if it were UTC, and the difference is the zone offset.
-// Handles DST correctly for any date (festival is PDT, but don't hardcode -7).
+// Handles DST correctly for any date — never hardcode the festival's offset.
 const _offsetFmt = new Intl.DateTimeFormat('en-US', {
-  timeZone: FESTIVAL_TZ,
+  timeZone: BACKEND_TZ,
   hourCycle: 'h23',
   year: 'numeric',
   month: '2-digit',
@@ -207,36 +227,26 @@ export const sanitizeFavesItems = (rows) =>
 
 // ── Subscription (GET) lane ──────────────────────────────────────────────────
 
-export const SCHEDULE_URL = 'https://pickathon.com/wp-content/plugins/pickathon/schedule.php';
+// The festival's calendar days, ascending — read off the snapshot so nothing
+// here has to know which weekend the festival lands on.
+const FESTIVAL_DAYS = [...new Set(Object.values(SCHEDULE_BY_ID).map((e) => e.day))].sort();
 
-// The feed HTML-entity-encodes titles ("Skills &amp; Games"). The frontend
-// decodes with a <textarea>; there's no DOM in the isolate, so decode the
-// named entities the feed actually uses plus numeric forms. Unknown entities
-// pass through as literal text — harmless in SUMMARY once TEXT-escaped.
-export const decodeFeedEntities = (s) => {
-  if (typeof s !== 'string' || !s.includes('&')) return s;
-  const named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
-  return s.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (m, body) => {
-    if (body[0] === '#') {
-      const code =
-        body[1] === 'x' || body[1] === 'X'
-          ? parseInt(body.slice(2), 16)
-          : parseInt(body.slice(1), 10);
-      return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : m;
-    }
-    return named[body.toLowerCase()] ?? m;
-  });
-};
-
-// Festival day → calendar date, for legacy shift docs stored without absolute
-// start/end (they carry day + startTime/endTime only). Mirrors FESTIVAL_2026.
-const FESTIVAL_DATES = {
-  Thursday: '2026-07-30',
-  Friday: '2026-07-31',
-  Saturday: '2026-08-01',
-  Sunday: '2026-08-02',
-  Monday: '2026-08-03',
-};
+// Festival day NAME → calendar date, for legacy shift docs stored without
+// absolute start/end (they carry day + startTime/endTime only). Derived from
+// the snapshot's dates; the names are read in UTC, which is safe because the
+// dates are plain calendar days with no time component.
+const WEEKDAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+const FESTIVAL_DATES = Object.fromEntries(
+  FESTIVAL_DAYS.map((d) => [WEEKDAY_NAMES[new Date(`${d}T00:00:00Z`).getUTCDay()], d])
+);
 
 // The cross-lane cache: written by `scheduled` (the only lane that may read
 // the access-fn-bound db), read by anonymous GETs. Null until the first tick
@@ -301,29 +311,23 @@ export async function scheduled(event, ctx) {
   };
 }
 
-// Fetch the live schedule feed and project the requested event ids into items.
-// MUST call globalThis.fetch — bare `fetch` here resolves to this module's own
-// exported handler, not the global (module scope shadows the isolate global).
-export const fetchScheduleItems = async (ids) => {
-  const wanted = new Set(ids);
-  const res = await globalThis.fetch(SCHEDULE_URL, { headers: { accept: 'application/json' } });
-  if (!res.ok) throw new Error(`schedule feed ${res.status}`);
-  const data = await res.json();
+// Project the requested event ids into calendar items by joining against the
+// embedded snapshot. Pure and synchronous — no egress, so a subscription
+// refresh can never fail on a third-party feed. Unknown ids (a stale favorite
+// from a previous year's schedule) simply drop out.
+export const scheduleItemsFor = (ids) => {
   const items = [];
-  for (const vid in data) {
-    const venue = data[vid];
-    if (!venue || !Array.isArray(venue.events)) continue;
-    for (const ev of venue.events) {
-      if (!wanted.has(String(ev.id))) continue;
-      items.push({
-        id: `event-${ev.id}`,
-        title: decodeFeedEntities(String(ev.title ?? '')),
-        start: String(ev.start ?? ''),
-        end: String(ev.end ?? ''),
-        location: decodeFeedEntities(String(venue.title ?? '')),
-        ...(typeof ev.url === 'string' ? { url: ev.url } : {}),
-      });
-    }
+  for (const id of ids) {
+    const entry = SCHEDULE_BY_ID[id];
+    if (!entry) continue;
+    items.push({
+      id: `event-${id}`,
+      title: String(entry.band ?? ''),
+      start: String(entry.start ?? ''),
+      end: String(entry.end ?? ''),
+      location: String(entry.stage ?? ''),
+      ...(typeof entry.url === 'string' && entry.url !== '' ? { url: entry.url } : {}),
+    });
   }
   return items;
 };
@@ -349,7 +353,7 @@ export const buildFavesCalendar = (items, { now, calName } = {}) => {
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${escapeIcsText(calName || 'My Pickathon Picks')}`,
-    `X-WR-TIMEZONE:${FESTIVAL_TZ}`,
+    `X-WR-TIMEZONE:${BACKEND_TZ}`,
     // Subscription refresh hints (Apple/Google honor these where supported).
     'REFRESH-INTERVAL;VALUE=DURATION:PT6H',
     'X-PUBLISHED-TTL:PT6H',
@@ -402,21 +406,22 @@ const handleDownload = async (request) => {
 // cold-cache window that used to 503 into "Validation failed". It also gives a
 // zero-faves subscriber something better than an apparently-broken empty
 // calendar, and it's real festival info.
-const ANCHOR_ITEMS = [
-  {
-    id: 'gates-open-2026',
-    title: 'Gates Open',
-    start: '2026-07-30T09:00:00',
-    end: '2026-07-30T10:00:00',
-    location: 'Pendarvis Farm, Happy Valley, OR',
-    url: 'https://pickathon.com',
-  },
-];
+const FIRST_DAY = FESTIVAL_DAYS[0];
+const ANCHOR_ITEMS = FIRST_DAY
+  ? [
+      {
+        id: `gates-open-${FIRST_DAY}`,
+        title: 'Gates Open',
+        start: `${FIRST_DAY}T09:00:00`,
+        end: `${FIRST_DAY}T10:00:00`,
+      },
+    ]
+  : [];
 
 // Subscription refresh: anonymous GET keyed by user handle. Served inline (no
 // attachment) so calendar clients treat it as a feed; short shared cache so a
-// popular handle doesn't hammer the feed join.
-const handleSubscription = async (url) => {
+// popular handle doesn't re-render the same calendar on every refresh.
+const handleSubscription = (url) => {
   const t = url.searchParams.get('t') ?? '';
   if (!/^[A-Za-z0-9_-]{16,64}$/.test(t)) {
     return textResponse(
@@ -439,14 +444,7 @@ const handleSubscription = async (url) => {
   const cold = subCache === null;
   const handle = cold ? undefined : subCache.tokens.get(t);
   const entry = (handle && subCache.users.get(handle)) || { eventIds: [], shifts: [] };
-  let eventItems = [];
-  if (entry.eventIds.length > 0) {
-    try {
-      eventItems = await fetchScheduleItems(entry.eventIds);
-    } catch (err) {
-      return textResponse(502, 'schedule feed unavailable — try again later');
-    }
-  }
+  const eventItems = scheduleItemsFor(entry.eventIds);
   const shiftRows = entry.shifts.map((r, i) => ({
     id: `shift-${i}-${r[1]}`,
     title: r[0],
@@ -454,7 +452,7 @@ const handleSubscription = async (url) => {
     end: r[2],
   }));
   // LENIENT per-item validation: these rows come from the db aggregate and the
-  // schedule feed — sources the subscriber doesn't control — so a malformed
+  // schedule snapshot — sources the subscriber doesn't control — so a malformed
   // legacy row drops out instead of 400ing the whole feed. A user with no
   // (valid) faves gets an EMPTY calendar, not an error.
   const items = sanitizeFavesItems([...ANCHOR_ITEMS, ...eventItems, ...shiftRows]).slice(
