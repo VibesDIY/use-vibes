@@ -148,10 +148,14 @@ export default function BandsView({
                                 {myFavIds.has(e.eventId) ? '♥' : '♡'}
                               </button>
                             )}
-                            <span className={`text-sm font-bold ${c.bodyText}`}>
-                              {fmtDate(e.start)} · {fmtTime(e.start)}–{fmtTime(e.end)} ·{' '}
-                              {e.venueTitle}
-                            </span>
+                            {/* Set times and stage are null until a lineup-tier
+                                festival announces them — the heart still works. */}
+                            {e.start && (
+                              <span className={`text-sm font-bold ${c.bodyText}`}>
+                                {fmtDate(e.start)} · {fmtTime(e.start)}–{fmtTime(e.end)} ·{' '}
+                                {e.venueTitle}
+                              </span>
+                            )}
                           </div>
                         ))}
                       </div>

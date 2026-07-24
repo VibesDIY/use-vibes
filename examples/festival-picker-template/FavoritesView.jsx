@@ -66,12 +66,18 @@ export default function FavoritesView({
                         {tag.label}
                       </span>
                     </div>
+                    {/* Stage and set times are null until a lineup-tier festival
+                        announces them — render no empty chips in the meantime. */}
                     <div className={`space-y-[1px] text-sm font-bold ${c.bodyText}`}>
-                      <p>{event.venueTitle}</p>
-                      <p>{fmtDate(event.start)}</p>
-                      <p>
-                        {fmtTime(event.start)} – {fmtTime(event.end)}
-                      </p>
+                      {event.venueTitle && <p>{event.venueTitle}</p>}
+                      {event.start && (
+                        <>
+                          <p>{fmtDate(event.start)}</p>
+                          <p>
+                            {fmtTime(event.start)} – {fmtTime(event.end)}
+                          </p>
+                        </>
+                      )}
                     </div>
                     {notes[event.eventId] && (
                       <div className={c.noteBox}>

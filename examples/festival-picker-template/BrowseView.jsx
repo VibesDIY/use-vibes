@@ -54,12 +54,18 @@ export default function BrowseView({
           const day = event.day || '';
           (byDay[day] || (byDay[day] = [])).push(event);
         }
+        // A lineup-tier festival has no set times, so nothing carries a day: those
+        // events land in one undated group (rendered without a day header) instead of
+        // dropping out of the list entirely.
         const daysToShow = displayDays.filter((day) => byDay[day]?.length > 0);
+        if (byDay['']?.length > 0) daysToShow.push('');
         return daysToShow.map((day) => (
-          <div key={day} className={c.schedDay}>
-            <h3 className="text-xl font-black mb-1 text-white">
-              {day} — {getDateForDay(day)}
-            </h3>
+          <div key={day || 'undated'} className={c.schedDay}>
+            {day && (
+              <h3 className="text-xl font-black mb-1 text-white">
+                {day} — {getDateForDay(day)}
+              </h3>
+            )}
             <div className="grid gap-1">
               {byDay[day].map((event) => {
                 const tag = lineupTag(event);
@@ -82,11 +88,15 @@ export default function BrowseView({
                             {tag.label}
                           </span>
                         </div>
+                        {/* Stage and set times are null until a lineup-tier festival
+                            announces them — render no empty chips in the meantime. */}
                         <div className={`space-y-[1px] text-sm font-bold ${c.bodyText}`}>
-                          <p>{event.venueTitle}</p>
-                          <p>
-                            {fmtTime(event.start)} – {fmtTime(event.end)}
-                          </p>
+                          {event.venueTitle && <p>{event.venueTitle}</p>}
+                          {event.start && (
+                            <p>
+                              {fmtTime(event.start)} – {fmtTime(event.end)}
+                            </p>
+                          )}
                         </div>
                         {canWrite ? (
                           <NoteField

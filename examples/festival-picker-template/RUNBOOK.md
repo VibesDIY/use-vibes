@@ -131,15 +131,24 @@ the lineup means editing both and pushing. All times are naive strings in `FESTI
 `FESTIVAL.tier` declares how complete the data is: `full` (every set has a day, start,
 end, and stage) or `lineup` (bands only, times not announced yet).
 
+The tier drives the nav. `visibleTabs(tier)` in `festival-utils.js` names the four
+canonical tabs a tier supports — `browse`/`favorites`/`shifts`/`schedule` on `full`,
+just `browse`/`favorites` on `lineup` — and `App.jsx` maps its extra tabs onto those
+four through `TAB_TIER_KEY` (`bands` rides with `browse`; `now` and `friends` need set
+times, so they ride with `schedule`). On a `lineup`-tier festival the time-based views
+and every `.ics` download/subscribe control are hidden, the flat Favorites list becomes
+the way to see your own picks, and cards render band + link with no empty time chips.
+Re-pushing with `tier: "full"` once times are announced turns the rest back on.
+
 ## Common edits
 
-| Task                                   | Where                                                                                                                          |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Change festival name/dates/location/tz | `FESTIVAL` in `festival-config.js`                                                                                             |
-| Change the lineup or set times         | `SCHEDULE` in `festival-config.js` **and** the `SCHEDULE SNAPSHOT` block in `backend.js`                                       |
-| Change the logo                        | `FESTIVAL.logoUrl` (empty string hides it)                                                                                     |
-| Change colors                          | `FESTIVAL.colors` — the five base colors; `makeC()` in `styles.js` derives every surface and dark-mode variant from them       |
-| Add a new view/tab                     | Add to the `["browse", "favorites", "shifts", "schedule"]` array in nav, add `{view === "newview" && ...}` section in the body |
+| Task                                   | Where                                                                                                                                                               |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Change festival name/dates/location/tz | `FESTIVAL` in `festival-config.js`                                                                                                                                  |
+| Change the lineup or set times         | `SCHEDULE` in `festival-config.js` **and** the `SCHEDULE SNAPSHOT` block in `backend.js`                                                                            |
+| Change the logo                        | `FESTIVAL.logoUrl` (empty string hides it)                                                                                                                          |
+| Change colors                          | `FESTIVAL.colors` — the five base colors; `makeC()` in `styles.js` derives every surface and dark-mode variant from them                                            |
+| Add a new view/tab                     | Add it to `TAB_TIER_KEY` and the `NAV_TABS` list in `App.jsx` (naming the canonical tab whose data it needs), add `{view === "newview" && ...}` section in the body |
 
 ## Social migration (2026-07: friend docs → platform follow graph)
 

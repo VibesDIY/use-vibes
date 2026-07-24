@@ -10,6 +10,7 @@ import {
   upNextSets,
   fmtTime,
   fmtDate,
+  visibleTabs,
 } from './festival-utils.js';
 import { makeC } from './styles.js';
 import ScheduleView from './ScheduleView.jsx';
@@ -32,6 +33,27 @@ const SOURCE_URL = FESTIVAL.sourceUrls?.[0] || null;
 const DAY_ORDER = FESTIVAL.dates.map((d) => festivalDayFor(`${d}T12:00:00`));
 const DAY_DATES = Object.fromEntries(FESTIVAL.dates.map((d, i) => [DAY_ORDER[i], d]));
 const FALLBACK_START = `${FESTIVAL.dates[0]}T00:00:00`;
+
+// Tier gating for the nav. visibleTabs() names the four canonical tabs a tier can
+// support; this template ships three more, so each extra rides on the canonical tab it
+// shares its data requirements with: `bands` is a plain lineup listing (browse), while
+// `now` (what's on stage) and `friends` (day-by-day follow schedules) can only render
+// against set times, so they ride with `schedule` and vanish on a `lineup`-tier
+// festival. Adding a tab means adding it here with the canonical tab it depends on.
+const TAB_TIER_KEY = {
+  now: 'schedule',
+  browse: 'browse',
+  bands: 'browse',
+  favorites: 'favorites',
+  friends: 'schedule',
+  shifts: 'shifts',
+  schedule: 'schedule',
+};
+const TIER_TABS = visibleTabs(FESTIVAL.tier);
+const IS_LINEUP_TIER = FESTIVAL.tier === 'lineup';
+const NAV_TABS = ['now', 'browse', 'bands', 'favorites', 'friends', 'shifts', 'schedule'].filter(
+  (t) => TIER_TABS.includes(TAB_TIER_KEY[t])
+);
 
 // The schedule is a module constant (see festival-config.js), so it's on screen at first
 // paint: no fetch, no cache, no loading state. A `lineup`-tier festival has no set times
@@ -194,7 +216,9 @@ export default function FestivalPicker() {
   const events = EVENTS;
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDay, setSelectedDay] = useState('all');
-  const [view, setView] = useState('now');
+  // Never open on a tab this tier hides — NAV_TABS is already in nav order, so the
+  // first entry is "now" on a full festival and "browse" on a lineup-tier one.
+  const [view, setView] = useState(NAV_TABS[0]);
   const [superMode, setSuperMode] = useState(false);
   const [viewingUser, setViewingUser] = useState(null);
   const [selectedFriend, setSelectedFriend] = useState(null);
@@ -349,7 +373,9 @@ export default function FestivalPicker() {
     handledFriendRef.current.add(linkedFriend);
     const go = () => {
       setSelectedFriend(linkedFriend);
-      setView('friends');
+      // A lineup-tier festival has no follows tab to land on — the follow still
+      // happens, we just don't strand the user on an unrendered view.
+      if (NAV_TABS.includes('friends')) setView('friends');
     };
     if (followedHandles.has(linkedFriend)) {
       go();
@@ -499,7 +525,10 @@ export default function FestivalPicker() {
   // extras the user marked shareWithFriends — private extras deliberately never
   // enter the subscription (they're still in the Download .ics), so a
   // private-extras-only schedule must not advertise a live link that syncs empty.
-  const hasSubscribable = signedIn && (myFavIds.size > 0 || shifts.some((s) => s.shareWithFriends));
+  // A lineup-tier festival has no set times, so there is no calendar to export or
+  // subscribe to: no token is minted, and both .ics controls stay off the screen.
+  const hasSubscribable =
+    !IS_LINEUP_TIER && signedIn && (myFavIds.size > 0 || shifts.some((s) => s.shareWithFriends));
   // LOCAL MINTING of the calendar capability token: generated client-side the
   // moment the schedule tab opens with subscribable content. The optimistic
   // write makes it visible to the live query (and the button URL) instantly;
@@ -711,29 +740,30 @@ export default function FestivalPicker() {
 
         <div className={`${c.navBg} ${c.border} p-2`}>
           <div className="flex flex-wrap gap-[3px]">
-            {['now', 'browse', 'bands', 'favorites', 'friends', 'shifts', 'schedule']
-              .filter((v) => {
-                if (v === 'now' || v === 'browse' || v === 'bands') return true;
-                if (v === 'favorites') return superMode && canWrite; // super-mode peer picker
-                if (v === 'schedule') return canFavorite; // anon can view their own favorites schedule
-                return canWrite; // friends + extras need a real sign-in
-              })
-              .map((viewName) => (
-                <button
-                  key={viewName}
-                  onClick={() => setView(viewName)}
-                  className={c.navBtn(view === viewName)}
-                >
-                  {viewName === 'now' && `Now`}
-                  {viewName === 'browse' && `All Events`}
-                  {viewName === 'bands' && `Bands`}
-                  {viewName === 'favorites' && `Favorites (${myFavIds.size})`}
-                  {viewName === 'friends' && `🙋‍♀️ Follows`}
-                  {viewName === 'shifts' && `Extras`}
-                  {viewName === 'schedule' &&
-                    `My Faves${myFavIds.size > 0 ? ` (${myFavIds.size})` : ''}`}
-                </button>
-              ))}
+            {NAV_TABS.filter((v) => {
+              if (v === 'now' || v === 'browse' || v === 'bands') return true;
+              // Normally the flat Favorites list is a super-mode peer picker (My Faves
+              // is the day-grouped one everyone gets). On a lineup-tier festival there
+              // is no My Faves tab, so this flat list is the ONLY way to see your picks.
+              if (v === 'favorites') return IS_LINEUP_TIER ? canFavorite : superMode && canWrite;
+              if (v === 'schedule') return canFavorite; // anon can view their own favorites schedule
+              return canWrite; // friends + extras need a real sign-in
+            }).map((viewName) => (
+              <button
+                key={viewName}
+                onClick={() => setView(viewName)}
+                className={c.navBtn(view === viewName)}
+              >
+                {viewName === 'now' && `Now`}
+                {viewName === 'browse' && `All Events`}
+                {viewName === 'bands' && `Bands`}
+                {viewName === 'favorites' && `Favorites (${myFavIds.size})`}
+                {viewName === 'friends' && `🙋‍♀️ Follows`}
+                {viewName === 'shifts' && `Extras`}
+                {viewName === 'schedule' &&
+                  `My Faves${myFavIds.size > 0 ? ` (${myFavIds.size})` : ''}`}
+              </button>
+            ))}
             {superMode && SOURCE_URL && (
               <a
                 href={SOURCE_URL}
@@ -798,7 +828,7 @@ export default function FestivalPicker() {
             />
           )}
 
-          {view === 'favorites' && superMode && (
+          {view === 'favorites' && (superMode || IS_LINEUP_TIER) && (
             <FavoritesView
               favoriteEvents={viewedFavoriteEvents}
               favUsers={favUsers}
