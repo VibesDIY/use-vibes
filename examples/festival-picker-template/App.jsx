@@ -2,18 +2,16 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useFireproof } from 'use-fireproof';
 import { useSocial, useViewer, useVibe } from 'use-vibes';
 import {
-  FESTIVAL_2026,
-  LOGO_URL,
-  ensureT,
+  FESTIVAL,
+  getSchedule,
   toFestivalDate,
   festivalDayFor,
   setsOnNow,
   upNextSets,
   fmtTime,
   fmtDate,
-  decodeEntities,
 } from './festival-utils.js';
-import { c } from './styles.js';
+import { makeC } from './styles.js';
 import ScheduleView from './ScheduleView.jsx';
 import BandsView from './BandsView.jsx';
 import NowView from './NowView.jsx';
@@ -21,6 +19,37 @@ import BrowseView from './BrowseView.jsx';
 import FavoritesView from './FavoritesView.jsx';
 import FriendsView, { ALL_FRIENDS } from './FriendsView.jsx';
 import ShiftsView from './ShiftsView.jsx';
+
+// Everything festival-specific arrives through festival-config.js (via festival-utils):
+// the skin, the database name, the logo, and the schedule itself.
+const c = makeC(FESTIVAL.colors);
+const LOGO_URL = FESTIVAL.logoUrl;
+const SOURCE_URL = FESTIVAL.sourceUrls?.[0] || null;
+
+// Day keys are weekday names ("Saturday") because that's how festival-goers talk about
+// a lineup — derived here from the config's ordered ISO dates so nothing is hard-coded.
+// Noon anchors the lookup safely past festivalDayFor's 4 AM night cutoff.
+const DAY_ORDER = FESTIVAL.dates.map((d) => festivalDayFor(`${d}T12:00:00`));
+const DAY_DATES = Object.fromEntries(FESTIVAL.dates.map((d, i) => [DAY_ORDER[i], d]));
+const FALLBACK_START = `${FESTIVAL.dates[0]}T00:00:00`;
+
+// The schedule is a module constant (see festival-config.js), so it's on screen at first
+// paint: no fetch, no cache, no loading state. A `lineup`-tier festival has no set times
+// yet — those entries carry a null start and simply don't land on a day.
+const EVENTS = getSchedule().map((e) => ({
+  eventId: e.id,
+  title: e.band,
+  start: e.start,
+  end: e.end,
+  url: e.url,
+  venueTitle: e.stage,
+  lineup: {},
+  // A set is grouped by the *festival night* it belongs to, not its raw calendar date:
+  // anything before 4 AM counts as the prior day (a 1 AM Sunday set lives under
+  // Saturday). festivalDayFor applies that cutoff — the same rule the faves/follows
+  // schedules use.
+  day: e.start ? festivalDayFor(e.start) : null,
+}));
 
 // Re-stamp a locally-stored doc onto the freshly signed-in handle when useFireproof's
 // anonymousLocal store migrates local → cloud on first login. Owned docs are keyed by
@@ -60,12 +89,12 @@ const clearFriendParamFromUrl = () => {
 // query on every render (an inline arrow is a new reference each time).
 const byTypeUser = (doc) => [doc.type, doc.userId];
 
-// A layered Pacific-Northwest forestscape for the header's bottom edge: two rows of
-// tiered Christmas trees at varying heights that overlap, drawn once as a static SVG
-// (no animation → zero repaint tax). Each tree is three stacked tiers with stepped
-// ledges down both flanks up to a pointy top. The back row is a shade darker and
-// shorter (depth); the interleaved front row is the nav color so it reads continuous
-// with the green stripe below. viewBox is 1200 wide, baseline y=40.
+// A layered treeline along the header's bottom edge: two rows of tiered trees at
+// varying heights that overlap, drawn once as a static SVG (no animation → zero
+// repaint tax). Each tree is three stacked tiers with stepped ledges down both flanks
+// up to a pointy top. The back row is a shade darker and shorter (depth); the
+// interleaved front row takes the nav color (both derived from FESTIVAL.colors.accent)
+// so it reads continuous with the nav stripe below. viewBox is 1200 wide, baseline y=40.
 const RIDGE_BASELINE = 116;
 const tree = (cx, w, h) => {
   const B = RIDGE_BASELINE;
@@ -111,7 +140,7 @@ const genRow = (count, minW, maxW, minH, maxH) => {
 const FOREST_BACK = genRow(9, 90, 130, 66, 104);
 const FOREST_FRONT = genRow(8, 85, 120, 92, 112);
 
-const migratePickathonDoc = (doc, handle) => {
+const migrateFestivalDoc = (doc, handle) => {
   if (doc.type === 'favorite')
     return { ...doc, userId: handle, _id: `favorite-${handle}-${doc.eventId}` };
   if (doc.type === 'note') return { ...doc, userId: handle, _id: `note-${handle}-${doc.eventId}` };
@@ -122,17 +151,17 @@ const migratePickathonDoc = (doc, handle) => {
   return { ...doc, userId: handle };
 };
 
-export default function PickathonPicker() {
+export default function FestivalPicker() {
   const { viewer, ViewerTag } = useViewer();
   // Optimistic writes + anonymous local writes (with sign-in migration) now come from
   // useFireproof itself: `anonymousLocal` runs put/del/useLiveQuery against a local
   // store while logged out and migrates on first sign-in; the returning-signed-out
   // guard is handled internally. So nothing below branches on auth.
-  const { database, useLiveQuery, useDocument } = useFireproof('pickathon', {
+  const { database, useLiveQuery, useDocument } = useFireproof(FESTIVAL.dbName, {
     anonymousLocal: true,
-    migrate: migratePickathonDoc,
+    migrate: migrateFestivalDoc,
   });
-  const { can, ready } = useVibe('pickathon');
+  const { can, ready } = useVibe(FESTIVAL.dbName);
   // The follow graph lives in the PLATFORM (Settings → Social) — the app stores
   // no edge docs. `ready` is false for anonymous viewers and during the initial
   // round-trip, so every social surface gates on it. Mutations resolve after the
@@ -162,9 +191,7 @@ export default function PickathonPicker() {
     : true;
   const canWrite = ready && signedIn && Boolean(can?.create?.({ type: 'shift', userId })?.ok);
 
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const events = EVENTS;
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDay, setSelectedDay] = useState('all');
   const [view, setView] = useState('now');
@@ -250,87 +277,15 @@ export default function PickathonPicker() {
     return () => document.removeEventListener('click', handler);
   }, [pendingDelete]);
 
-  useEffect(() => {
-    fetchSchedule();
-  }, []);
-
-  const getCached = () => {
-    const data = localStorage.getItem('pickathon-schedule-cache');
-    const ts = +localStorage.getItem('pickathon-schedule-timestamp');
-    if (!data || !ts) return null;
-    return { data: JSON.parse(data), isStale: Date.now() - ts > 600_000 };
-  };
-  const setCached = (d) => {
-    localStorage.setItem('pickathon-schedule-cache', JSON.stringify(d));
-    localStorage.setItem('pickathon-schedule-timestamp', Date.now().toString());
-  };
-
-  const fetchSchedule = async () => {
-    const cached = getCached();
-    if (cached && !cached.isStale) {
-      ingest(cached.data);
-      setLoading(false);
-      return;
-    }
-    if (cached && cached.isStale) {
-      ingest(cached.data);
-      setLoading(false);
-    }
-    try {
-      const res = await fetch('https://pickathon.com/wp-content/plugins/pickathon/schedule.php');
-      const data = await res.json();
-      setCached(data);
-      ingest(data);
-      setError(null);
-    } catch (e) {
-      console.error(e);
-      if (cached) {
-        setError('Using cached data');
-        ingest(cached.data);
-      } else {
-        setError('Failed to load schedule');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const ingest = (data) => {
-    const list = [];
-    for (const vid in data) {
-      const v = data[vid];
-      for (const e of v.events) {
-        const start = ensureT(e.start);
-        const end = ensureT(e.end);
-        list.push({
-          eventId: e.id,
-          title: decodeEntities(e.title),
-          start,
-          end,
-          url: e.url,
-          venueTitle: decodeEntities(v.title),
-          venueColor: v.color,
-          lineup: e.lineup || {},
-          // Pickathon runs late, so a set is grouped by the *festival night* it belongs
-          // to, not its raw calendar date: anything before 4 AM counts as the prior day
-          // (e.g. a 1 AM Sunday set lives under Saturday). festivalDayFor applies that
-          // cutoff, and it's the same rule the faves/friends schedules already use.
-          day: festivalDayFor(start),
-        });
-      }
-    }
-    setEvents(list);
-  };
-
   const getDateForDay = (day) => {
-    // Prefer the festival day's canonical calendar date. Since a day now groups
+    // Prefer the festival day's canonical calendar date. Since a day groups
     // after-midnight sets from the *next* calendar date (4 AM cutoff), we must not
     // derive the header date from a stray early-morning event's start.
-    if (FESTIVAL_2026.dates[day]) return FESTIVAL_2026.dates[day];
+    if (DAY_DATES[day]) return DAY_DATES[day];
     const evt = events.find((e) => e.day === day);
     if (evt) return evt.start.split('T')[0];
-    const base = new Date(FESTIVAL_2026.fallbackStart);
-    const idx = FESTIVAL_2026.dayOrder.indexOf(day);
+    const base = new Date(FALLBACK_START);
+    const idx = DAY_ORDER.indexOf(day);
     const d = new Date(base);
     d.setDate(base.getDate() + Math.max(0, idx));
     return d.toISOString().split('T')[0];
@@ -446,13 +401,13 @@ export default function PickathonPicker() {
   }, [selectedFriend, allShifts, followedHandles]);
 
   // Only days that actually have events or shifts, ordered by the festival day order.
-  // We deliberately do NOT seed with the full dayOrder — a festival day with nothing on
-  // it (e.g. Monday) shouldn't show up in the picker or as an empty section.
+  // We deliberately do NOT seed with the full day order — a festival day with nothing on
+  // it shouldn't show up in the picker or as an empty section.
   const displayDays = useMemo(() => {
     const present = new Set(
       [...events.map((e) => e.day), ...shifts.map((s) => s.day)].filter(Boolean)
     );
-    const o = FESTIVAL_2026.dayOrder;
+    const o = DAY_ORDER;
     return [...present].sort((a, b) => {
       const ai = o.indexOf(a),
         bi = o.indexOf(b);
@@ -469,7 +424,7 @@ export default function PickathonPicker() {
     reset: resetShift,
   } = useDocument({
     type: 'shift',
-    day: 'Thursday',
+    day: DAY_ORDER[0],
     startTime: '09:00',
     endTime: '17:00',
     kind: 'Shift',
@@ -536,8 +491,8 @@ export default function PickathonPicker() {
   // The persistent-subscription URL (webcal:// opens the iPhone/macOS Calendar
   // subscribe flow; Google Calendar takes the https form via copy). It carries
   // ONLY the handle, so it's a LIVE feed: backend.js re-aggregates favorites
-  // from the db every few minutes and re-joins set times against the schedule
-  // feed on each refresh — new picks reach subscribers automatically, and
+  // from the db every few minutes and re-joins set times against its own
+  // schedule snapshot — new picks reach subscribers automatically, and
   // sharing the link lets a friend follow your faves. Signed-in only:
   // anonymous faves live in this browser and never reach the cloud.
   // Offer it only when the feed would actually carry something: favorites, or
@@ -707,12 +662,12 @@ export default function PickathonPicker() {
     </button>
   );
 
-  // The schedule feed loads behind the full UI: header + nav render immediately,
-  // and only the content area shows a loading/error state until events arrive.
-  const scheduleLoading = loading && events.length === 0;
-  const scheduleError = error && events.length === 0;
+  // The festival's date range, straight from the config's ordered ISO dates.
+  // fmtDate leads with the weekday ("Thursday, Jul 30"); the range wants just the date.
+  const shortDate = (iso) => fmtDate(`${iso}T12:00:00`).split(', ').slice(1).join(', ');
+  const dateRange = `${shortDate(FESTIVAL.dates[0])} – ${shortDate(FESTIVAL.dates[FESTIVAL.dates.length - 1])}, ${FESTIVAL.year}`;
 
-  const connectUrl = `https://vibes.diy/vibe/og/pickathon-picker/?friend=${encodeURIComponent(userId)}`;
+  const connectUrl = `https://vibes.diy/vibe/og/${FESTIVAL.slug}/?friend=${encodeURIComponent(userId)}`;
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(connectUrl)}`;
 
   return (
@@ -725,36 +680,33 @@ export default function PickathonPicker() {
             preserveAspectRatio="none"
             aria-hidden="true"
           >
-            <path d={FOREST_BACK} className="fill-[#5A8F35] dark:fill-[#17260f]" />
-            <path d={FOREST_FRONT} className="fill-[#71AD44] dark:fill-[#1d3015]" />
+            <path d={FOREST_BACK} className={c.ridgeBack} />
+            <path d={FOREST_FRONT} className={c.ridgeFront} />
           </svg>
           <div className="flex items-start justify-between gap-1 flex-wrap relative z-10">
             <div className="flex items-center gap-1">
-              <a
-                href="https://pickathon.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0"
-              >
-                <img src={LOGO_URL} alt="Pickathon" className="h-32 w-auto" />
-              </a>
+              {LOGO_URL && (
+                <a
+                  href={SOURCE_URL || undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0"
+                >
+                  <img src={LOGO_URL} alt={FESTIVAL.name} className="h-32 w-auto" />
+                </a>
+              )}
               <div>
                 <h1 className={`text-4xl font-black ${c.bodyText} mb-[1px]`}>
-                  {superMode ? 'SUPER PICKATHON PICKER' : 'PICKATHON PICKER'}
+                  {superMode
+                    ? `SUPER ${FESTIVAL.name.toUpperCase()} PICKER`
+                    : `${FESTIVAL.name.toUpperCase()} PICKER`}
                 </h1>
                 <p className={`${c.bodyText} text-base font-bold`}>
-                  Jul 30 – Aug 2, 2026 · Pendarvis Farm, Happy Valley, OR
+                  {dateRange} · {FESTIVAL.location}
                 </p>
               </div>
             </div>
           </div>
-          {error && error.includes('cached') && (
-            <div
-              className={`mt-0.5 ${c.pinkBg} text-white px-[3px] py-0.5 rounded-lg text-sm font-bold relative z-10`}
-            >
-              {error}
-            </div>
-          )}
         </div>
 
         <div className={`${c.navBg} ${c.border} p-2`}>
@@ -782,205 +734,186 @@ export default function PickathonPicker() {
                     `My Faves${myFavIds.size > 0 ? ` (${myFavIds.size})` : ''}`}
                 </button>
               ))}
-            {superMode && (
+            {superMode && SOURCE_URL && (
               <a
-                href="https://pickathon.com/wp-content/uploads/2025/07/2025-Pickathon-Festival-Map_Web_Hyperlinks.pdf"
-                target="map"
+                href={SOURCE_URL}
+                target="_blank"
                 rel="noopener noreferrer"
                 className={c.navBtn(false)}
               >
-                Map (PDF)
+                Festival site
               </a>
             )}
           </div>
         </div>
 
+        {/* The schedule ships with the app, so the content area renders straight
+            away — there is no loading or error state to fall through. */}
         <div className="p-1.5">
-          {scheduleLoading ? (
-            <div className="flex flex-col items-center justify-center gap-[5px] py-5">
-              <div className="w-16 h-16 rounded-full border-4 border-current border-t-transparent animate-spin"></div>
-              <h2 className={`text-3xl font-black text-center ${c.bodyText}`}>
-                Loading the schedule...
-              </h2>
-            </div>
-          ) : scheduleError ? (
-            <div className="py-4 text-center">
-              <h2 className={`text-3xl font-black mb-1 ${c.bodyText}`}>
-                Couldn't load the schedule
-              </h2>
-              <p className={`text-lg ${c.bodyText} mb-1`}>{error}</p>
-              <button onClick={fetchSchedule} className={c.btnPink}>
-                Retry
-              </button>
-            </div>
-          ) : (
-            <>
-              {view === 'now' && (
-                <NowView
-                  nowSets={nowSets}
-                  nextSets={nextSets}
-                  nowTick={nowTick}
-                  myFavIds={myFavIds}
-                  friendFavIds={friendFavIds}
-                  canWrite={canFavorite}
-                  toggleFavorite={toggleFavorite}
-                  c={c}
-                />
-              )}
+          {view === 'now' && (
+            <NowView
+              nowSets={nowSets}
+              nextSets={nextSets}
+              nowTick={nowTick}
+              myFavIds={myFavIds}
+              friendFavIds={friendFavIds}
+              canWrite={canFavorite}
+              toggleFavorite={toggleFavorite}
+              c={c}
+            />
+          )}
 
-              {view === 'browse' && (
-                <BrowseView
-                  filteredEvents={filteredEvents}
-                  searchTerm={searchTerm}
-                  setSearchTerm={setSearchTerm}
-                  selectedDay={selectedDay}
-                  setSelectedDay={setSelectedDay}
-                  displayDays={displayDays}
-                  getDateForDay={getDateForDay}
-                  myFavIds={myFavIds}
-                  canWrite={canWrite}
-                  canFavorite={canFavorite}
-                  toggleFavorite={toggleFavorite}
-                  notes={notes}
-                  saveNote={saveNote}
-                  superMode={superMode}
-                  favCounts={favCounts}
-                  c={c}
-                />
-              )}
+          {view === 'browse' && (
+            <BrowseView
+              filteredEvents={filteredEvents}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              selectedDay={selectedDay}
+              setSelectedDay={setSelectedDay}
+              displayDays={displayDays}
+              getDateForDay={getDateForDay}
+              myFavIds={myFavIds}
+              canWrite={canWrite}
+              canFavorite={canFavorite}
+              toggleFavorite={toggleFavorite}
+              notes={notes}
+              saveNote={saveNote}
+              superMode={superMode}
+              favCounts={favCounts}
+              c={c}
+            />
+          )}
 
-              {view === 'bands' && (
-                <BandsView
-                  bandsList={bandsList}
-                  myFavIds={myFavIds}
-                  canWrite={canFavorite}
-                  toggleFavorite={toggleFavorite}
-                  favCounts={favCounts}
-                  superMode={superMode}
-                  c={c}
-                  database={database}
-                  userId={userId}
-                />
-              )}
+          {view === 'bands' && (
+            <BandsView
+              bandsList={bandsList}
+              myFavIds={myFavIds}
+              canWrite={canFavorite}
+              toggleFavorite={toggleFavorite}
+              favCounts={favCounts}
+              superMode={superMode}
+              c={c}
+              database={database}
+              userId={userId}
+            />
+          )}
 
-              {view === 'favorites' && superMode && (
-                <FavoritesView
-                  favoriteEvents={viewedFavoriteEvents}
-                  favUsers={favUsers}
-                  viewingUser={viewingUser}
-                  setViewingUser={setViewingUser}
-                  userId={userId}
-                  myFavIds={myFavIds}
-                  canWrite={canFavorite}
-                  toggleFavorite={toggleFavorite}
-                  notes={notes}
-                  ViewerTag={ViewerTag}
-                  c={c}
-                />
-              )}
+          {view === 'favorites' && superMode && (
+            <FavoritesView
+              favoriteEvents={viewedFavoriteEvents}
+              favUsers={favUsers}
+              viewingUser={viewingUser}
+              setViewingUser={setViewingUser}
+              userId={userId}
+              myFavIds={myFavIds}
+              canWrite={canFavorite}
+              toggleFavorite={toggleFavorite}
+              notes={notes}
+              ViewerTag={ViewerTag}
+              c={c}
+            />
+          )}
 
-              {view === 'friends' && (
-                <FriendsView
-                  socialReady={socialReady}
-                  following={following}
-                  followers={followers}
-                  requests={requests}
-                  follow={follow}
-                  unfollow={unfollow}
-                  approve={approve}
-                  removeFollower={removeFollower}
-                  selectedFriend={selectedFriend}
-                  setSelectedFriend={setSelectedFriend}
-                  includeMyFaves={includeMyFaves}
-                  setIncludeMyFaves={setIncludeMyFaves}
-                  friendFavoriteEvents={friendFavoriteEvents}
-                  friendShifts={friendShifts}
-                  canWrite={canWrite}
-                  toggleFavorite={toggleFavorite}
-                  myFavIds={myFavIds}
-                  displayDays={displayDays}
-                  getDateForDay={getDateForDay}
-                  makeFriendSchedule={makeFriendSchedule}
-                  shiftStartRaw={shiftStartRaw}
-                  shiftEndRaw={shiftEndRaw}
-                  fmtTime={fmtTime}
-                  connectUrl={connectUrl}
-                  qrSrc={qrSrc}
-                  ViewerTag={ViewerTag}
-                  c={c}
-                />
-              )}
+          {view === 'friends' && (
+            <FriendsView
+              socialReady={socialReady}
+              following={following}
+              followers={followers}
+              requests={requests}
+              follow={follow}
+              unfollow={unfollow}
+              approve={approve}
+              removeFollower={removeFollower}
+              selectedFriend={selectedFriend}
+              setSelectedFriend={setSelectedFriend}
+              includeMyFaves={includeMyFaves}
+              setIncludeMyFaves={setIncludeMyFaves}
+              friendFavoriteEvents={friendFavoriteEvents}
+              friendShifts={friendShifts}
+              canWrite={canWrite}
+              toggleFavorite={toggleFavorite}
+              myFavIds={myFavIds}
+              displayDays={displayDays}
+              getDateForDay={getDateForDay}
+              makeFriendSchedule={makeFriendSchedule}
+              shiftStartRaw={shiftStartRaw}
+              shiftEndRaw={shiftEndRaw}
+              fmtTime={fmtTime}
+              connectUrl={connectUrl}
+              qrSrc={qrSrc}
+              ViewerTag={ViewerTag}
+              c={c}
+            />
+          )}
 
-              {view === 'shifts' && (
-                <ShiftsView
-                  shifts={shifts}
-                  shiftForm={shiftForm}
-                  mergeShift={mergeShift}
-                  submitShift={submitShift}
-                  displayDays={displayDays}
-                  getDateForDay={getDateForDay}
-                  shiftStartRaw={shiftStartRaw}
-                  shiftEndRaw={shiftEndRaw}
-                  canWrite={canWrite}
-                  deleteShift={deleteShift}
-                  database={database}
-                  c={c}
-                />
-              )}
+          {view === 'shifts' && (
+            <ShiftsView
+              shifts={shifts}
+              shiftForm={shiftForm}
+              mergeShift={mergeShift}
+              submitShift={submitShift}
+              displayDays={displayDays}
+              getDateForDay={getDateForDay}
+              shiftStartRaw={shiftStartRaw}
+              shiftEndRaw={shiftEndRaw}
+              canWrite={canWrite}
+              deleteShift={deleteShift}
+              database={database}
+              c={c}
+            />
+          )}
 
-              {view === 'schedule' && (
-                <div>
-                  <div className="flex items-center justify-between flex-wrap gap-0.5 mb-1.5">
-                    <h2 className={`text-2xl font-black ${c.bodyText}`}>
-                      My Personal Festival Schedule
-                    </h2>
-                    {(favoriteEvents.length > 0 || shifts.length > 0) && (
-                      <div className="flex items-center flex-wrap gap-0">
-                        {icsSubWebcal && (
-                          <a
-                            href={icsSubWebcal}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={c.btnPink}
-                            title="Subscribe in your phone's calendar — it follows your faves live. iOS may warn about an insecure connection; tap Continue (the feed itself is served over https). Share the link and friends can subscribe to your picks."
-                          >
-                            🔁 Subscribe on iPhone
-                          </a>
-                        )}
-                        {icsSubPath && (
-                          <button
-                            onClick={copySubscribeLink}
-                            className={c.linkBtn}
-                            title="Copy the subscription URL — paste into Google Calendar (From URL) or send to a friend"
-                            aria-label="Copy subscription link"
-                          >
-                            {icsCopied ? '✓' : '📋'}
-                          </button>
-                        )}
-                      </div>
+          {view === 'schedule' && (
+            <div>
+              <div className="flex items-center justify-between flex-wrap gap-0.5 mb-1.5">
+                <h2 className={`text-2xl font-black ${c.bodyText}`}>
+                  My Personal Festival Schedule
+                </h2>
+                {(favoriteEvents.length > 0 || shifts.length > 0) && (
+                  <div className="flex items-center flex-wrap gap-0">
+                    {icsSubWebcal && (
+                      <a
+                        href={icsSubWebcal}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={c.btnPink}
+                        title="Subscribe in your phone's calendar — it follows your faves live. iOS may warn about an insecure connection; tap Continue (the feed itself is served over https). Share the link and friends can subscribe to your picks."
+                      >
+                        🔁 Subscribe on iPhone
+                      </a>
+                    )}
+                    {icsSubPath && (
+                      <button
+                        onClick={copySubscribeLink}
+                        className={c.linkBtn}
+                        title="Copy the subscription URL — paste into Google Calendar (From URL) or send to a friend"
+                        aria-label="Copy subscription link"
+                      >
+                        {icsCopied ? '✓' : '📋'}
+                      </button>
                     )}
                   </div>
-                  {icsError && <div className={c.readOnlyBanner}>{icsError}</div>}
-                  <ScheduleView
-                    days={displayDays}
-                    getDateForDay={getDateForDay}
-                    buildSchedule={makeSchedule}
-                    fmtTime={fmtTime}
-                    notes={notes}
-                    c={c}
-                    shiftStartRaw={shiftStartRaw}
-                    shiftEndRaw={shiftEndRaw}
-                    emptyMessage="No events or shifts scheduled"
-                    saveNote={saveNote}
-                    canWrite={canWrite}
-                    onToggleFavorite={canFavorite ? toggleFavorite : null}
-                    myFavIds={myFavIds}
-                    allEvents={events}
-                    showGaps={true}
-                  />
-                </div>
-              )}
-            </>
+                )}
+              </div>
+              {icsError && <div className={c.readOnlyBanner}>{icsError}</div>}
+              <ScheduleView
+                days={displayDays}
+                getDateForDay={getDateForDay}
+                buildSchedule={makeSchedule}
+                fmtTime={fmtTime}
+                notes={notes}
+                c={c}
+                shiftStartRaw={shiftStartRaw}
+                shiftEndRaw={shiftEndRaw}
+                emptyMessage="No events or shifts scheduled"
+                saveNote={saveNote}
+                canWrite={canWrite}
+                onToggleFavorite={canFavorite ? toggleFavorite : null}
+                myFavIds={myFavIds}
+                allEvents={events}
+                showGaps={true}
+              />
+            </div>
           )}
         </div>
       </div>

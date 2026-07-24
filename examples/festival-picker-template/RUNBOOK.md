@@ -1,37 +1,54 @@
-# Pickathon Picker — Update Runbook
+# Festival Picker — Template Runbook
 
-Live URL: https://vibes.diy/vibe/og/pickathon-picker
-Super mode: https://vibes.diy/vibe/og/pickathon-picker?super=true
+A per-festival schedule app: browse the lineup, favorite sets, add your own extras,
+see what the people you follow are going to, and export or subscribe to the result as
+a calendar. This directory is the **template**; a festival is an instantiation of it.
 
-## Edit → Push
+## Instantiate a festival
+
+1. **Copy this directory** to a new one named for the festival.
+2. **Replace `festival-config.js`.** It is the single substitution surface: `FESTIVAL`
+   (name, slug, dbName, year, tz, location, dates, stages, tier, logoUrl, sourceUrls,
+   and the five skin colors) plus `SCHEDULE` (one entry per set: id, band, day, start,
+   end, stage, url). Everything the client renders — the skin, the database name, the
+   date headers, the lineup itself — is derived from this file. `festival-config.test.js`
+   validates the shape; run it after editing.
+3. **Update the backend snapshot.** `backend.js` runs alone in its isolate (no relative
+   imports), so it carries its own copy of the schedule between the `SCHEDULE SNAPSHOT`
+   marker comments. Paste the same data there so the calendar feed matches the app.
+4. **Push it** — see "Ship it" below.
+
+Schedule times are **naive local strings** (`2026-07-30T18:00:00`) interpreted in the
+config's `tz`. Never append a `Z` or an offset.
+
+## Ship it
 
 ```bash
-cd /Users/jchris/code/fp/vibes.diy/vibes/pickathon-picker
-# edit App.jsx
+cd <your-festival-directory>
 npx vibes-diy push
 ```
 
-That's it. `push` deploys `App.jsx` to `og/pickathon-picker` and prints the live URL.
+`push` deploys to `og/<slug>` and prints the live URL — the push _is_ the release.
+Super mode: append `?super=true` to the live URL.
 
 ## Pull current live version
 
 ```bash
-cd /Users/jchris/code/fp/vibes.diy/vibes/pickathon-picker
-npx vibes-diy pull og/pickathon-picker
+npx vibes-diy pull og/<slug>
 ```
 
 **Warning:** `pull` currently writes the compiled/transpiled JS, not raw JSX (see issue #2056). Use the source in this directory as the authoritative copy and don't overwrite it with a pull unless you manually verify the output is clean JSX.
 
 ## Architecture notes
 
-- **Database**: Fireproof `"pickathon"` — data lives in the browser, syncs across users via the vibes.diy data plane. Read access is scoped by `access.js` channels (below), so a client only syncs what it can read.
-- **Auth**: `useViewer()` from `use-vibes`. `can(...)` gates write surfaces. Anonymous users favorite locally (migrated on sign-in); notes/shifts/friends need sign-in.
+- **Database**: Fireproof, named by `FESTIVAL.dbName` — data lives in the browser, syncs across users via the vibes.diy data plane. Read access is scoped by `access.js` channels (below), so a client only syncs what it can read.
+- **Auth**: `useViewer()` from `use-vibes`. `can(...)` gates write surfaces. Anonymous users favorite locally (migrated on sign-in); notes/shifts/follows need sign-in.
 - **Channels** (`access.js`):
   - **Favorites** (`type: "favorite"`, keyed `favorite-{userId}-{eventId}`) → the owner's **`share-{userId}`** channel _and_ the global **`super`** firehose. The owner reads their own via `share-`; followers read them via the platform follow graph (**`audience: { followersOf }`**, see § Social migration). Nobody is granted `super` — it exists only to be unlocked by a `grant` doc (see below). This is deliberately NOT world-readable: it's what keeps every client from syncing every user's favorites at scale.
   - **Notes** (`note-{userId}-{eventId}`) → private **`user-{userId}`** channel. Never shared.
-  - **Shifts** → `share-{userId}` if `shareWithFriends`, else private `user-{userId}`. So a friend can see your shared shifts (via the friend grant) but not your private ones.
+  - **Shifts** → `share-{userId}` if `shareWithFriends`, else private `user-{userId}`. So your followers can see your shared shifts but not your private ones.
   - **Follow graph (PLATFORM)** — who-sees-whose-picks moved out of this db entirely (vibes.diy#3421): edges, privacy, and blocks live in the platform (Settings → Social), read/mutated in-app via `useSocial()`. Favorites and shared extras carry `audience: { followersOf: <owner> }` on their access-fn result, resolved at READ TIME against the live graph — a new follower instantly sees history, unfollow/removeFollower/block instantly revokes. The owner is always in their own audience, so no self-grant is needed.
-- **Super mode** — URL easter egg (`?super=1` / `?super=true`). Shows `★ N` global pick counts and a peer picker. To see global data you must both (a) open with `?super=1` **and** (b) hold a `super` grant (below) — otherwise the client only has its own + friends' favorites and the counts are friend-scoped.
+- **Super mode** — URL easter egg (`?super=1` / `?super=true`). Shows `★ N` global pick counts and a peer picker. To see global data you must both (a) open with `?super=1` **and** (b) hold a `super` grant (below) — otherwise the client only has its own + followed handles' favorites and the counts are follow-scoped.
 
 ## Granting super access
 
@@ -43,7 +60,7 @@ automatically — no handle list to maintain.
 
 ```bash
 # Grant <handle> read access to the whole "super" favorites firehose:
-npx vibes-diy db put --vibe og/pickathon-picker --db pickathon \
+npx vibes-diy db put --vibe og/<slug> --db <dbName> \
   '{"type":"grant","grantTo":"<handle>"}'
 ```
 
@@ -65,13 +82,13 @@ The "My Faves" schedule tab offers two things, both served by `backend.js`:
   the earlier `?u=<handle>` form invited swapping in someone else's handle — and
   revocable: delete the user's `caltoken` doc and the feed drains. Still a
   **live feed**: new picks flow to subscribers automatically, sharing the link
-  lets a friend follow your faves, and set times are re-joined against the live
-  pickathon.com schedule feed (platform egress) on every refresh.
+  lets someone follow your faves, and set times are re-joined against the
+  backend's own schedule snapshot on every refresh.
 
 Architecture constraint that shapes all of this: calendar clients refresh with
 **anonymous GETs**, and `ctx.db.query` denies anonymous callers outright — and
 denies access-fn-bound dbs on the `fetch` lane regardless (#3085). Only the
-`scheduled` lane (owner, admin mode) can read the `pickathon` db. So `backend.js`
+`scheduled` lane (owner, admin mode) can read the festival db. So `backend.js`
 runs a **1-minute aggregation tick**: handle → {favorite eventIds, shareWithFriends
 shifts} into module-level isolate state, and the GET serves from that cache. All
 three handlers share one isolate per vibe. After an isolate eviction the cache is
@@ -105,16 +122,24 @@ and `schedule.test.js` (item flattening).
 
 ## Schedule data
 
-Fetched from `https://pickathon.com/wp-content/plugins/pickathon/schedule.php` and cached in `localStorage` for 10 minutes. All times stored/displayed in `America/Los_Angeles`.
+**Static.** `SCHEDULE` in `festival-config.js` is a module constant, so the lineup is on
+screen at first paint — no feed fetch, no cache, no loading state. `festival-utils.js`
+serves it via `getSchedule()`; `backend.js` keeps its own copy under the
+`SCHEDULE SNAPSHOT` marker (it runs alone in its isolate and can't import). Refreshing
+the lineup means editing both and pushing. All times are naive strings in `FESTIVAL.tz`.
+
+`FESTIVAL.tier` declares how complete the data is: `full` (every set has a day, start,
+end, and stage) or `lineup` (bands only, times not announced yet).
 
 ## Common edits
 
-| Task                  | Where                                                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Change festival dates | `FESTIVAL_2026.dates`                                                                                                          |
-| Change logo           | `LOGO_URL` constant                                                                                                            |
-| Add a new view/tab    | Add to the `["browse", "favorites", "shifts", "schedule"]` array in nav, add `{view === "newview" && ...}` section in the body |
-| Change colors         | `c` object near bottom of component                                                                                            |
+| Task                                   | Where                                                                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Change festival name/dates/location/tz | `FESTIVAL` in `festival-config.js`                                                                                             |
+| Change the lineup or set times         | `SCHEDULE` in `festival-config.js` **and** the `SCHEDULE SNAPSHOT` block in `backend.js`                                       |
+| Change the logo                        | `FESTIVAL.logoUrl` (empty string hides it)                                                                                     |
+| Change colors                          | `FESTIVAL.colors` — the five base colors; `makeC()` in `styles.js` derives every surface and dark-mode variant from them       |
+| Add a new view/tab                     | Add to the `["browse", "favorites", "shifts", "schedule"]` array in nav, add `{view === "newview" && ...}` section in the body |
 
 ## Social migration (2026-07: friend docs → platform follow graph)
 

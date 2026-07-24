@@ -1,12 +1,40 @@
 import { describe, it, expect } from 'vitest';
 import {
+  FESTIVAL,
+  FESTIVAL_TZ,
+  FESTIVAL_2026,
+  getSchedule,
   festivalDayFor,
   setsOnNow,
   upNextSets,
   toFestivalDate,
   scheduleIcsItems,
-  subscriptionIcsQuery,
 } from './festival-utils.js';
+import { FESTIVAL as CONFIG_FESTIVAL, SCHEDULE } from './festival-config.js';
+
+// festival-utils is the client's single read of festival-config.js: everything the
+// app skins/schedules from must trace back to that one substitution surface, so an
+// instantiation never has to touch a second file.
+describe('festival-utils re-exports festival-config', () => {
+  it('takes its timezone from the config', () => {
+    expect(FESTIVAL_TZ).toBe(CONFIG_FESTIVAL.tz);
+  });
+  it('passes the config object through', () => {
+    expect(FESTIVAL).toBe(CONFIG_FESTIVAL);
+  });
+  it('projects the festival identity onto FESTIVAL_2026', () => {
+    expect(FESTIVAL_2026).toEqual({
+      name: CONFIG_FESTIVAL.name,
+      year: CONFIG_FESTIVAL.year,
+      dates: CONFIG_FESTIVAL.dates,
+      location: CONFIG_FESTIVAL.location,
+      stages: CONFIG_FESTIVAL.stages,
+    });
+  });
+  it('serves the static schedule synchronously — no feed fetch', () => {
+    expect(getSchedule()).toBe(SCHEDULE);
+  });
+});
 
 // Everything is anchored through toFestivalDate so events and "now" share one frame.
 const at = (s) => toFestivalDate(s).getTime();
@@ -119,7 +147,7 @@ describe('scheduleIcsItems — flattening My Faves for the .ics backend', () => 
           start: '2026-07-31T13:00:00',
           end: '2026-07-31T14:00:00',
           venueTitle: 'Woods Stage',
-          url: 'https://pickathon.com/artist/x',
+          url: 'https://example.com/lineup',
         },
       ],
       shifts: [],
@@ -133,7 +161,7 @@ describe('scheduleIcsItems — flattening My Faves for the .ics backend', () => 
         start: '2026-07-31T13:00:00',
         end: '2026-07-31T14:00:00',
         location: 'Woods Stage',
-        url: 'https://pickathon.com/artist/x',
+        url: 'https://example.com/lineup',
       },
     ]);
   });

@@ -161,7 +161,7 @@ export default function BandsView({
                       target="_blank"
                       rel="noopener noreferrer"
                       className={c.linkBtn}
-                      title="View on pickathon.com"
+                      title="View on the festival site"
                     >
                       <svg
                         width="20"
