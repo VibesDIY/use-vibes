@@ -1,4 +1,10 @@
-export const FESTIVAL_TZ = 'America/Los_Angeles';
+// festival-config.js is the ONE file an instantiation replaces. Everything the client
+// skins, dates, and schedules from is re-exported here, so no view ever reads the
+// config directly and no festival identity is hard-coded anywhere below.
+import { FESTIVAL, SCHEDULE } from './festival-config.js';
+
+export const FESTIVAL_TZ = FESTIVAL.tz;
+export { FESTIVAL };
 
 const hasExplicitTZ = (s) => /([+-]\d\d:\d\d|Z)$/.test(s);
 export const ensureT = (s = '') => (s.includes('T') ? s : s.replace(' ', 'T'));
@@ -45,20 +51,20 @@ export const toFestivalDate = (s) => {
   return d;
 };
 
+// The festival's identity, projected out of the config for the views. Calendar dates
+// are the ordered ISO list from the config; App derives its weekday day-keys from them.
 export const FESTIVAL_2026 = {
-  dayOrder: ['Thursday', 'Friday', 'Saturday', 'Sunday', 'Monday'],
-  dates: {
-    Thursday: '2026-07-30',
-    Friday: '2026-07-31',
-    Saturday: '2026-08-01',
-    Sunday: '2026-08-02',
-    Monday: '2026-08-03',
-  },
-  fallbackStart: '2026-07-30T00:00:00',
+  name: FESTIVAL.name,
+  year: FESTIVAL.year,
+  dates: FESTIVAL.dates,
+  location: FESTIVAL.location,
+  stages: FESTIVAL.stages,
 };
 
-export const LOGO_URL =
-  'https://pickathon.com/wp-content/themes/pickathon/images/2026/_logo_head.png';
+// The static-data variant of this template: the schedule is a module constant, so it
+// is synchronously available on first render — no feed fetch, no cache, no loading
+// state. Re-snapshot by replacing festival-config.js (and backend.js's snapshot).
+export const getSchedule = () => SCHEDULE;
 
 const _dayPartsFmt = new Intl.DateTimeFormat('en-US', {
   timeZone: FESTIVAL_TZ,
@@ -182,13 +188,4 @@ export const scheduleIcsItems = ({ events = [], shifts = [], shiftStart, shiftEn
     items.push({ id: `shift-${s._id}`, title: kind === '' ? 'Shift' : kind, start, end });
   }
   return items;
-};
-
-// The Pickathon feed returns HTML-entity-encoded strings (e.g. "Skills &amp; Games").
-// Decode them once at ingest so titles render as text, not markup.
-export const decodeEntities = (s) => {
-  if (typeof s !== 'string' || !s.includes('&')) return s;
-  const el = document.createElement('textarea');
-  el.innerHTML = s;
-  return el.value;
 };
