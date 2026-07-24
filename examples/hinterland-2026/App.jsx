@@ -909,7 +909,7 @@ export default function HinterlandPicker() {
                             target="_blank"
                             rel="noopener noreferrer"
                             className={`${c.btnPink} inline-flex items-center gap-1`}
-                            title="Subscribe in your phone's calendar — it follows your faves live. iOS may warn about an insecure connection; tap Continue (the feed itself is served over https). Share the link and friends can subscribe to your picks."
+                            title="Subscribe in your phone's calendar — it follows your faves live. iOS may warn about an insecure connection; tap Continue (the feed itself is served over https). Share the link and anyone you share it with can subscribe to your picks."
                           >
                             <svg
                               width="16"

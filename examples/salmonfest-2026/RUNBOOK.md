@@ -108,7 +108,7 @@ runs a **1-minute aggregation tick**: handle → {favorite eventIds, shareWithFr
 shifts} into module-level isolate state, and the GET serves from that cache. All
 three handlers share one isolate per vibe. After an isolate eviction the cache is
 empty until the next tick (≤1m); the GET then serves the **anchor-only calendar**
-(a hard-coded "Gates Open" event rides in every response, so the feed is never
+(a hard-coded "<festival> begins today" event rides in every response, so the feed is never
 empty and adding a subscription always validates). A transient schedule-feed
 failure still 502s so established subscribers keep previously-synced events.
 

@@ -54,6 +54,16 @@ describe('SCHEDULE shape', () => {
         }
         expect(FESTIVAL.stages).toContain(e.stage);
       }
+      // ...and the carve-out is EXACTLY those two sets — a null end anywhere
+      // else is a scrape gap, not a faithful record.
+      expect(
+        SCHEDULE.filter((e) => e.end === null)
+          .map((e) => e.id)
+          .sort()
+      ).toEqual([
+        'fri-gopherwood-smokin-dobroleles-acoustic',
+        'sat-gopherwood-artist-jam-acoustic',
+      ]);
     } else {
       for (const e of SCHEDULE) {
         expect(e.day).toBeNull();

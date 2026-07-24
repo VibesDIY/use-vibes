@@ -42,13 +42,13 @@ cd <your-festival-directory>
 npx vibes-diy push
 ```
 
-`push` deploys to `og/<slug>` and prints the live URL — the push _is_ the release.
+`push` deploys to `festival/hoxeyville-skies-2026` and prints the live URL — the push _is_ the release.
 Super mode: append `?super=true` to the live URL.
 
 ## Pull current live version
 
 ```bash
-npx vibes-diy pull og/<slug>
+npx vibes-diy pull festival/hoxeyville-skies-2026
 ```
 
 **Warning:** `pull` currently writes the compiled/transpiled JS, not raw JSX (see issue #2056). Use the source in this directory as the authoritative copy and don't overwrite it with a pull unless you manually verify the output is clean JSX.
@@ -74,7 +74,7 @@ automatically — no handle list to maintain.
 
 ```bash
 # Grant <handle> read access to the whole "super" favorites firehose:
-npx vibes-diy db put --vibe og/<slug> --db <dbName> \
+npx vibes-diy db put --vibe festival/hoxeyville-skies-2026 --db <dbName> \
   '{"type":"grant","grantTo":"<handle>"}'
 ```
 
@@ -107,7 +107,7 @@ runs a **1-minute aggregation tick**: handle → {favorite eventIds, shareWithFr
 shifts} into module-level isolate state, and the GET serves from that cache. All
 three handlers share one isolate per vibe. After an isolate eviction the cache is
 empty until the next tick (≤1m); the GET then serves the **anchor-only calendar**
-(a hard-coded "Gates Open" event rides in every response, so the feed is never
+(a hard-coded "<festival> begins today" event rides in every response, so the feed is never
 empty and adding a subscription always validates). A transient schedule-feed
 failure still 502s so established subscribers keep previously-synced events.
 

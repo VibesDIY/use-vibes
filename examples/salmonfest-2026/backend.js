@@ -1125,7 +1125,7 @@ const ANCHOR_ITEMS = FIRST_DAY
   ? [
       {
         id: `gates-open-${FIRST_DAY}`,
-        title: 'Gates Open',
+        title: `${BACKEND_NAME} begins today`,
         start: `${FIRST_DAY}T09:00:00`,
         end: `${FIRST_DAY}T10:00:00`,
       },

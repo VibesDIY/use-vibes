@@ -9,6 +9,7 @@ import {
   scheduled,
   __resetSubCacheForTests,
   MAX_ITEMS,
+  BACKEND_NAME,
   fetch as icsFetch,
 } from './backend.js';
 
@@ -333,7 +334,7 @@ describe('fetch handler — GET /faves.ics?t=<token> (subscription lane)', () =>
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('no-store'); // don't pin the skeleton
     const body = await res.text();
-    expect(body).toContain('SUMMARY:Gates Open');
+    expect(body).toContain(`SUMMARY:${BACKEND_NAME} begins today`);
     expect(body).not.toContain('First Act'); // faves arrive with the tick
   });
 
@@ -352,7 +353,7 @@ describe('fetch handler — GET /faves.ics?t=<token> (subscription lane)', () =>
     expect(body).not.toContain('Broken Legacy'); // malformed shared shift drops out, doesn't 400 the feed
     expect(body).toContain('LOCATION:Main Stage');
     expect(body).toContain('UID:event-act-1@template-fest-picker.vibes.diy'); // stable across refreshes
-    expect(body).toContain('SUMMARY:Gates Open'); // the always-present anchor event
+    expect(body).toContain(`SUMMARY:${BACKEND_NAME} begins today`); // the always-present anchor event
     expect(body).toContain('X-WR-CALNAME:@alice — Template Fest Picks');
     expect(body).toContain('REFRESH-INTERVAL;VALUE=DURATION:PT6H');
   });
@@ -380,7 +381,7 @@ describe('fetch handler — GET /faves.ics?t=<token> (subscription lane)', () =>
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('no-store'); // don't pin the placeholder
     const body = await res.text();
-    expect(body).toContain('SUMMARY:Gates Open');
+    expect(body).toContain(`SUMMARY:${BACKEND_NAME} begins today`);
     // iOS captures the calendar name at subscribe time; the display-only n=
     // param names it correctly even before the tick resolves the token.
     expect(body).toContain('X-WR-CALNAME:@jchris — Template Fest Picks');

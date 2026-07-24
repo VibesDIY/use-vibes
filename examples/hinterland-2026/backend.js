@@ -17,7 +17,7 @@
 // How the anonymous GET learns a user's favorites: it can't read the db —
 // ctx.db.query denies anonymous callers outright, and denies access-fn-bound
 // dbs on the user-triggerable `fetch` lane regardless (backend-db-callback.ts,
-// #3085). The one lane that CAN read the "pickathon" db is `scheduled` (runs
+// #3085). The one lane that CAN read the "hinterland2026" db is `scheduled` (runs
 // as the owner in admin mode), so a 1-minute tick aggregates
 // handle → {favorite eventIds, friend-shared shifts} into module state, and
 // the GET serves from that in-isolate cache. All three handlers share one
