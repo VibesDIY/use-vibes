@@ -61,6 +61,14 @@ export const FESTIVAL_2026 = {
   stages: FESTIVAL.stages,
 };
 
+// Which of the four canonical tabs a festival's data can actually support. A
+// `lineup`-tier festival has bands but no set times (every SCHEDULE entry carries a
+// null day/start/end/stage), so every time-based view — the personal day-by-day
+// schedule and the extras/shifts planner built on top of it — has nothing to render
+// and is dropped. App.jsx maps its own extra tabs onto these four (see NAV_TABS).
+export const visibleTabs = (tier) =>
+  tier === 'lineup' ? ['browse', 'favorites'] : ['browse', 'favorites', 'shifts', 'schedule'];
+
 // The static-data variant of this template: the schedule is a module constant, so it
 // is synchronously available on first render — no feed fetch, no cache, no loading
 // state. Re-snapshot by replacing festival-config.js (and backend.js's snapshot).
