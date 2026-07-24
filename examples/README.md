@@ -28,7 +28,13 @@ apps with favorites, friends, shifts, tested access control, and a backend:
 [`euroscipy-picker`](euroscipy-picker/) ·
 [`ietf-picker`](ietf-picker/) ·
 [`juliacon-picker`](juliacon-picker/) ·
-[`sotm-picker`](sotm-picker/)
+[`sotm-picker`](sotm-picker/) ·
+[`hinterland-2026`](hinterland-2026/) ·
+[`salmonfest-2026`](salmonfest-2026/) ·
+[`hoxeyville-skies-2026`](hoxeyville-skies-2026/)
+
+Start your own from [`festival-picker-template`](festival-picker-template/) —
+replace one config file.
 
 ## Starters
 
