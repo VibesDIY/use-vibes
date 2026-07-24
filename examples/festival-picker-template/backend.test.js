@@ -201,7 +201,7 @@ describe('buildFavesCalendar — the ICS document', () => {
   it('has the calendar envelope and metadata', () => {
     expect(ics.startsWith('BEGIN:VCALENDAR\r\n')).toBe(true);
     expect(ics).toContain('VERSION:2.0\r\n');
-    expect(ics).toContain('X-WR-CALNAME:My Pickathon Picks\r\n');
+    expect(ics).toContain('X-WR-CALNAME:My Template Fest Picks\r\n');
     expect(ics).toContain('X-WR-TIMEZONE:America/Chicago\r\n');
     expect(ics.trimEnd().endsWith('END:VCALENDAR')).toBe(true);
   });
@@ -211,8 +211,8 @@ describe('buildFavesCalendar — the ICS document', () => {
     expect(ics.indexOf('20260802T010000Z')).toBeGreaterThan(-1);
   });
   it('stamps stable UIDs from the item id', () => {
-    expect(ics).toContain('UID:event-1@pickathon-picker.vibes.diy');
-    expect(ics).toContain('UID:event-2@pickathon-picker.vibes.diy');
+    expect(ics).toContain('UID:event-1@template-fest-picker.vibes.diy');
+    expect(ics).toContain('UID:event-2@template-fest-picker.vibes.diy');
   });
   it('escapes SUMMARY text and carries LOCATION/URL', () => {
     expect(ics).toContain('SUMMARY:Früh\\; und\\, spät');
@@ -351,9 +351,9 @@ describe('fetch handler — GET /faves.ics?t=<token> (subscription lane)', () =>
     expect(body).not.toContain('PRIVATE NOTE'); // notes never leave the db
     expect(body).not.toContain('Broken Legacy'); // malformed shared shift drops out, doesn't 400 the feed
     expect(body).toContain('LOCATION:Main Stage');
-    expect(body).toContain('UID:event-act-1@pickathon-picker.vibes.diy'); // stable across refreshes
+    expect(body).toContain('UID:event-act-1@template-fest-picker.vibes.diy'); // stable across refreshes
     expect(body).toContain('SUMMARY:Gates Open'); // the always-present anchor event
-    expect(body).toContain('X-WR-CALNAME:@alice — Pickathon Picks');
+    expect(body).toContain('X-WR-CALNAME:@alice — Template Fest Picks');
     expect(body).toContain('REFRESH-INTERVAL;VALUE=DURATION:PT6H');
   });
 
@@ -383,7 +383,7 @@ describe('fetch handler — GET /faves.ics?t=<token> (subscription lane)', () =>
     expect(body).toContain('SUMMARY:Gates Open');
     // iOS captures the calendar name at subscribe time; the display-only n=
     // param names it correctly even before the tick resolves the token.
-    expect(body).toContain('X-WR-CALNAME:@jchris — Pickathon Picks');
+    expect(body).toContain('X-WR-CALNAME:@jchris — Template Fest Picks');
     expect((body.match(/BEGIN:VEVENT/g) || []).length).toBe(1);
   });
 
@@ -442,7 +442,7 @@ describe('fetch handler — POST /faves.ics', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('text/calendar; charset=utf-8');
     expect(res.headers.get('content-disposition')).toBe(
-      'attachment; filename="pickathon-faves.ics"'
+      'attachment; filename="template-fest-faves.ics"'
     );
     expect(res.headers.get('cache-control')).toBe('no-store');
     const body = await res.text();

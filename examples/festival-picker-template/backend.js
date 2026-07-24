@@ -1,7 +1,7 @@
 // Festival Picker backend: serve faves schedules as .ics.
 //
 // POST /_api/faves.ics  { items: [{ id, title, start, end, location?, url? }] }
-//   → 200 text/calendar attachment (pickathon-faves.ics) — one-shot download of
+//   → 200 text/calendar attachment (<dbName>-faves.ics) — one-shot download of
 //   whatever the client sends (works for anonymous local-only faves too).
 // GET  /_api/faves.ics?t=<token>
 //   → 200 text/calendar — the SUBSCRIPTION lane (webcal://). The token is a
@@ -17,7 +17,7 @@
 // How the anonymous GET learns a user's favorites: it can't read the db —
 // ctx.db.query denies anonymous callers outright, and denies access-fn-bound
 // dbs on the user-triggerable `fetch` lane regardless (backend-db-callback.ts,
-// #3085). The one lane that CAN read the "pickathon" db is `scheduled` (runs
+// #3085). The one lane that CAN read the festival db is `scheduled` (runs
 // as the owner in admin mode), so a 1-minute tick aggregates
 // handle → {favorite eventIds, friend-shared shifts} into module state, and
 // the GET serves from that in-isolate cache. All three handlers share one
@@ -38,6 +38,8 @@ export const config = { scheduled: { interval: '1m' } };
 
 // >>> SCHEDULE SNAPSHOT (generated from festival-config.js — keep in sync)
 export const BACKEND_TZ = 'America/Chicago';
+export const BACKEND_DB = 'template-fest';
+export const BACKEND_NAME = 'Template Fest';
 export const SCHEDULE_BY_ID = {
   'act-1': {
     band: 'First Act',
@@ -266,7 +268,7 @@ const shiftEndOf = (s) =>
 // what becomes link-visible: favorite eventIds always (that's the feature),
 // shifts only when the user marked them shareWithFriends, notes never.
 export async function scheduled(event, ctx) {
-  const docs = await ctx.db.query({ db: 'pickathon' });
+  const docs = await ctx.db.query({ db: BACKEND_DB });
   const users = new Map();
   const tokens = new Map();
   const entryFor = (handle) => {
@@ -337,7 +339,7 @@ export const scheduleItemsFor = (ids) => {
 // shift-<_id>); fall back to title+start for a hand-rolled payload.
 const icsUid = (item) => {
   const key = item.id || `${item.title}-${item.start}`;
-  return `${key.replace(/[^A-Za-z0-9._-]/g, '-')}@pickathon-picker.vibes.diy`;
+  return `${key.replace(/[^A-Za-z0-9._-]/g, '-')}@${BACKEND_DB}-picker.vibes.diy`;
 };
 
 // items are parseFavesItems output (start/end already in ICS UTC form).
@@ -349,10 +351,10 @@ export const buildFavesCalendar = (items, { now, calName } = {}) => {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//vibes.diy//pickathon-picker//EN',
+    `PRODID:-//vibes.diy//${BACKEND_NAME}-picker//EN`,
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    `X-WR-CALNAME:${escapeIcsText(calName || 'My Pickathon Picks')}`,
+    `X-WR-CALNAME:${escapeIcsText(calName || `My ${BACKEND_NAME} Picks`)}`,
     `X-WR-TIMEZONE:${BACKEND_TZ}`,
     // Subscription refresh hints (Apple/Google honor these where supported).
     'REFRESH-INTERVAL;VALUE=DURATION:PT6H',
@@ -394,7 +396,7 @@ const handleDownload = async (request) => {
     status: 200,
     headers: {
       'content-type': 'text/calendar; charset=utf-8',
-      'content-disposition': 'attachment; filename="pickathon-faves.ics"',
+      'content-disposition': `attachment; filename="${BACKEND_DB}-faves.ics"`,
       'cache-control': 'no-store',
     },
   });
@@ -460,7 +462,9 @@ const handleSubscription = (url) => {
     MAX_ITEMS
   );
   return new Response(
-    buildFavesCalendar(items, { calName: `@${handle ?? displayName ?? 'my'} — Pickathon Picks` }),
+    buildFavesCalendar(items, {
+      calName: `@${handle ?? displayName ?? 'my'} — ${BACKEND_NAME} Picks`,
+    }),
     {
       status: 200,
       headers: {
