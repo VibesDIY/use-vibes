@@ -1,0 +1,642 @@
+// Festival Picker backend: serve faves schedules as .ics.
+//
+// POST /_api/faves.ics  { items: [{ id, title, start, end, location?, url? }] }
+//   → 200 text/calendar attachment (<dbName>-faves.ics) — one-shot download of
+//   whatever the client sends (works for anonymous local-only faves too).
+// GET  /_api/faves.ics?t=<token>
+//   → 200 text/calendar — the SUBSCRIPTION lane (webcal://). The token is a
+//   per-user RANDOM CAPABILITY (a `caltoken` doc, auto-minted client-side the
+//   first time the user opens their schedule tab — opt-in: no visit, no token,
+//   no ics aggregate). Unlike the earlier handle-keyed URL it is unguessable
+//   (a handle in the URL invited swapping in someone else's), shareable on
+//   purpose, and revocable (delete the doc; the feed drains). It is still a
+//   live feed: new picks flow to every subscriber without re-subscribing, and
+//   set times come from the embedded schedule snapshot below — no egress, so a
+//   refresh can never fail on someone else's server being down.
+//
+// How the anonymous GET learns a user's favorites: it can't read the db —
+// ctx.db.query denies anonymous callers outright, and denies access-fn-bound
+// dbs on the user-triggerable `fetch` lane regardless (backend-db-callback.ts,
+// #3085). The one lane that CAN read the festival db is `scheduled` (runs
+// as the owner in admin mode), so a 1-minute tick aggregates
+// handle → {favorite eventIds, friend-shared shifts} into module state, and
+// the GET serves from that in-isolate cache. All three handlers share one
+// isolate per vibe, so the cache is visible across lanes; after an isolate
+// eviction the next tick (≤1m) repopulates it. Until then the GET serves the
+// never-empty anchor-only calendar (see ANCHOR_ITEMS) so ADDING a subscription
+// always validates.
+//
+// Privacy: a feed is reachable only through its random token, so nothing is
+// exposed to handle-guessing. Notes never leave the db; shifts are included
+// only with shareWithFriends; users without a token have no aggregate at all.
+//
+// This file runs ALONE in the backend isolate — no import resolution — so the
+// few festival-utils timezone helpers it needs are duplicated here on purpose,
+// and the schedule is embedded rather than imported from festival-config.js.
+
+export const config = { scheduled: { interval: '1m' } };
+
+// >>> SCHEDULE SNAPSHOT (generated from festival-config.js — keep in sync)
+export const BACKEND_TZ = 'America/Detroit';
+export const BACKEND_DB = 'hoxeyville-skies';
+export const BACKEND_NAME = 'Hoxeyville Skies';
+export const SCHEDULE_BY_ID = {
+  'fri-hoxey-lost-in-the-woods': {
+    band: 'Lost In the Woods',
+    day: '2026-08-07',
+    start: '2026-08-07T15:45:00',
+    end: '2026-08-07T16:45:00',
+    stage: 'Hoxey Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'fri-hoxey-sweet-dee-and-the-wild-honeys': {
+    band: 'Sweet Dee & the Wild Honeys',
+    day: '2026-08-07',
+    start: '2026-08-07T17:30:00',
+    end: '2026-08-07T18:30:00',
+    stage: 'Hoxey Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'fri-hoxey-flexadecibel': {
+    band: 'Flexadecibel',
+    day: '2026-08-07',
+    start: '2026-08-07T19:15:00',
+    end: '2026-08-07T20:15:00',
+    stage: 'Hoxey Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'fri-hoxey-grahame-lesh-and-friends': {
+    band: 'Grahame Lesh & Friends',
+    day: '2026-08-07',
+    start: '2026-08-07T21:00:00',
+    end: '2026-08-08T00:00:00',
+    stage: 'Hoxey Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'fri-gopherwood-megan-dooley': {
+    band: 'Megan Dooley',
+    day: '2026-08-07',
+    start: '2026-08-07T15:00:00',
+    end: '2026-08-07T15:45:00',
+    stage: 'Gopherwood Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'fri-gopherwood-high-strung-steel': {
+    band: 'High Strung Steel',
+    day: '2026-08-07',
+    start: '2026-08-07T16:45:00',
+    end: '2026-08-07T17:30:00',
+    stage: 'Gopherwood Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'fri-gopherwood-1000-watt-prophets': {
+    band: '1000 Watt Prophets',
+    day: '2026-08-07',
+    start: '2026-08-07T18:30:00',
+    end: '2026-08-07T19:15:00',
+    stage: 'Gopherwood Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'fri-gopherwood-smokin-dobroleles-acoustic': {
+    band: "The Smokin' Dobroleles (Acoustic)",
+    day: '2026-08-07',
+    start: '2026-08-08T00:00:00',
+    end: null,
+    stage: 'Gopherwood Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'sat-hoxey-venus-envy': {
+    band: 'Venus Envy',
+    day: '2026-08-08',
+    start: '2026-08-08T13:00:00',
+    end: '2026-08-08T14:00:00',
+    stage: 'Hoxey Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'sat-hoxey-joe-johnson-and-the-bluebacks': {
+    band: 'Joe Johnson & the Bluebacks',
+    day: '2026-08-08',
+    start: '2026-08-08T14:45:00',
+    end: '2026-08-08T15:45:00',
+    stage: 'Hoxey Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'sat-hoxey-luke-winslow-king-band': {
+    band: 'Luke Winslow-King Band',
+    day: '2026-08-08',
+    start: '2026-08-08T16:30:00',
+    end: '2026-08-08T17:30:00',
+    stage: 'Hoxey Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'sat-hoxey-smokin-dobroleles': {
+    band: "The Smokin' Dobroleles",
+    day: '2026-08-08',
+    start: '2026-08-08T18:15:00',
+    end: '2026-08-08T19:15:00',
+    stage: 'Hoxey Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'sat-hoxey-airborne-or-aquatic': {
+    band: 'Airborne or Aquatic?',
+    day: '2026-08-08',
+    start: '2026-08-08T20:00:00',
+    end: '2026-08-08T21:30:00',
+    stage: 'Hoxey Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'sat-hoxey-ekoostik-hookah': {
+    band: 'ekoostik hookah',
+    day: '2026-08-08',
+    start: '2026-08-08T22:15:00',
+    end: '2026-08-09T00:00:00',
+    stage: 'Hoxey Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'sat-gopherwood-lake-effect-family-band': {
+    band: 'Lake Effect Family Band',
+    day: '2026-08-08',
+    start: '2026-08-08T12:00:00',
+    end: '2026-08-08T13:00:00',
+    stage: 'Gopherwood Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'sat-gopherwood-barefoot': {
+    band: 'Barefoot',
+    day: '2026-08-08',
+    start: '2026-08-08T14:00:00',
+    end: '2026-08-08T14:45:00',
+    stage: 'Gopherwood Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'sat-gopherwood-sometime-soon': {
+    band: 'Sometime Soon',
+    day: '2026-08-08',
+    start: '2026-08-08T15:45:00',
+    end: '2026-08-08T16:30:00',
+    stage: 'Gopherwood Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'sat-gopherwood-mitten-pickers': {
+    band: 'Mitten Pickers',
+    day: '2026-08-08',
+    start: '2026-08-08T17:30:00',
+    end: '2026-08-08T18:15:00',
+    stage: 'Gopherwood Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'sat-gopherwood-herb-and-hanson': {
+    band: 'Herb & Hanson',
+    day: '2026-08-08',
+    start: '2026-08-08T19:15:00',
+    end: '2026-08-08T20:00:00',
+    stage: 'Gopherwood Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+  'sat-gopherwood-artist-jam-acoustic': {
+    band: 'Artist Jam (Acoustic)',
+    day: '2026-08-08',
+    start: '2026-08-09T00:00:00',
+    end: null,
+    stage: 'Gopherwood Stage',
+    url: 'https://www.hoxeyvilleskies.com/schedule',
+  },
+};
+// <<< SCHEDULE SNAPSHOT
+
+const hasExplicitTZ = (s) => /([+-]\d\d:\d\d|Z)$/.test(s);
+const ensureT = (s = '') => (s.includes('T') ? s : s.replace(' ', 'T'));
+
+// Same offset trick as festival-utils.js: format the instant in the festival
+// zone, re-read it as if it were UTC, and the difference is the zone offset.
+// Handles DST correctly for any date — never hardcode the festival's offset.
+const _offsetFmt = new Intl.DateTimeFormat('en-US', {
+  timeZone: BACKEND_TZ,
+  hourCycle: 'h23',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+});
+const tzOffsetMinutes = (date) => {
+  const p = Object.fromEntries(_offsetFmt.formatToParts(date).map((x) => [x.type, x.value]));
+  const asIfUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+  return (asIfUTC - date.getTime()) / 60000;
+};
+
+const parseToDate = (s) => {
+  if (typeof s !== 'string' || s === '') return null;
+  const t = ensureT(s);
+  let d;
+  if (hasExplicitTZ(t)) {
+    d = new Date(t);
+  } else {
+    const utcGuess = new Date(t + 'Z');
+    if (isNaN(utcGuess)) return null;
+    d = new Date(utcGuess.getTime() - tzOffsetMinutes(utcGuess) * 60000);
+  }
+  return isNaN(d) ? null : d;
+};
+
+const epochToIcs = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+
+// A schedule string (naive festival-local like "2026-07-31T13:00:00", or with an
+// explicit offset/Z) → ICS UTC basic format "20260731T200000Z", or null if it
+// doesn't parse. UTC-basic strings sort lexicographically, which buildFavesCalendar
+// relies on for event ordering.
+export const toIcsUtc = (s) => {
+  const d = parseToDate(s);
+  return d === null ? null : epochToIcs(d.getTime());
+};
+
+// RFC 5545 §3.3.11 TEXT escaping. Backslash first, or it would double-escape
+// the escapes it just produced.
+export const escapeIcsText = (s) =>
+  String(s)
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r\n|\r|\n/g, '\\n');
+
+// RFC 5545 §3.1 line folding: content lines cap at 75 OCTETS (not chars), and a
+// continuation line's leading space counts toward its own 75. Folding must not
+// split a UTF-8 character, so count bytes per code point instead of encoding.
+const utf8Octets = (ch) => {
+  const c = ch.codePointAt(0);
+  return c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+};
+export const foldIcsLine = (line) => {
+  const parts = [];
+  let cur = '';
+  let bytes = 0;
+  let budget = 75; // continuations get 74: the leading fold space spends one octet
+  for (const ch of line) {
+    const len = utf8Octets(ch);
+    if (bytes + len > budget) {
+      parts.push(cur);
+      cur = '';
+      bytes = 0;
+      budget = 74;
+    }
+    cur += ch;
+    bytes += len;
+  }
+  parts.push(cur);
+  return parts.join('\r\n ');
+};
+
+// Caps: strict enough that a forged payload can't make us stream megabytes back,
+// loose enough that a maximal real schedule (every set + every shift) fits.
+export const MAX_ITEMS = 500;
+const MAX_TEXT = 300;
+const MAX_URL = 1000;
+const MAX_ID = 200;
+
+// Per-item validation/normalization shared by both lanes. Strict on the fields
+// that structure the calendar (title, start, end); silently drops decorations
+// that are merely unusable (non-http url).
+export const validateFavesItem = (it) => {
+  if (it === null || typeof it !== 'object') return { ok: false, error: 'must be an object' };
+  const title = typeof it.title === 'string' ? it.title.trim() : '';
+  if (title === '') return { ok: false, error: 'title must be a non-empty string' };
+  const startDate = parseToDate(it.start);
+  if (startDate === null) return { ok: false, error: 'start is not a parseable time' };
+  const endDate = parseToDate(it.end);
+  if (endDate === null) return { ok: false, error: 'end is not a parseable time' };
+  let endMs = endDate.getTime();
+  // RFC 5545 requires DTEND strictly later than DTSTART. end === start is a
+  // meaningless entry — reject it. end BEFORE start is a real shape, not junk:
+  // the extras form stores both times on the selected festival day, so an
+  // overnight shift (22:00 → 01:00) arrives as same-day strings — normalize it
+  // to end the next day. (+24h in absolute time; festival dates never straddle
+  // a DST change, so local wall time is preserved.)
+  if (endMs === startDate.getTime())
+    return { ok: false, error: 'has zero duration (end equals start)' };
+  if (endMs < startDate.getTime()) endMs += 24 * 60 * 60 * 1000;
+  // Still not after start ⇒ end was more than a day early — corrupt, not overnight.
+  if (endMs <= startDate.getTime()) return { ok: false, error: 'end is before its start' };
+  const item = {
+    title: title.slice(0, MAX_TEXT),
+    start: epochToIcs(startDate.getTime()),
+    end: epochToIcs(endMs),
+  };
+  if (typeof it.location === 'string' && it.location.trim() !== '') {
+    item.location = it.location.trim().slice(0, MAX_TEXT);
+  }
+  // URL is a URI-valued property emitted VERBATIM (no TEXT escaping — see
+  // buildFavesCalendar), so beyond the scheme check it must contain no
+  // whitespace or control chars: an embedded CR/LF would inject ICS lines.
+  if (
+    typeof it.url === 'string' &&
+    /^https?:\/\/[^\s\x00-\x1f\x7f]+$/i.test(it.url) &&
+    it.url.length <= MAX_URL
+  ) {
+    item.url = it.url;
+  }
+  if (typeof it.id === 'string' && it.id !== '') item.id = it.id.slice(0, MAX_ID);
+  return { ok: true, item };
+};
+
+// STRICT, all-or-nothing — the POST download lane, where the client authored
+// the payload and deserves a precise index-named rejection.
+export const parseFavesItems = (payload) => {
+  if (payload === null || typeof payload !== 'object' || !Array.isArray(payload.items)) {
+    return { ok: false, error: 'body must be { items: [...] }' };
+  }
+  const raw = payload.items;
+  if (raw.length === 0) return { ok: false, error: 'no items to export' };
+  if (raw.length > MAX_ITEMS) return { ok: false, error: `too many items (max ${MAX_ITEMS})` };
+  const items = [];
+  for (let i = 0; i < raw.length; i++) {
+    const r = validateFavesItem(raw[i]);
+    if (!r.ok) {
+      // Field-scoped errors read as items[i].field…, item-level ones as items[i] …
+      const sep = /^(title|start|end)\b/.test(r.error) ? '.' : ' ';
+      return { ok: false, error: `items[${i}]${sep}${r.error}` };
+    }
+    items.push(r.item);
+  }
+  return { ok: true, items };
+};
+
+// LENIENT, per-item — the subscription lane. Its rows come from the db
+// aggregate and the schedule feed, neither of which the subscriber controls,
+// so one malformed row (e.g. a legacy shift saved as `<date>T:00`) must drop
+// out, not 400 the user's whole feed (Charlie, #3258 review).
+export const sanitizeFavesItems = (rows) =>
+  rows
+    .map((row) => validateFavesItem(row))
+    .filter((r) => r.ok)
+    .map((r) => r.item);
+
+// ── Subscription (GET) lane ──────────────────────────────────────────────────
+
+// The festival's calendar days, ascending — read off the snapshot so nothing
+// here has to know which weekend the festival lands on.
+const FESTIVAL_DAYS = [...new Set(Object.values(SCHEDULE_BY_ID).map((e) => e.day))].sort();
+
+// Festival day NAME → calendar date, for legacy shift docs stored without
+// absolute start/end (they carry day + startTime/endTime only). Derived from
+// the snapshot's dates; the names are read in UTC, which is safe because the
+// dates are plain calendar days with no time component.
+const WEEKDAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+const FESTIVAL_DATES = Object.fromEntries(
+  FESTIVAL_DAYS.map((d) => [WEEKDAY_NAMES[new Date(`${d}T00:00:00Z`).getUTCDay()], d])
+);
+
+// The cross-lane cache: written by `scheduled` (the only lane that may read
+// the access-fn-bound db), read by anonymous GETs. Null until the first tick
+// after isolate boot — the GET answers 503 then, never a bogus empty calendar.
+let subCache = null;
+export const __resetSubCacheForTests = () => {
+  subCache = null;
+};
+
+const shiftStartOf = (s) =>
+  s.start ??
+  (FESTIVAL_DATES[s.day] && s.startTime ? `${FESTIVAL_DATES[s.day]}T${s.startTime}:00` : null);
+const shiftEndOf = (s) =>
+  s.end ?? (FESTIVAL_DATES[s.day] && s.endTime ? `${FESTIVAL_DATES[s.day]}T${s.endTime}:00` : null);
+
+// 1-minute aggregation tick (tiny db; a short interval keeps the post-deploy/post-eviction cold window — where adding a NEW subscription fails with iOS's "Validation failed" — under a minute). Admin-lane read (unfiltered), so THIS code chooses
+// what becomes link-visible: favorite eventIds always (that's the feature),
+// shifts only when the user marked them shareWithFriends, notes never.
+export async function scheduled(event, ctx) {
+  const docs = await ctx.db.query({ db: BACKEND_DB });
+  const users = new Map();
+  const tokens = new Map();
+  const entryFor = (handle) => {
+    const key = String(handle).toLowerCase();
+    if (!users.has(key)) users.set(key, { eventIds: [], shifts: [] });
+    return users.get(key);
+  };
+  for (const d of docs) {
+    if (!d || !d.userId) continue;
+    if (d.type === 'caltoken') {
+      if (typeof d.token === 'string' && /^[A-Za-z0-9_-]{16,64}$/.test(d.token)) {
+        tokens.set(d.token, String(d.userId).toLowerCase());
+      }
+    } else if (d.type === 'favorite' && d.eventId != null) {
+      entryFor(d.userId).eventIds.push(String(d.eventId));
+    } else if (d.type === 'shift' && d.shareWithFriends) {
+      const start = shiftStartOf(d);
+      const end = shiftEndOf(d);
+      if (start && end)
+        entryFor(d.userId).shifts.push([
+          typeof d.kind === 'string' && d.kind.trim() !== '' ? d.kind.trim() : 'Shift',
+          start,
+          end,
+        ]);
+    }
+  }
+  // Opt-in means opt-in: keep aggregates ONLY for handles holding a token —
+  // no ics data is built for users who never opened the calendar surface.
+  const optedIn = new Set(tokens.values());
+  for (const handle of [...users.keys()]) {
+    if (!optedIn.has(handle)) users.delete(handle);
+  }
+  for (const entry of users.values()) {
+    entry.eventIds.sort();
+    entry.shifts.sort((a, b) => (a[1] < b[1] ? -1 : 1));
+  }
+  subCache = {
+    at: Date.parse(event?.scheduledTime) || Date.now(),
+    users,
+    tokens,
+    truncated: docs.length >= 2000,
+  };
+}
+
+// Project the requested event ids into calendar items by joining against the
+// embedded snapshot. Pure and synchronous — no egress, so a subscription
+// refresh can never fail on a third-party feed. Unknown ids (a stale favorite
+// from a previous year's schedule) simply drop out.
+export const scheduleItemsFor = (ids) => {
+  const items = [];
+  for (const id of ids) {
+    const entry = SCHEDULE_BY_ID[id];
+    if (!entry) continue;
+    items.push({
+      id: `event-${id}`,
+      title: String(entry.band ?? ''),
+      start: String(entry.start ?? ''),
+      end: String(entry.end ?? ''),
+      location: String(entry.stage ?? ''),
+      ...(typeof entry.url === 'string' && entry.url !== '' ? { url: entry.url } : {}),
+    });
+  }
+  return items;
+};
+
+// Stable UID per item so re-importing an updated export replaces events instead
+// of duplicating them. The client keys items by doc identity (event-<eventId> /
+// shift-<_id>); fall back to title+start for a hand-rolled payload.
+const icsUid = (item) => {
+  const key = item.id || `${item.title}-${item.start}`;
+  return `${key.replace(/[^A-Za-z0-9._-]/g, '-')}@${BACKEND_DB}-picker.vibes.diy`;
+};
+
+// items are parseFavesItems output (start/end already in ICS UTC form).
+// `now` is injectable for deterministic tests; DTSTAMP is generation time.
+// `calName` labels the calendar in subscribing clients (e.g. per-handle feeds).
+export const buildFavesCalendar = (items, { now, calName } = {}) => {
+  const dtstamp =
+    (now ? new Date(now) : new Date()).toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    `PRODID:-//vibes.diy//${BACKEND_NAME}-picker//EN`,
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${escapeIcsText(calName || `My ${BACKEND_NAME} Picks`)}`,
+    `X-WR-TIMEZONE:${BACKEND_TZ}`,
+    // Subscription refresh hints (Apple/Google honor these where supported).
+    'REFRESH-INTERVAL;VALUE=DURATION:PT6H',
+    'X-PUBLISHED-TTL:PT6H',
+  ];
+  const sorted = [...items].sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+  for (const item of sorted) {
+    lines.push('BEGIN:VEVENT');
+    lines.push(`UID:${escapeIcsText(icsUid(item))}`);
+    lines.push(`DTSTAMP:${dtstamp}`);
+    lines.push(`DTSTART:${item.start}`);
+    lines.push(`DTEND:${item.end}`);
+    lines.push(`SUMMARY:${escapeIcsText(item.title)}`);
+    if (item.location) lines.push(`LOCATION:${escapeIcsText(item.location)}`);
+    // URL is URI-valued (RFC 5545 §3.8.4.6), NOT text: backslash-escaping its
+    // commas/semicolons would corrupt the link. parseFavesItems guarantees the
+    // value has no whitespace/control chars, so verbatim emission is safe.
+    if (item.url) lines.push(`URL:${item.url}`);
+    lines.push('END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  return lines.map(foldIcsLine).join('\r\n') + '\r\n';
+};
+
+const textResponse = (status, message, headers = {}) => new Response(message, { status, headers });
+
+// One-shot download: the client posts its full item list, gets an attachment.
+const handleDownload = async (request) => {
+  let payload;
+  try {
+    payload = await request.json();
+  } catch (e) {
+    return textResponse(400, 'invalid JSON body');
+  }
+  const parsed = parseFavesItems(payload);
+  if (!parsed.ok) return textResponse(400, parsed.error);
+  const ics = buildFavesCalendar(parsed.items);
+  return new Response(ics, {
+    status: 200,
+    headers: {
+      'content-type': 'text/calendar; charset=utf-8',
+      'content-disposition': `attachment; filename="${BACKEND_DB}-faves.ics"`,
+      'cache-control': 'no-store',
+    },
+  });
+};
+
+// Every subscription response carries this anchor event, so the feed is NEVER
+// empty: iOS validates a new subscription by fetching the URL at add time, and
+// a valid non-empty calendar always passes — including during the post-deploy
+// cold-cache window that used to 503 into "Validation failed". It also gives a
+// zero-faves subscriber something better than an apparently-broken empty
+// calendar, and it's real festival info.
+const FIRST_DAY = FESTIVAL_DAYS[0];
+const ANCHOR_ITEMS = FIRST_DAY
+  ? [
+      {
+        id: `gates-open-${FIRST_DAY}`,
+        title: `${BACKEND_NAME} begins today`,
+        start: `${FIRST_DAY}T09:00:00`,
+        end: `${FIRST_DAY}T10:00:00`,
+      },
+    ]
+  : [];
+
+// Subscription refresh: anonymous GET keyed by user handle. Served inline (no
+// attachment) so calendar clients treat it as a feed; short shared cache so a
+// popular handle doesn't re-render the same calendar on every refresh.
+const handleSubscription = (url) => {
+  const t = url.searchParams.get('t') ?? '';
+  if (!/^[A-Za-z0-9_-]{16,64}$/.test(t)) {
+    return textResponse(
+      400,
+      "pass t=<calendar token> — open the app's My Faves tab to get your link"
+    );
+  }
+  // Display-only label: iOS captures the calendar NAME at subscribe time, and
+  // a just-minted token often beats the tick — without this the calendar is
+  // permanently named "@my". The token alone gates data; `n` labels it.
+  const nRaw = (url.searchParams.get('n') ?? '').toLowerCase();
+  const displayName = /^[a-z0-9][a-z0-9_-]{0,39}$/.test(nRaw) ? nRaw : null;
+  // Cold cache (freshly booted isolate) AND unknown tokens serve the
+  // anchor-only calendar rather than an error, so ADDING a subscription always
+  // works — a just-minted token can beat the next tick, and iOS renders any
+  // add-time failure as "Validation failed". A revoked token converges to the
+  // same anchor-only feed. Tradeoff (owner call): a subscriber whose refresh
+  // lands in the ≤1m cold window sees anchor-only until their next refresh —
+  // rare and self-healing, vs. a guaranteed add-time failure after deploys.
+  const cold = subCache === null;
+  const handle = cold ? undefined : subCache.tokens.get(t);
+  const entry = (handle && subCache.users.get(handle)) || { eventIds: [], shifts: [] };
+  const eventItems = scheduleItemsFor(entry.eventIds);
+  const shiftRows = entry.shifts.map((r, i) => ({
+    id: `shift-${i}-${r[1]}`,
+    title: r[0],
+    start: r[1],
+    end: r[2],
+  }));
+  // LENIENT per-item validation: these rows come from the db aggregate and the
+  // schedule snapshot — sources the subscriber doesn't control — so a malformed
+  // legacy row drops out instead of 400ing the whole feed. A user with no
+  // (valid) faves gets an EMPTY calendar, not an error.
+  const items = sanitizeFavesItems([...ANCHOR_ITEMS, ...eventItems, ...shiftRows]).slice(
+    0,
+    MAX_ITEMS
+  );
+  return new Response(
+    buildFavesCalendar(items, {
+      calName: `@${handle ?? displayName ?? 'my'} — ${BACKEND_NAME} Picks`,
+    }),
+    {
+      status: 200,
+      headers: {
+        'content-type': 'text/calendar; charset=utf-8',
+        // A cold/unresolved (anchor-only) response must not linger in any shared
+        // cache past the tick that fills the real data.
+        'cache-control': cold || !handle ? 'no-store' : 'public, max-age=300',
+      },
+    }
+  );
+};
+
+// The `_api` request arrives prefix-stripped (…/_api/faves.ics → /faves.ics).
+export async function fetch(request, ctx) {
+  const url = new URL(request.url);
+  if (url.pathname !== '/faves.ics') {
+    return textResponse(
+      404,
+      'not found — /faves.ics (POST to download, GET ?t=<token> to subscribe)'
+    );
+  }
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    return handleSubscription(url);
+  }
+  if (request.method !== 'POST') {
+    return textResponse(405, 'method not allowed — GET a subscription or POST schedule items', {
+      allow: 'GET, POST',
+    });
+  }
+  return handleDownload(request);
+}
