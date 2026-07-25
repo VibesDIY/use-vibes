@@ -2,6 +2,7 @@ import React from 'react';
 import { fmtTime } from './festival-utils.js';
 import { lineupTag, eventCardStyle, eventCardBg } from './styles.js';
 import NoteField from './NoteField.jsx';
+import { HeartIcon, StarIcon } from './icons.jsx';
 
 export default function BrowseView({
   filteredEvents,
@@ -73,8 +74,11 @@ export default function BrowseView({
                       <div className="flex-1">
                         <div className="flex items-center gap-0.5 mb-0.5 flex-wrap">
                           {superMode && favCounts[event.eventId] > 0 && (
-                            <span className={c.badge} title="People who picked this">
-                              ★ {favCounts[event.eventId]}
+                            <span
+                              className={`${c.badge} inline-flex items-center gap-0.5`}
+                              title="People who picked this"
+                            >
+                              <StarIcon size={12} /> {favCounts[event.eventId]}
                             </span>
                           )}
                           <h3 className={`text-xl font-black ${c.bodyText}`}>{event.title}</h3>
@@ -108,7 +112,7 @@ export default function BrowseView({
                             onClick={() => toggleFavorite(event)}
                             className={myFavIds.has(event.eventId) ? c.favToggleOn : c.favToggleOff}
                           >
-                            {myFavIds.has(event.eventId) ? '♥' : '♡'}
+                            <HeartIcon state={myFavIds.has(event.eventId) ? 'full' : 'empty'} />
                           </button>
                         )}
                         <a
