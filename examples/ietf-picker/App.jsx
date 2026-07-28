@@ -596,9 +596,13 @@ export default function IetfAgendaPicker() {
   );
   const nextSessions = useMemo(() => upNextSessions(allEvents, nowTick), [allEvents, nowTick]);
 
+  // All Sessions spans the merged board — agenda sessions AND side meetings —
+  // so the side lane is browsable/searchable alongside official sessions (they
+  // carry a `side` lineup tag to stay distinguishable, and no acronym so the
+  // acronym match just no-ops for them).
   const filteredEvents = useMemo(
     () =>
-      events
+      allEvents
         .filter(
           (e) =>
             (e.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -606,7 +610,7 @@ export default function IetfAgendaPicker() {
             (selectedDay === 'all' || e.day === selectedDay)
         )
         .sort((a, b) => toMeetingDate(a.start) - toMeetingDate(b.start)),
-    [events, searchTerm, selectedDay]
+    [allEvents, searchTerm, selectedDay]
   );
 
   const favoriteEvents = useMemo(
