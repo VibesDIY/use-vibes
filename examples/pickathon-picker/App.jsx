@@ -82,7 +82,7 @@ function Logo() {
 }
 
 export default function PickathonPicker() {
-  const { viewer, ViewerTag } = useViewer();
+  const { viewer, ViewerTag, isViewerPending } = useViewer();
   // Optimistic writes + anonymous local writes (with sign-in migration) now come from
   // useFireproof itself: local-first writes with cloud+overlay reads are the default
   // for every vibe (the old `anonymousLocal` flag is deprecated and ignored), and the
@@ -114,6 +114,15 @@ export default function PickathonPicker() {
   const myHandle = viewer?.userHandle || 'anonymous';
   const userId = myHandle;
   const signedIn = Boolean(viewer?.userHandle);
+  // Sign-in prompts are only honest once identity has SETTLED, and "settled" has a
+  // real signal — useViewer().isViewerPending. A published vibe's server render
+  // can't see the Clerk session, so its seed is always anonymous (#3639); the true
+  // identity arrives on the first vibe.evt.viewerChanged, which fires for genuinely
+  // anonymous viewers too and is what clears this flag. Until then we do not know,
+  // and "don't know" must render as silence, never as "logged out" — a viewer who
+  // is signed in (or was, and is being restored) would otherwise be told to sign in.
+  // Unknown may persist for a whole visit; that is a prompt we correctly never show.
+  const settledSignedOut = !isViewerPending && !signedIn;
 
   // Logged-out visitors favorite anonymously (local, migrated on sign-in). Notes/
   // shifts/friends stay signed-in. Gate signed-in writes on the app's own access.js
@@ -945,7 +954,7 @@ export default function PickathonPicker() {
         </div>
       )}
 
-      {!signedIn && (
+      {settledSignedOut && (
         // Full-width bar on mobile that cradles the Vibes switch; on desktop it shrinks
         // and right-justifies next to the logo. The invisible spacer reserves the
         // switch/logo footprint (bottom-right platform chrome) so the text sits to its left.
