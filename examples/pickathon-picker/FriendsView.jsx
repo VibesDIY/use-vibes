@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { QrCode } from '@vibes.diy/base';
 import ScheduleView from './ScheduleView.jsx';
 
 // Sentinel for selectedFriend meaning "everyone I follow" — the unified
@@ -18,6 +19,7 @@ export default function FriendsView({
   unfollow,
   approve,
   removeFollower,
+  sharing,
   selectedFriend,
   setSelectedFriend,
   includeMyFaves,
@@ -25,6 +27,7 @@ export default function FriendsView({
   friendFavoriteEvents,
   friendShifts,
   canWrite,
+  picksPaused,
   toggleFavorite,
   myFavIds,
   displayDays,
@@ -34,7 +37,8 @@ export default function FriendsView({
   shiftEndRaw,
   fmtTime,
   connectUrl,
-  qrSrc,
+  myHandle,
+  onOpenProfile,
   ViewerTag,
   c,
 }) {
@@ -78,14 +82,47 @@ export default function FriendsView({
 
   return (
     <div>
+      {canWrite && !sharing.enabled && (
+        <div className="mb-1.5 p-2.5 bg-[#CD6C0C] rounded-2xl m-0.5 flex flex-col items-center gap-1">
+          <p className="text-white font-bold text-center">
+            Your picks are currently hidden from your followers — turn on sharing so they can see
+            your schedule.
+          </p>
+          <button
+            onClick={sharing.arm}
+            disabled={sharing.busy}
+            className="py-[7px] px-2.5 font-black rounded-2xl m-0.5 bg-white text-[#CD6C0C] hover:opacity-90 transition-all"
+          >
+            Share my picks with followers
+          </button>
+        </div>
+      )}
+      {/* The arm banner's reverser, in the banner's own slot so the pair is discoverable
+          from here as well as from the profile. Picks-scoped: not account privacy. */}
+      {canWrite && sharing.enabled && sharing.stop && (
+        <div className="mb-1.5 text-center">
+          <button
+            onClick={sharing.stop}
+            disabled={sharing.busy}
+            className={c.quietLink(sharing.busy)}
+            title="Turns pick-sharing back off — your picks stop being shared with followers. You can turn it on again any time."
+          >
+            Stop sharing my picks
+          </button>
+        </div>
+      )}
       <div className="flex flex-col items-center gap-1 p-2.5 bg-[#BACD32] dark:bg-[#2c3510] rounded-2xl m-0.5  mb-1.5">
         <div className="flex items-center gap-0.5 flex-wrap justify-center">
           <p className={`text-lg font-bold ${c.bodyText}`}>
             Share this link so people can follow you
           </p>
         </div>
-        <div className="bg-white dark:bg-[#1d3015] rounded-2xl m-0.5  p-2">
-          <img src={qrSrc} alt="Follow-me QR code" width="320" height="320" />
+        {/* The code is generated locally (no network, so no broken-image state), and the
+            component draws dark-on-white for scannability — so this box stays WHITE in
+            dark mode too, or the quiet zone would fight the code. Padding + matching
+            inner radius keep the square clear of the box's curved corners. */}
+        <div className="bg-white rounded-2xl m-0.5 p-[14px] overflow-hidden">
+          <QrCode value={connectUrl} size={320} className="max-w-full rounded-lg" title="Follow-me QR code" />
         </div>
         <div className="flex items-center gap-[3px]">
           <button
@@ -127,10 +164,20 @@ export default function FriendsView({
               </>
             )}
           </button>
+          {/* The link opens YOUR profile — so the honest way to check what it shows is
+              to open that same profile yourself, through the follower-visible path. */}
+          {myHandle && onOpenProfile && (
+            <button
+              onClick={() => onOpenProfile(myHandle)}
+              className="py-[7px] px-[14px] font-bold rounded-2xl m-0.5 bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#BACD32] dark:hover:bg-[#2c3510] transition-all"
+            >
+              Preview my profile
+            </button>
+          )}
         </div>
         <p className={`text-sm font-bold text-center max-w-[340px] ${c.bodyText}`}>
-          Whoever opens it follows you — they'll see the picks and shared extras on your schedule.
-          Follow them back to see theirs.
+          Whoever scans it sees your profile with a Follow button. Once they follow you, they see
+          the picks and shared extras on your schedule — follow them back to see theirs.
         </p>
       </div>
 
@@ -204,7 +251,8 @@ export default function FriendsView({
         <h3 className={`text-xl font-black mb-1 ${c.bodyText}`}>Following ({following.length})</h3>
         {following.length === 0 ? (
           <p className={`font-bold ${c.bodyText} mb-1.5`}>
-            Not following anyone yet — scan a friend's QR code to follow them.
+            Not following anyone yet — scan someone's QR code to open their profile and follow
+            them.
           </p>
         ) : (
           <div className="flex flex-wrap gap-[3px] mb-1.5">
@@ -252,7 +300,9 @@ export default function FriendsView({
 
         <h3 className={`text-xl font-black mb-1 ${c.bodyText}`}>Followers ({followers.length})</h3>
         <p className={`text-sm font-bold mb-1 ${c.bodyText}`}>
-          Followers can see your picks and shared extras.
+          {sharing.enabled
+            ? 'Followers can see your picks and shared extras.'
+            : 'Followers will see your picks and shared extras once you turn on sharing above.'}
         </p>
         {followers.length === 0 ? (
           <p className={`font-bold ${c.bodyText}`}>Nobody follows you yet — share your QR above.</p>
@@ -318,9 +368,10 @@ export default function FriendsView({
             emptyMessage={
               selectedFriend === ALL_FRIENDS
                 ? 'Nobody you follow has picked any events yet.'
-                : "They haven't picked any events yet — or their account is private and hasn't approved you yet."
+                : "No picks to show — they haven't shared any yet."
             }
             canWrite={false}
+            picksPaused={picksPaused}
             onToggleFavorite={canWrite ? toggleFavorite : null}
             myFavIds={myFavIds}
             ViewerTag={ViewerTag}

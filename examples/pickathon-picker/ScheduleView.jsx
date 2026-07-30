@@ -1,5 +1,7 @@
 import React from 'react';
+import { HeartIcon } from './icons.jsx';
 import { toFestivalDate, festivalDayFor, fmtTime as fmtTimeUtil } from './festival-utils.js';
+import { groupByTimeSlot } from './schedule-build.js';
 import { lineupTag, eventCardStyle, eventCardBg } from './styles.js';
 import NoteField from './NoteField.jsx';
 
@@ -33,6 +35,11 @@ export default function ScheduleView({
   emptyMessage,
   saveNote,
   canWrite,
+  // Load shedding: the heart goes inert and the note editor stands down, while
+  // the schedule itself (and any saved note) reads exactly as before
+  // (loadshed.js). App passes canWrite already ANDed with the shed level, which
+  // is what stands the editor down; this flag is only about the heart's look.
+  picksPaused,
   onToggleFavorite,
   myFavIds,
   allEvents,
@@ -55,156 +62,143 @@ export default function ScheduleView({
         const daySchedule = buildSchedule(day);
         if (daySchedule.length === 0) return null;
 
+        // The day reads as time slots: the time is printed once on the green as a slot
+        // label and the cards under it carry only what differs between them.
+        const groups = groupByTimeSlot(daySchedule, shiftStartRaw, shiftEndRaw);
+
+        // Gap strips are dormant — every call site passes showGaps false — but they stay
+        // wired to the slot boundaries so the feature can be switched back on.
         const allDayEvents =
           showGaps && allEvents ? allEvents.filter((e) => festivalDayFor(e.start) === day) : [];
-
-        const items = [];
-        for (let i = 0; i < daySchedule.length; i++) {
-          const item = daySchedule[i];
-          const itemStart = item.type === 'shift' ? shiftStartRaw(item.data) : item.data.start;
-          const itemEnd = item.type === 'shift' ? shiftEndRaw(item.data) : item.data.end;
-          const itemStartMs = toFestivalDate(itemStart).getTime();
-          const itemEndMs = toFestivalDate(itemEnd).getTime();
-
-          if (showGaps && allDayEvents.length > 0 && i === 0) {
-            const earliestEvent = allDayEvents.reduce((min, e) => {
-              const t = toFestivalDate(e.start).getTime();
-              return t < min ? t : min;
-            }, Infinity);
-            if (earliestEvent < itemStartMs) {
-              items.push({
-                type: 'gap',
-                startMs: earliestEvent,
-                endMs: itemStartMs,
-                key: `gap-pre-${day}`,
-              });
-            }
-          }
-
-          items.push({ type: 'item', data: item, key: `${item.type}-${item.id}` });
-
-          if (showGaps && allDayEvents.length > 0) {
-            const nextItem = daySchedule[i + 1];
-            const nextStartMs = nextItem
-              ? toFestivalDate(
-                  nextItem.type === 'shift' ? shiftStartRaw(nextItem.data) : nextItem.data.start
-                ).getTime()
-              : null;
-
-            if (nextStartMs && nextStartMs > itemEndMs) {
-              items.push({ type: 'gap', startMs: itemEndMs, endMs: nextStartMs, key: `gap-${i}` });
-            }
-
-            if (!nextItem) {
-              const latestEvent = allDayEvents.reduce((max, e) => {
-                const t = toFestivalDate(e.end).getTime();
-                return t > max ? t : max;
-              }, 0);
-              if (latestEvent > itemEndMs) {
-                items.push({
-                  type: 'gap',
-                  startMs: itemEndMs,
-                  endMs: latestEvent,
-                  key: `gap-post-${day}`,
-                });
-              }
-            }
-          }
-        }
+        const gapBefore = (group, i) => {
+          if (!showGaps || allDayEvents.length === 0) return null;
+          const startMs = toFestivalDate(group.start).getTime();
+          const prev = groups[i - 1];
+          const fromMs = prev
+            ? Math.max(
+                ...prev.items.map((r) =>
+                  toFestivalDate(
+                    r.type === 'shift' ? shiftEndRaw(r.data) : r.data.end
+                  ).getTime()
+                )
+              )
+            : Math.min(...allDayEvents.map((e) => toFestivalDate(e.start).getTime()));
+          return fromMs < startMs ? { startMs: fromMs, endMs: startMs } : null;
+        };
 
         return (
           <div key={day} className={c.schedDay}>
-            <h3 className="text-xl font-black mb-1 text-white">
+            <h3 className="text-xl font-black mb-1 px-[14px] text-white">
               {day} — {getDateForDay(day)}
             </h3>
-            <div className="space-y-0.5">
-              {items.map((entry) => {
-                if (entry.type === 'gap') {
-                  return (
-                    <GapStrip
-                      key={entry.key}
-                      startMs={entry.startMs}
-                      endMs={entry.endMs}
-                      allDayEvents={allDayEvents}
-                      fmtTime={fmtTime}
-                    />
-                  );
-                }
-                const item = entry.data;
-                const itemStart =
-                  item.type === 'shift' ? shiftStartRaw(item.data) : item.data.start;
-                const itemEnd = item.type === 'shift' ? shiftEndRaw(item.data) : item.data.end;
-                const isEvent = item.type === 'event';
-                const tag = isEvent ? lineupTag(item.data) : null;
+            <dl className="space-y-0.5 m-0">
+              {groups.map((group, gi) => {
+                const gap = gapBefore(group, gi);
                 return (
-                  <div
-                    key={entry.key}
-                    className={
-                      item.type === 'shift'
-                        ? c.schedShift
-                        : `rounded-[12px] m-0.5 p-[7px] ${eventCardBg}`
-                    }
-                    style={isEvent ? eventCardStyle(item.data) : undefined}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-0.5 flex-wrap mb-[1px]">
-                          <h4 className={`font-black ${c.bodyText}`}>
-                            {item.type === 'shift'
-                              ? item.data.kind || item.data.title || 'Shift'
-                              : item.title}
-                          </h4>
-                          {isEvent && (
-                            <span className="px-0.5 py-[0.5px] rounded-full text-xs font-black m-0.5  uppercase bg-[#BACD32] text-[#4A4A4A]">
-                              {tag.label}
-                            </span>
-                          )}
-                          {isEvent && onToggleFavorite && (
-                            <button
-                              onClick={() => onToggleFavorite(item.data)}
-                              className={`p-[1px] rounded-lg m-0.5  text-xs font-bold px-0.5 ${myFavIds && myFavIds.has(item.data.eventId) ? 'bg-[#CD6C0C] text-white' : 'bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9]'}`}
-                            >
-                              {myFavIds && myFavIds.has(item.data.eventId) ? '♥' : '♡'}
-                            </button>
-                          )}
-                        </div>
-                        <p className={`text-sm font-bold ${c.bodyText}`}>
-                          {fmtTime(itemStart)} – {fmtTime(itemEnd)}
-                          {isEvent && ` · ${item.venue}`}
-                        </p>
-                        {ViewerTag &&
-                          Array.isArray(item.data.pickedBy) &&
-                          item.data.pickedBy.length > 0 && (
-                            <div className="flex items-center gap-0.5 flex-wrap mt-0.5">
-                              {item.data.pickedBy.map((h) => (
-                                <ViewerTag key={h} userHandle={h} />
-                              ))}
+                  <React.Fragment key={group.key}>
+                    {gap && (
+                      <GapStrip
+                        startMs={gap.startMs}
+                        endMs={gap.endMs}
+                        allDayEvents={allDayEvents}
+                        fmtTime={fmtTime}
+                      />
+                    )}
+                    {/* Text only: at 390px a time range plus any rule would wrap. */}
+                    {/* Slot labels hug the container edge; only the day header keeps the 14px indent. */}
+                    <dt className="px-[5px] pt-0.5 text-base font-black text-white">
+                      {fmtTime(group.start)}
+                      {group.end ? ` – ${fmtTime(group.end)}` : ''}
+                    </dt>
+                    <dd className="m-0 space-y-0.5">
+                      {group.items.map((item) => {
+                        const isEvent = item.type === 'event';
+                        const tag = isEvent ? lineupTag(item.data) : null;
+                        // Only when the slot label can't speak for this card.
+                        const endNote = group.end
+                          ? null
+                          : fmtTime(isEvent ? item.data.end : shiftEndRaw(item.data));
+                        const showNoteField = isEvent && canWrite && saveNote;
+                        return (
+                          <div
+                            key={`${item.type}-${item.id}`}
+                            className={
+                              item.type === 'shift'
+                                ? c.schedShift
+                                : `rounded-[12px] m-0.5 p-[7px] ${eventCardBg}`
+                            }
+                            style={isEvent ? eventCardStyle(item.data) : undefined}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-0.5 flex-wrap mb-[1px]">
+                                  <h4 className={`font-black ${c.bodyText}`}>
+                                    {item.type === 'shift'
+                                      ? item.data.kind || item.data.title || 'Shift'
+                                      : item.title}
+                                  </h4>
+                                  {isEvent && (
+                                    <span className="px-0.5 py-[0.5px] rounded-full text-xs font-black m-0.5  uppercase bg-[#BACD32] text-[#4A4A4A]">
+                                      {tag.label}
+                                    </span>
+                                  )}
+                                  {isEvent && onToggleFavorite && (
+                                    <button
+                                      onClick={() => onToggleFavorite(item.data)}
+                                      disabled={picksPaused}
+                                      className={`p-[1px] rounded-lg m-0.5  text-xs font-bold px-0.5 ${picksPaused ? c.shedInert : ''} ${myFavIds && myFavIds.has(item.data.eventId) ? 'bg-[#CD6C0C] text-white' : 'bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9]'}`}
+                                    >
+                                      <HeartIcon state={myFavIds && myFavIds.has(item.data.eventId) ? 'full' : 'empty'} size={16} />
+                                    </button>
+                                  )}
+                                </div>
+                                {/* Venue line — the time now lives in the slot label above.
+                                    The collapsed note box rides this line (flex-wrap:
+                                    expanded it goes basis-full and wraps below on its own). */}
+                                {(isEvent || endNote || showNoteField) && (
+                                  <div className="flex flex-wrap items-center justify-between gap-0.5">
+                                    <p className={`text-sm font-bold ${c.bodyText}`}>
+                                      {isEvent ? item.venue : ''}
+                                      {endNote ? `${isEvent ? ' · ' : ''}until ${endNote}` : ''}
+                                    </p>
+                                    {showNoteField && (
+                                      <NoteField
+                                        saved={notes && notes[item.data.eventId]}
+                                        onSave={(t) => saveNote(item.data.eventId, t)}
+                                        className={c.noteArea}
+                                        collapsedStyle={{ width: '8em' }}
+                                      />
+                                    )}
+                                  </div>
+                                )}
+                                {ViewerTag &&
+                                  Array.isArray(item.data.pickedBy) &&
+                                  item.data.pickedBy.length > 0 && (
+                                    <div className="flex items-center gap-0.5 flex-wrap mt-0.5">
+                                      {item.data.pickedBy.map((h) => (
+                                        <ViewerTag key={h} userHandle={h} />
+                                      ))}
+                                    </div>
+                                  )}
+                                {isEvent && !showNoteField && notes && notes[item.data.eventId] ? (
+                                  <div
+                                    className={`mt-0.5 p-1.5 bg-[#EEE] dark:bg-[#22252d] rounded-lg m-0.5 `}
+                                  >
+                                    <p className={`text-sm font-bold ${c.bodyText}`}>
+                                      {notes[item.data.eventId]}
+                                    </p>
+                                  </div>
+                                ) : null}
+                              </div>
                             </div>
-                          )}
-                        {isEvent &&
-                          (canWrite && saveNote ? (
-                            <NoteField
-                              saved={notes && notes[item.data.eventId]}
-                              onSave={(t) => saveNote(item.data.eventId, t)}
-                              className={c.noteArea}
-                              collapsedStyle={{ width: '8em' }}
-                              collapsedRight
-                            />
-                          ) : notes && notes[item.data.eventId] ? (
-                            <div
-                              className={`mt-0.5 p-1.5 bg-[#EEE] dark:bg-[#22252d] rounded-lg m-0.5 `}
-                            >
-                              <p className={`text-sm font-bold ${c.bodyText}`}>
-                                {notes[item.data.eventId]}
-                              </p>
-                            </div>
-                          ) : null)}
-                      </div>
-                    </div>
-                  </div>
+                          </div>
+                        );
+                      })}
+                    </dd>
+                  </React.Fragment>
                 );
               })}
-            </div>
+            </dl>
           </div>
         );
       })}

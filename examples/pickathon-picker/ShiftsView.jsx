@@ -79,7 +79,7 @@ export default function ShiftsView({
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className={`mt-1 ${submitting ? c.btnCyanWorking : c.btnCyan}`}
+            className={`mt-1 ${submitting ? c.btnWorking : c.btnCyan}`}
           >
             Add Extra
           </button>

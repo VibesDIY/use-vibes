@@ -1,55 +1,43 @@
 import React from 'react';
 import { FESTIVAL_TZ, fmtTime, fmtDate } from './festival-utils.js';
-import { lineupTag, eventCardStyle, eventCardBg } from './styles.js';
-
-function EventCard({ event, isMine, isFriendPick, canWrite, toggleFavorite, c, showDate }) {
-  const tag = lineupTag(event);
-  return (
-    <div
-      className={`rounded-[16px] m-0.5 p-2 shadow-lg ${eventCardBg}`}
-      style={eventCardStyle(event)}
-    >
-      <div className="flex justify-between items-start gap-[3px] flex-wrap">
-        <div className="flex-1">
-          <div className="flex items-center gap-0.5 mb-[1px] flex-wrap">
-            <h4 className={`text-lg font-black ${c.bodyText}`}>{event.title}</h4>
-            <span className="px-0.5 py-[0.5px] rounded-full text-xs font-black m-0.5  uppercase bg-[#BACD32] text-[#4A4A4A]">
-              {tag.label}
-            </span>
-            {isFriendPick && (
-              <span className={c.badge} title="A friend favorited this">
-                followed pick
-              </span>
-            )}
-          </div>
-          <p className={`text-sm font-bold ${c.bodyText}`}>
-            {event.venueTitle} · {showDate ? `${fmtDate(event.start)} ` : ''}
-            {fmtTime(event.start)}–{fmtTime(event.end)}
-          </p>
-        </div>
-        {canWrite && (
-          <button
-            onClick={() => toggleFavorite(event)}
-            className={isMine ? c.favToggleOn : c.favToggleOff}
-          >
-            {isMine ? '♥' : '♡'}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
+import EventListItem from './EventListItem.jsx';
 
 export default function NowView({
   nowSets,
   nextSets,
   nowTick,
   myFavIds,
-  friendFavIds,
+  friendPicksByEvent,
+  ViewerTag,
+  notes = {},
+  superMode,
+  favCounts = {},
   canWrite,
+  // Load shedding: hearts stay legible but inert (loadshed.js).
+  picksPaused,
   toggleFavorite,
   c,
 }) {
+  // Same list item as the All Events feed — only the meta line differs (the now
+  // feed prints the set's own clock, since there is no time-slot label above it).
+  const renderSet = (event, showDate) => (
+    <EventListItem
+      key={event.eventId}
+      event={event}
+      isMine={myFavIds.has(event.eventId)}
+      canFavorite={canWrite}
+      picksPaused={picksPaused}
+      toggleFavorite={toggleFavorite}
+      superMode={superMode}
+      favCount={favCounts[event.eventId] || 0}
+      friendPicks={(friendPicksByEvent && friendPicksByEvent.get(event.eventId)) || []}
+      ViewerTag={ViewerTag}
+      note={notes[event.eventId]}
+      meta={`${event.venueTitle} · ${showDate ? `${fmtDate(event.start)} ` : ''}${fmtTime(event.start)}–${fmtTime(event.end)}`}
+      c={c}
+    />
+  );
+
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5 flex-wrap gap-[3px]">
@@ -69,20 +57,7 @@ export default function NowView({
           <p className={`font-bold ${c.bodyText}`}>Nothing is on stage right now.</p>
         </div>
       ) : (
-        <div className="grid gap-[3px] mb-2">
-          {nowSets.map((event) => (
-            <EventCard
-              key={event.eventId}
-              event={event}
-              isMine={myFavIds.has(event.eventId)}
-              isFriendPick={friendFavIds.has(event.eventId)}
-              canWrite={canWrite}
-              toggleFavorite={toggleFavorite}
-              c={c}
-              showDate={false}
-            />
-          ))}
-        </div>
+        <div className="grid gap-1 mb-2">{nowSets.map((event) => renderSet(event, false))}</div>
       )}
 
       <h3 className={`text-xl font-black mb-[3px] ${c.bodyText}`}>Up Next</h3>
@@ -91,20 +66,7 @@ export default function NowView({
           <p className={`font-bold ${c.bodyText}`}>No more sets scheduled.</p>
         </div>
       ) : (
-        <div className="grid gap-[3px]">
-          {nextSets.map((event) => (
-            <EventCard
-              key={event.eventId}
-              event={event}
-              isMine={myFavIds.has(event.eventId)}
-              isFriendPick={friendFavIds.has(event.eventId)}
-              canWrite={canWrite}
-              toggleFavorite={toggleFavorite}
-              c={c}
-              showDate={true}
-            />
-          ))}
-        </div>
+        <div className="grid gap-1">{nextSets.map((event) => renderSet(event, true))}</div>
       )}
     </div>
   );

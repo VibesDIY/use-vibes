@@ -1,7 +1,7 @@
-import React from 'react';
-import { fmtTime } from './festival-utils.js';
-import { lineupTag, eventCardStyle, eventCardBg } from './styles.js';
-import NoteField from './NoteField.jsx';
+import React, { useMemo, useRef, useEffect } from 'react';
+import { fmtTime, toFestivalDate } from './festival-utils.js';
+import { groupEventsByTimeSlot } from './schedule-build.js';
+import EventListItem from './EventListItem.jsx';
 
 export default function BrowseView({
   filteredEvents,
@@ -14,13 +14,59 @@ export default function BrowseView({
   myFavIds,
   canWrite,
   canFavorite,
+  // Load shedding: the heart still shows your pick state, it just can't be
+  // flipped right now (loadshed.js). Inert, never hidden.
+  picksPaused,
   toggleFavorite,
   notes,
   saveNote,
   superMode,
   favCounts,
+  friendPicksByEvent,
+  ViewerTag,
+  nowTick,
   c,
 }) {
+  // The event to land on when the page first opens: whatever is on now, else the
+  // next one still to come (during the festival), so you open onto the current
+  // moment. `nowTick` ticks each minute but the scroll fires once (didScrollRef).
+  const nowMs = nowTick || 0;
+  const nowTargetId = useMemo(() => {
+    let upcomingId = null;
+    let upcomingMs = Infinity;
+    let lastId = null;
+    let lastMs = -Infinity;
+    let earliestMs = Infinity;
+    for (const e of filteredEvents) {
+      const startMs = toFestivalDate(e.start).getTime();
+      const endMs = toFestivalDate(e.end).getTime();
+      if (startMs < earliestMs) earliestMs = startMs;
+      if (endMs >= nowMs && startMs < upcomingMs) {
+        upcomingId = e.eventId;
+        upcomingMs = startMs;
+      }
+      if (startMs > lastMs) {
+        lastId = e.eventId;
+        lastMs = startMs;
+      }
+    }
+    // Before the festival starts (now is earlier than every set) there is no
+    // "now" to jump to — stay at the top so the search/day controls stay in view.
+    if (nowMs < earliestMs) return null;
+    return upcomingId || lastId;
+  }, [filteredEvents, nowMs]);
+
+  const targetRef = useRef(null);
+  const didScrollRef = useRef(false);
+  useEffect(() => {
+    if (didScrollRef.current || !nowTargetId || !targetRef.current) return;
+    // Only auto-scroll the pristine, unfiltered list — never yank the view while
+    // someone is actively searching or day-filtering.
+    if (selectedDay !== 'all' || searchTerm) return;
+    targetRef.current.scrollIntoView({ block: 'start', behavior: 'auto' });
+    didScrollRef.current = true;
+  }, [nowTargetId, filteredEvents.length, selectedDay, searchTerm]);
+
   return (
     <div>
       <div className="mb-1.5 flex flex-wrap gap-1">
@@ -57,88 +103,45 @@ export default function BrowseView({
         const daysToShow = displayDays.filter((day) => byDay[day]?.length > 0);
         return daysToShow.map((day) => (
           <div key={day} className={c.schedDay}>
-            <h3 className="text-xl font-black mb-1 text-white">
+            <h3 className="text-xl font-black mb-1 px-[14px] text-white">
               {day} — {getDateForDay(day)}
             </h3>
-            <div className="grid gap-1">
-              {byDay[day].map((event) => {
-                const tag = lineupTag(event);
+            {/* Time slots: the time prints once as a label on the green and the cards
+                under it carry only what differs. Groups form on the FILTERED list, so a
+                search narrows the day and the labels regroup with it. */}
+            {groupEventsByTimeSlot(byDay[day]).map((group) => (
+              <div key={group.key}>
+                {/* Slot labels hug the container edge; only the day header keeps the 14px indent. */}
+                <div className="px-[5px] pt-0.5 text-base font-black text-white">
+                  {fmtTime(group.start)}
+                  {group.end ? ` – ${fmtTime(group.end)}` : ''}
+                </div>
+                <div className="grid gap-1">
+              {group.items.map((event) => {
+                const friendPicks =
+                  (friendPicksByEvent && friendPicksByEvent.get(event.eventId)) || [];
                 return (
-                  <div
+                  <EventListItem
                     key={event.eventId}
-                    className={`rounded-[16px] m-0.5 p-2 shadow-lg ${eventCardBg}`}
-                    style={eventCardStyle(event)}
-                  >
-                    <div className="flex flex-col sm:flex-row justify-between items-start gap-1">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-0.5 mb-0.5 flex-wrap">
-                          {superMode && favCounts[event.eventId] > 0 && (
-                            <span className={c.badge} title="People who picked this">
-                              ★ {favCounts[event.eventId]}
-                            </span>
-                          )}
-                          <h3 className={`text-xl font-black ${c.bodyText}`}>{event.title}</h3>
-                          <span className="px-0.5 py-[0.5px] rounded-full text-xs font-black m-0.5  uppercase bg-[#BACD32] text-[#4A4A4A]">
-                            {tag.label}
-                          </span>
-                        </div>
-                        <div className={`space-y-[1px] text-sm font-bold ${c.bodyText}`}>
-                          <p>{event.venueTitle}</p>
-                          <p>
-                            {fmtTime(event.start)} – {fmtTime(event.end)}
-                          </p>
-                        </div>
-                        {canWrite ? (
-                          <NoteField
-                            saved={notes[event.eventId]}
-                            onSave={(t) => saveNote(event.eventId, t)}
-                            className={c.noteArea}
-                          />
-                        ) : notes[event.eventId] ? (
-                          <div className={c.noteBox}>
-                            <p className={`text-sm font-bold ${c.bodyText}`}>
-                              {notes[event.eventId]}
-                            </p>
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="flex gap-0.5">
-                        {canFavorite && (
-                          <button
-                            onClick={() => toggleFavorite(event)}
-                            className={myFavIds.has(event.eventId) ? c.favToggleOn : c.favToggleOff}
-                          >
-                            {myFavIds.has(event.eventId) ? '♥' : '♡'}
-                          </button>
-                        )}
-                        <a
-                          href={event.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={c.linkBtn}
-                          title="View artist page"
-                        >
-                          <svg
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                            <polyline points="15 3 21 3 21 9" />
-                            <line x1="10" y1="14" x2="21" y2="3" />
-                          </svg>
-                        </a>
-                      </div>
-                    </div>
-                  </div>
+                    itemRef={event.eventId === nowTargetId ? targetRef : null}
+                    event={event}
+                    isMine={myFavIds.has(event.eventId)}
+                    canFavorite={canFavorite}
+                    picksPaused={picksPaused}
+                    toggleFavorite={toggleFavorite}
+                    superMode={superMode}
+                    favCount={favCounts[event.eventId] || 0}
+                    friendPicks={friendPicks}
+                    ViewerTag={ViewerTag}
+                    note={notes[event.eventId]}
+                    meta={`${event.venueTitle}${group.end ? '' : ` · until ${fmtTime(event.end)}`}`}
+                    c={c}
+                  />
                 );
               })}
-            </div>
+                </div>
+              </div>
+            ))}
           </div>
         ));
       })()}
