@@ -1,4 +1,5 @@
 import React from 'react';
+import { HeartIcon } from './icons.jsx';
 import { fmtTime, fmtDate } from './festival-utils.js';
 import { lineupTag, eventCardStyle, eventCardBg } from './styles.js';
 
@@ -10,6 +11,7 @@ export default function FavoritesView({
   userId,
   myFavIds,
   canWrite,
+  picksPaused,
   toggleFavorite,
   notes,
   ViewerTag,
@@ -80,8 +82,12 @@ export default function FavoritesView({
                     )}
                   </div>
                   {canWrite && (
-                    <button onClick={() => toggleFavorite(event)} className={c.favToggleOn}>
-                      <span className="font-black text-lg">♥</span>
+                    <button
+                      onClick={() => toggleFavorite(event)}
+                      disabled={picksPaused}
+                      className={`${c.favToggleOn} ${picksPaused ? c.shedInert : ''}`}
+                    >
+                      <HeartIcon state="full" />
                     </button>
                   )}
                 </div>

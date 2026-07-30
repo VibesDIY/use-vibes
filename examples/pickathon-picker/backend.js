@@ -252,11 +252,104 @@ const shiftStartOf = (s) =>
 const shiftEndOf = (s) =>
   s.end ?? (FESTIVAL_DATES[s.day] && s.endTime ? `${FESTIVAL_DATES[s.day]}T${s.endTime}:00` : null);
 
-// 1-minute aggregation tick (tiny db; a short interval keeps the post-deploy/post-eviction cold window — where adding a NEW subscription fails with iOS's "Validation failed" — under a minute). Admin-lane read (unfiltered), so THIS code chooses
+// The host caps `ctx.db.query` at this many docs — sorted by `_id`, then cut,
+// with no error and no cursor (backend-db-callback.ts). This db passed the cap
+// during Pickathon 2026, and everything sorting after the cut went invisible to
+// the tick. Nothing here can raise it; code that must survive a large db has to
+// stop depending on reading all of it. See § the mirror's state doc below.
+const BACKEND_QUERY_MAX_DOCS = 2000;
+
+// ── Load shedding ────────────────────────────────────────────────────────────
+// One owner-written config doc (`_id: 0-load-shed`, `level: off|read-only|
+// schedule-only` — see loadshed.js, which the client imports and this file
+// cannot: the backend isolate resolves no imports, so the id/type are duplicated
+// here on purpose and pinned by loadshed.test.js).
+//
+// What sheds here, and what deliberately does NOT:
+//   · the SUBSCRIPTION lane (GET /faves.ics?t=…) answers 503 + Retry-After.
+//     Calendar clients back off on a 503 and keep the events they already
+//     synced, so this is the one shed with no user-visible damage — an empty
+//     calendar would look like "your picks are gone".
+//   · the aggregate scan in `scheduled` is skipped — nothing reads it while the
+//     GET is 503ing, and while picks are paused it cannot go stale anyway.
+//   · the liveness HEARTBEAT still runs. A shed tick is still a tick that ran,
+//     and it is the only durable evidence of that (#4305) — losing it during the
+//     exact hours we are under load would blind the one alarm we have.
+//   · the 5-minute SCHEDULE MIRROR still runs, in BOTH shed levels. Shedding is
+//     about viewer-driven amplification (per-viewer queries and per-refresh feed
+//     joins), not about a fixed-cost job that runs 12 times an hour regardless of
+//     traffic — and the schedule staying fresh is the whole reason to stay up.
+//
+// The level is remembered in the isolate as well as read from the doc, for the
+// §4a reason: a doc missing from a capped read means "don't know" → keep the
+// level we last saw, never "shedding is off" (that reading would re-open the
+// load spike the switch was flipped for). To turn shedding OFF, put `level:
+// "off"` — do not delete the doc, or a warm isolate keeps shedding.
+// A cold isolate that has never seen the doc fails OPEN: the `fetch` lane cannot
+// read the db at all, so normal service is the only safe default.
+export const LOADSHED_ID = '0-load-shed';
+export const LOADSHED_TYPE = 'loadshed';
+export const SHED_OFF = 'off';
+export const SHED_READ_ONLY = 'read-only';
+export const SHED_SCHEDULE_ONLY = 'schedule-only';
+export const SHED_RETRY_AFTER_SECONDS = 900;
+const SHED_LEVELS = [SHED_OFF, SHED_READ_ONLY, SHED_SCHEDULE_ONLY];
+
+let shedLevel = null; // null = this isolate has never seen the doc
+export const __resetShedForTests = () => {
+  shedLevel = null;
+};
+
+// Fail-open parse, byte-identical in behaviour to loadshed.js's shedLevelOf:
+// only an exactly-recognized level sheds anything, so a fat-fingered `db put`
+// at 11pm on a Saturday cannot brick the app.
+const parseShedLevel = (doc) => {
+  const raw = doc && typeof doc.level === 'string' ? doc.level.trim().toLowerCase() : '';
+  return SHED_LEVELS.includes(raw) ? raw : SHED_OFF;
+};
+
+// Read the level out of the tick's EXISTING whole-db read (the doc's
+// digit-leading `_id` sorts ahead of every id this app mints, so it rides inside
+// the query cap — no extra query), and remember it.
+export const readShedLevel = (docs) => {
+  const doc = (docs || []).find((d) => d && d._id === LOADSHED_ID);
+  if (doc) {
+    shedLevel = parseShedLevel(doc);
+    return shedLevel;
+  }
+  if (shedLevel !== null && shedLevel !== SHED_OFF) {
+    console.warn(
+      `pickathon tick: ${LOADSHED_ID} missing from the db read — keeping the in-isolate level ` +
+        `"${shedLevel}". Put level:"off" to lift shedding; deleting the doc does not.`
+    );
+    return shedLevel;
+  }
+  shedLevel = shedLevel ?? SHED_OFF;
+  return shedLevel;
+};
+
+// Whether a level pauses writes/viewer amplification. `null` (this isolate has
+// never seen the doc) and `off` both read as not shedding.
+const isSheddingLevel = (level) => level === SHED_READ_ONLY || level === SHED_SCHEDULE_ONLY;
+const isShedding = () => isSheddingLevel(shedLevel);
+
+// 1-minute aggregation tick (a short interval keeps the post-deploy/post-eviction cold window — where adding a NEW subscription fails with iOS's "Validation failed" — under a minute). Admin-lane read (unfiltered), so THIS code chooses
 // what becomes link-visible: favorite eventIds always (that's the feature),
 // shifts only when the user marked them shareWithFriends, notes never.
+// The tick is deliberately CHEAP: one read, and — at most every
+// SCHEDULE_SYNC_INTERVAL_MS — one feed fetch. It writes nothing unless the
+// festival schedule actually changed.
 export async function scheduled(event, ctx) {
   const docs = await ctx.db.query({ db: 'pickathon' });
+  // The shed level rides the read we just did (see § Load shedding). When we are
+  // shedding, skip the aggregate scan entirely — the GET lane is 503ing, so
+  // nothing reads it, and with picks paused it cannot drift either — but still
+  // beat the heartbeat and still run the schedule mirror.
+  if (isSheddingLevel(readShedLevel(docs))) {
+    await writeHeartbeat(event, ctx, docs);
+    await syncScheduleDocs(event, ctx, docs);
+    return;
+  }
   const users = new Map();
   const tokens = new Map();
   const entryFor = (handle) => {
@@ -293,13 +386,84 @@ export async function scheduled(event, ctx) {
     entry.eventIds.sort();
     entry.shifts.sort((a, b) => (a[1] < b[1] ? -1 : 1));
   }
+  // A capped read is a SILENT read: the host returns 2000 docs and no signal.
+  // Say so in the log, because the aggregate below is then missing whatever
+  // sorted past the cut (favorites, `_id` "favorite-<handle>-<event>", are the
+  // only growing type and the only ones that can fall off) — those users' .ics
+  // feeds quietly lose picks. Visible in `wrangler tail`.
+  const truncated = docs.length >= BACKEND_QUERY_MAX_DOCS;
+  if (truncated) {
+    console.warn(
+      `pickathon tick: db read hit the ${BACKEND_QUERY_MAX_DOCS}-doc query cap ` +
+        `(last _id "${docs[docs.length - 1]?._id}") — favorites sorting after it are ` +
+        `missing from ics aggregates.`
+    );
+  }
   subCache = {
     at: Date.parse(event?.scheduledTime) || Date.now(),
     users,
     tokens,
-    truncated: docs.length >= 2000,
+    truncated,
   };
+
+  // Liveness first: if this tick is alive, say so before anything that can fail.
+  // Passed the docs we already read — the heartbeat picks its own doc out of them
+  // rather than costing a second query.
+  await writeHeartbeat(event, ctx, docs);
+
+  // Central schedule mirror: refresh pickathon.com on its own (slower) cadence
+  // and upsert only the `scheduleitem` docs whose content changed. Clients read
+  // the schedule from these public docs — nobody fetches the feed per-user
+  // anymore. Passed the `docs` we already read so it can pick its state doc out
+  // of them; it never wipes the schedule on a transient feed failure.
+  await syncScheduleDocs(event, ctx, docs);
 }
+
+// ── Tick liveness heartbeat (scheduled lane) ─────────────────────────────────
+// The `scheduled` alarm has gone silently dead twice on unchanged code, and a
+// vibe backend's console output is forwarded NOWHERE (platform #4305) — so the
+// ONLY durable, queryable evidence that the tick ran is a WRITE. Roughly hourly
+// the tick stamps one doc with the scheduled time it woke at.
+//
+// Ops read path (platform admin):
+//   vibes-diy db get 0-tick-heartbeat --db pickathon --vibe og/pickathon-picker
+// A stamp older than ~2h means the alarm is dead and the app needs a redeploy
+// (nothing else re-arms an app with no other traffic). Treat ~2h of slack as
+// normal: the gate below is in-isolate and best-effort, not a promise.
+//
+// Discipline is the #4293 one. The gate is remembered, never re-derived from a
+// scan: an in-isolate timestamp, backed by the heartbeat doc found in the tick's
+// EXISTING whole-db read (its digit-leading `_id` sorts ahead of every id this
+// app mints, so it rides inside the 2000-doc cap — no extra query). Whichever of
+// the two is newer wins, and a doc missing from a capped read therefore reads as
+// "don't know" rather than "never beat". Only losing BOTH — no doc AND a cold
+// isolate — writes a beat immediately, which is the harmless direction: one
+// extra write per isolate boot, not one per tick.
+//
+// The stamp must CHANGE on every write or the platform dedupes a content-
+// identical re-put invisibly and the doc silently stops tracking liveness —
+// hence `at`, the tick's own scheduled time.
+export const HEARTBEAT_ID = '0-tick-heartbeat';
+export const HEARTBEAT_TYPE = 'heartbeat';
+export const HEARTBEAT_INTERVAL_MS = 55 * 60 * 1000;
+let lastBeatAt = null;
+export const __resetHeartbeatForTests = () => {
+  lastBeatAt = null;
+};
+
+export const writeHeartbeat = async (event, ctx, docs) => {
+  if (!ctx || !ctx.db || typeof ctx.db.put !== 'function') return null;
+  const now = Date.parse(event?.scheduledTime) || Date.now();
+  const doc = (docs || []).find((d) => d && d._id === HEARTBEAT_ID);
+  const docAt = doc ? Date.parse(doc.at) : NaN;
+  const known = [lastBeatAt, Number.isFinite(docAt) ? docAt : null].filter((n) => n !== null);
+  const last = known.length > 0 ? Math.max(...known) : null;
+  if (last !== null && now - last < HEARTBEAT_INTERVAL_MS) return { ok: true, skipped: 'not due' };
+  const at = new Date(now).toISOString();
+  await ctx.db.put({ _id: HEARTBEAT_ID, type: HEARTBEAT_TYPE, at }, { db: 'pickathon' });
+  lastBeatAt = now;
+  return { ok: true, at };
+};
 
 // Fetch the live schedule feed and project the requested event ids into items.
 // MUST call globalThis.fetch — bare `fetch` here resolves to this module's own
@@ -326,6 +490,230 @@ export const fetchScheduleItems = async (ids) => {
     }
   }
   return items;
+};
+
+// ── Central schedule mirror (scheduled lane) ─────────────────────────────────
+// The schedule is fetched server-side and mirrored into public, world-readable
+// `scheduleitem` docs (one per event, stable _id). The tick upserts ONLY entries
+// whose content changed and deletes events that vanished, so an unchanged
+// schedule mints no writes at all.
+//
+// It used to establish "unchanged" by diffing against the `scheduleitem` docs
+// found in the tick's whole-db read. That silently stopped working once the db
+// passed BACKEND_QUERY_MAX_DOCS: `schedule-event-*` sorts after `caltoken-*`,
+// `favorite-*` and `note-*`, so ALL of the mirror fell outside the capped
+// window, the diff saw zero existing items, and every tick re-put every event —
+// ~330 serialized writes a minute, which pinned this vibe's Durable Object at
+// 97% occupancy and left nothing behind them but queueing (a visitor's first
+// page load included).
+//
+// So the mirror now remembers what it mirrored itself, in ONE state doc: `_id`
+// leads with a DIGIT, which sorts ahead of every letter under both byte and
+// linguistic collation, so it sits in front of every id this app mints
+// (`caltoken-`, `favorite-`, `note-`, `schedule-event-`, and the uuid shifts,
+// whose `019f…` sorts after `0-`) and rides comfortably inside the cap however
+// large the db grows. It carries a content fingerprint per event id — never the
+// schedule itself, which lives in the public docs.
+//
+// That is a guarantee about ids WE mint, not an absolute one: `_id` is a free
+// string, so 2000 docs beginning with punctuation (below `0`) would push even
+// this doc out of the window. Nothing in the app writes such an id, but a
+// signed-in stranger could — the unknown-type branch in access.js accepts a
+// write from anybody, it just routes it to `discard`. So the state doc is
+// backed up by an in-isolate copy (see lastFingerprints), and losing BOTH is
+// handled as "skip this sync", never as "nothing is mirrored" — the one
+// conclusion that reopens the rewrite loop.
+export const SCHEDULE_STATE_ID = '0-schedule-sync-state';
+export const SCHEDULE_STATE_TYPE = 'schedulesync';
+
+// How often the feed is re-fetched. A festival schedule does not change every 60
+// seconds; the 1m value this inherited from the aggregate tick bought nothing and
+// cost an egress round-trip a minute. The gate is in-isolate, so a freshly booted
+// isolate syncs on its first tick (and, thanks to the state doc, writes nothing
+// if the schedule is unchanged).
+export const SCHEDULE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+let lastScheduleSyncAt = null;
+// Second copy of the state doc's fingerprints, in isolate memory. The durable
+// doc is the one that survives an isolate boot; this one survives the durable
+// doc going missing from a capped read. Between them, "we have no idea what is
+// mirrored" — the belief that re-puts all ~330 events — takes BOTH a lost state
+// doc AND a cold isolate, and even then costs one burst rather than one a
+// minute. Cheap belt-and-braces on the failure mode that started all this.
+let lastFingerprints = null;
+export const __resetScheduleSyncForTests = () => {
+  lastScheduleSyncAt = null;
+  lastFingerprints = null;
+};
+
+export const scheduleItemId = (eventId) => `schedule-event-${eventId}`;
+
+// Normalize the raw pickathon.com feed into the exact fields the client renders
+// (title/venue entity-decoded, times T-normalized). Mirrors App.jsx's old
+// ingestFeed, minus the client-only `day`: the client derives day via
+// festivalDayFor at read time, keeping the 4 AM night-cutoff in one place and
+// the stored content stable (so the diff below doesn't churn on cutoff logic).
+export const ingestScheduleFeed = (data) => {
+  const list = [];
+  if (data === null || typeof data !== 'object') return list;
+  for (const vid in data) {
+    const venue = data[vid];
+    if (!venue || !Array.isArray(venue.events)) continue;
+    for (const ev of venue.events) {
+      if (ev == null || ev.id == null) continue;
+      const item = {
+        eventId: ev.id,
+        title: decodeFeedEntities(String(ev.title ?? '')),
+        start: ensureT(String(ev.start ?? '')),
+        end: ensureT(String(ev.end ?? '')),
+        venueTitle: decodeFeedEntities(String(venue.title ?? '')),
+        lineup: ev.lineup && typeof ev.lineup === 'object' ? ev.lineup : {},
+      };
+      if (typeof ev.url === 'string' && ev.url !== '') item.url = ev.url;
+      if (venue.color != null) item.venueColor = venue.color;
+      list.push(item);
+    }
+  }
+  return list;
+};
+
+// Deterministic serialization for content comparison: object keys sorted so a
+// re-fetch that reorders lineup keys doesn't read as a change (no timestamp-only
+// churn — the doc's content alone decides whether it gets re-put).
+const stableStringify = (v) => {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v) ?? 'null';
+  if (Array.isArray(v)) return '[' + v.map(stableStringify).join(',') + ']';
+  return (
+    '{' +
+    Object.keys(v)
+      .sort()
+      .map((k) => JSON.stringify(k) + ':' + stableStringify(v[k]))
+      .join(',') +
+    '}'
+  );
+};
+const SCHEDULE_CONTENT_KEYS = [
+  'eventId',
+  'title',
+  'start',
+  'end',
+  'url',
+  'venueTitle',
+  'venueColor',
+  'lineup',
+];
+// Compare ONLY the content fields — ignores Fireproof metadata (_rev) so a doc
+// that merely re-synced isn't seen as changed.
+const scheduleContentKey = (d) =>
+  stableStringify(SCHEDULE_CONTENT_KEYS.map((k) => (d[k] === undefined ? null : d[k])));
+
+// A compact fingerprint of a content key, so the state doc can hold one entry
+// per event without holding the schedule twice: ~330 events × 16 hex chars is
+// ~15 KB, where the raw content keys would be ~80 KB and grow with the lineup.
+// Two FNV-1a passes with different offset bases, concatenated — 64 bits of
+// change detection, no security claim (nobody but the owner can write it).
+const fnv1a = (s, seed) => {
+  let h = seed >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h >>> 0;
+};
+const hex8 = (n) => n.toString(16).padStart(8, '0');
+export const contentFingerprint = (s) => hex8(fnv1a(s, 0x811c9dc5)) + hex8(fnv1a(s, 0x7fffffff));
+
+// The mirror's memory of what it last wrote: { <scheduleitem _id>: <fingerprint> }.
+// Tolerates a missing/legacy/corrupt doc by reading as "nothing mirrored yet",
+// which re-puts everything once — the safe direction (the unsafe one would be
+// believing docs are mirrored when they aren't).
+export const scheduleStateFingerprints = (stateDoc) => {
+  const fps = stateDoc && stateDoc.fingerprints;
+  return fps !== null && typeof fps === 'object' && !Array.isArray(fps) ? fps : {};
+};
+
+// Diff the freshly-fetched feed against the mirror's own state doc — NOT against
+// the tick's db read, which is capped and no longer contains the schedule docs.
+// Returns the docs to put (new or content-changed), the ids to delete (event
+// vanished), and the fingerprint map to persist.
+export const diffScheduleAgainstState = (feedItems, stateDoc) => {
+  const prev = scheduleStateFingerprints(stateDoc);
+  const puts = [];
+  const fingerprints = {};
+  const seen = new Set();
+  for (const it of feedItems) {
+    if (it.eventId == null) continue;
+    const _id = scheduleItemId(it.eventId);
+    if (seen.has(_id)) continue; // a feed that repeats an id → keep the first
+    seen.add(_id);
+    const doc = { _id, type: 'scheduleitem', ...it };
+    const fp = contentFingerprint(scheduleContentKey(doc));
+    fingerprints[_id] = fp;
+    if (prev[_id] !== fp) puts.push(doc);
+  }
+  const deletes = [];
+  for (const _id of Object.keys(prev)) if (!seen.has(_id)) deletes.push(_id);
+  return { puts, deletes, fingerprints };
+};
+
+// The scheduled central fetch. At most once per SCHEDULE_SYNC_INTERVAL_MS:
+// fetch the feed, diff against the state doc, upsert only the changed docs
+// (deleting vanished events), and persist the new state — LAST, so a put that
+// throws mid-run leaves the state honest and the next sync retries. Guards: a
+// failed OR empty feed leaves existing schedule docs untouched and does not
+// advance the cadence gate — never wipe the schedule on a transient upstream
+// hiccup (the same rule the old client-side fetch followed). Runs only when
+// given a write-capable ctx (admin-mode scheduled lane).
+export const syncScheduleDocs = async (event, ctx, docs) => {
+  if (!ctx || !ctx.db || typeof ctx.db.put !== 'function') return null;
+  const now = Date.parse(event?.scheduledTime) || Date.now();
+  if (lastScheduleSyncAt !== null && now - lastScheduleSyncAt < SCHEDULE_SYNC_INTERVAL_MS) {
+    return { ok: true, skipped: 'not due' };
+  }
+  let data;
+  try {
+    const res = await globalThis.fetch(SCHEDULE_URL, { headers: { accept: 'application/json' } });
+    if (!res.ok) throw new Error(`schedule feed ${res.status}`);
+    data = await res.json();
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  }
+  const feedItems = ingestScheduleFeed(data);
+  if (feedItems.length === 0) return { ok: false, error: 'empty feed' };
+  lastScheduleSyncAt = now;
+  // The durable state doc first; the in-isolate copy is the backstop for the
+  // day it isn't in the read. `_id` is a free string, so enough docs sorting
+  // ahead of `0-` could push it out of the capped window — nothing the app
+  // writes does that, but nothing stops a signed-in stranger either.
+  let stateDoc = (docs || []).find((d) => d && d._id === SCHEDULE_STATE_ID);
+  if (!stateDoc && lastFingerprints !== null) {
+    console.warn(
+      `pickathon tick: ${SCHEDULE_STATE_ID} missing from the db read — using the in-isolate ` +
+        `copy. If this persists, something is sorting ahead of it inside the query cap.`
+    );
+    stateDoc = { fingerprints: lastFingerprints };
+  }
+  const { puts, deletes, fingerprints } = diffScheduleAgainstState(feedItems, stateDoc);
+  lastFingerprints = fingerprints;
+  if (puts.length === 0 && deletes.length === 0) return { ok: true, put: 0, deleted: 0 };
+  if (!stateDoc) {
+    // First sync of a cold isolate with no durable state to read: legitimate on
+    // a brand-new mirror, and the one shape an evicted state doc also takes.
+    // Bounded either way — the line above means it can happen once per isolate,
+    // not once per tick, which is the whole difference between this and #4293.
+    console.warn(`pickathon tick: no mirror state found — writing all ${puts.length} schedule docs.`);
+  }
+  for (const doc of puts) await ctx.db.put(doc, { db: 'pickathon' });
+  for (const _id of deletes) await ctx.db.delete(_id, { db: 'pickathon' });
+  await ctx.db.put(
+    {
+      _id: SCHEDULE_STATE_ID,
+      type: SCHEDULE_STATE_TYPE,
+      fingerprints,
+      syncedAt: new Date(now).toISOString(),
+    },
+    { db: 'pickathon' }
+  );
+  return { ok: true, put: puts.length, deleted: deletes.length };
 };
 
 // Stable UID per item so re-importing an updated export replaces events instead
@@ -422,6 +810,19 @@ const handleSubscription = async (url) => {
     return textResponse(
       400,
       "pass t=<calendar token> — open the app's My Faves tab to get your link"
+    );
+  }
+  // Load shedding (see § Load shedding): 503 + Retry-After, AFTER the token
+  // shape check so a genuinely malformed request still gets its 400. A 503 is
+  // the one honest answer here — calendar clients back off and keep the events
+  // they already synced, where an empty calendar would read as "your picks are
+  // gone". Never cached: the shed can lift at any tick.
+  if (isShedding()) {
+    return textResponse(
+      503,
+      'Festival mode: this calendar feed is paused for a little while. Your picks are safe — ' +
+        'your calendar will fill back in on its own.',
+      { 'retry-after': String(SHED_RETRY_AFTER_SECONDS), 'cache-control': 'no-store' }
     );
   }
   // Display-only label: iOS captures the calendar NAME at subscribe time, and

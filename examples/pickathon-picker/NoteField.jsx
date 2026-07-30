@@ -3,15 +3,15 @@ import React, { useState, useRef, useEffect } from 'react';
 // A note editor that buffers keystrokes locally so typing never re-renders the
 // whole app. It only persists (via onSave) when you focus away, and adopts
 // external live-query updates only while you're not editing.
-// collapsedRight: park the small (collapsed) box at the row's right edge; the
-// expanded editor still takes the full row. Used by the schedule listings.
+// Rendered inside a flex-wrap row (beside the time/venue line): collapsed it is a
+// small inline box on that same line; expanded it takes basis-full so it wraps to
+// its own full-width row below.
 export default function NoteField({
   saved,
   onSave,
   className,
   placeholder = 'Add note...',
   collapsedStyle,
-  collapsedRight,
 }) {
   const [text, setText] = useState(saved || '');
   const [focused, setFocused] = useState(false);
@@ -39,9 +39,7 @@ export default function NoteField({
   };
 
   return (
-    <div
-      className={`mt-0.5 flex items-center gap-0.5 ${collapsedRight && !expanded ? 'justify-end' : ''}`}
-    >
+    <div className={`flex items-center gap-0.5 ${expanded ? 'basis-full mt-0.5' : ''}`}>
       <textarea
         placeholder={placeholder}
         value={text}
