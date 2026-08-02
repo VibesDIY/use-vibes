@@ -43,6 +43,9 @@ import {
   SHED_SOCIAL_LINE,
 } from './loadshed.js';
 import { c } from './styles.js';
+// Side-effectful import: starts the responsiveness sampler at module eval, so the
+// boot window the freeze reports point at is inside its coverage. See perf-probe.js.
+import { markPerf, schedulePerfReports } from './perf-probe.js';
 import ScheduleView from './ScheduleView.jsx';
 import BandsView from './BandsView.jsx';
 import BrowseView from './BrowseView.jsx';
@@ -124,6 +127,19 @@ export default function PickathonPicker() {
   // Unknown may persist for a whole visit; that is a prompt we correctly never show.
   const settledSignedOut = !isViewerPending && !signedIn;
 
+  // Perf probe milestones (temporary diagnostic — perf-probe.js): when identity
+  // settled and when the schedule first had content. Idempotent, write nothing.
+  // `viewerSoft` vs `viewerSettle` is the load-bearing pair: soft = the first
+  // moment ANY handle reached this app (the remembered-identity paint, if it
+  // fired), settle = the authoritative confirmation. soft≈settle means the
+  // remembered-identity cache never painted early for this session.
+  useEffect(() => {
+    if (!isViewerPending) markPerf('viewerSettle');
+  }, [isViewerPending]);
+  useEffect(() => {
+    if (viewer?.userHandle) markPerf('viewerSoft');
+  }, [viewer?.userHandle]);
+
   // Logged-out visitors favorite anonymously (local, migrated on sign-in). Notes/
   // shifts/friends stay signed-in. Gate signed-in writes on the app's own access.js
   // via useVibe().can — the same fn the server runs.
@@ -158,7 +174,7 @@ export default function PickathonPicker() {
   const picksHeld = picksPausedAt(shedLevel);
   const socialHeld = socialPausedAt(shedLevel);
 
-  // Docs-first schedule: the festival schedule is server-maintained. A 1-minute
+  // Docs-first schedule: the festival schedule is server-maintained. A 5-minute
   // `scheduled` tick in backend.js mirrors the pickathon.com feed into public,
   // world-readable `scheduleitem` docs in this same `pickathon` db (access.js).
   // Every client — including anonymous/signed-out — pulls those docs into its
@@ -250,6 +266,23 @@ export default function PickathonPicker() {
   const lastEventsRef = useRef(liveEvents);
   if (liveEvents.length > 0) lastEventsRef.current = liveEvents;
   const events = retainEvents(liveEvents, lastEventsRef.current);
+  useEffect(() => {
+    if (events.length > 0) markPerf('firstEvents');
+  }, [events.length > 0]);
+
+  // Perf probe reports (temporary diagnostic — perf-probe.js): two bounded LWW
+  // writes per signed-in session, skipped while shedding. Shed level rides a ref
+  // so a mid-session flip is honored without rescheduling.
+  const shedLevelRef = useRef(shedLevel);
+  shedLevelRef.current = shedLevel;
+  useEffect(() => {
+    if (!signedIn) return;
+    return schedulePerfReports({
+      database,
+      userId,
+      isHeld: () => shedLevelRef.current !== 'off',
+    });
+  }, [signedIn, userId, database]);
 
   // Writes are refused in the offline cached view — surface a notice instead of
   // crashing or silently eating the tap. Success returns the put/del result, so
@@ -567,9 +600,9 @@ export default function PickathonPicker() {
 
   // The persistent-subscription URL (webcal:// opens the iPhone/macOS Calendar
   // subscribe flow; Google Calendar takes the https form via copy). It carries
-  // ONLY the handle, so it's a LIVE feed: backend.js re-aggregates favorites
-  // from the db every few minutes and re-joins set times against the schedule
-  // feed on each refresh — new picks reach subscribers automatically, and
+  // ONLY the token, so it's a LIVE feed: backend.js reads the token owner's
+  // favorites from the db on every refresh and re-joins set times against the
+  // schedule feed — new picks reach subscribers automatically, and
   // sharing the link lets a friend follow your faves. Signed-in only:
   // anonymous faves live in this browser and never reach the cloud.
   // Offer it only when the feed would actually carry something: favorites, or
@@ -643,7 +676,9 @@ export default function PickathonPicker() {
 
   return (
     <div className={`min-h-screen ${c.pageBg}`} style={{ touchAction: 'manipulation' }}>
-      <div className={`max-w-6xl mx-auto ${c.cardBg} shadow-2xl ${c.border} overflow-hidden`}>
+      {/* No `overflow-hidden` here: any clipping ancestor silently turns the sticky
+          nav below into a normal static bar. */}
+      <div className={`max-w-6xl mx-auto ${c.cardBg} shadow-2xl ${c.border}`}>
         <div className={`${c.headerBg} ${c.border} p-2.5`}>
           <div className="flex items-start justify-between gap-1 flex-wrap">
             <div className="flex items-center gap-1">
@@ -667,7 +702,10 @@ export default function PickathonPicker() {
           </div>
         </div>
 
-        <div className={`${c.navBg} ${c.border} p-2`}>
+        {/* Sticky: the header (logo + dates) scrolls away, the tab bar pins to the top
+            of the viewport so switching views never needs a scroll back up. Opaque
+            background is load-bearing — content scrolls underneath it. */}
+        <div className={`sticky top-0 z-30 ${c.navBg} ${c.border} p-2 shadow-md`}>
           <div className="flex flex-wrap gap-[3px]">
             {['browse', 'bands', 'favorites', 'friends', 'shifts', 'schedule', 'now']
               .filter((v) => {
@@ -819,7 +857,6 @@ export default function PickathonPicker() {
                   favCounts={favCounts}
                   friendPicksByEvent={friendPicksByEvent}
                   ViewerTag={ProfileTag}
-                  nowTick={nowTick}
                   c={c}
                 />
               )}
@@ -1056,8 +1093,16 @@ function ProfileTab({
   );
   const build = (day) =>
     buildDaySchedule(day, profileFavoriteEvents, profileShifts, shiftStartRaw);
+  // Either kind of follower-visible content counts as "arrived" — a profile that
+  // shares only extras is not still-loading.
+  const hasPicks = profileFavoriteEvents.length > 0 || profileShifts.length > 0;
   return (
-    <ProfileView handle={handle} schedule={{ ...schedule, build, shiftStartRaw }} {...rest} />
+    <ProfileView
+      handle={handle}
+      hasPicks={hasPicks}
+      schedule={{ ...schedule, build, shiftStartRaw }}
+      {...rest}
+    />
   );
 }
 
@@ -1088,10 +1133,10 @@ function MyFavesTab({
   const [icsCopied, setIcsCopied] = useState(false);
   // LOCAL MINTING of the calendar capability token: generated client-side the
   // moment the schedule tab opens with subscribable content. The optimistic
-  // write makes it visible to the live query (and the button URL) instantly;
-  // until the backend's ≤1m tick learns it, the endpoint serves the valid
-  // anchor-only calendar, so even an immediate subscribe tap can't fail.
-  // Opt-in: users who never open this tab get no token and no ics aggregate.
+  // write makes it visible to the live query (and the button URL) instantly,
+  // and the endpoint resolves a freshly-minted token on the very next request
+  // (it reads the db per request), so even an immediate subscribe tap works.
+  // Opt-in: users who never open this tab get no token and no feed at all.
   // The token (not the handle) rides the URL — unguessable, revocable.
   const { docs: calTokens } = useLiveQuery(byTypeUser, { key: ['caltoken', userId] });
   const calToken = calTokens[0]?.token || null;

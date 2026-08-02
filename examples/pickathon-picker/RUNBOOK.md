@@ -130,19 +130,22 @@ Notes that cost time if you don't know them:
   same world-readable `schedule` channel as the schedule itself, so every client
   (including anonymous, including offline replicas) sees the level. Write is
   **owner-only** — a stranger able to flip the app read-only would be a griefing vector.
-- **Turn it off with `level:"off"`, not `db del`.** `backend.js` keeps an in-isolate copy
-  so a doc missing from a capped read means "don't know, keep shedding" (§ the 2000-doc
-  cap) rather than "shedding is off". A deleted doc therefore keeps a warm isolate
-  shedding until it is evicted.
-- **The tick keeps its heartbeat and keeps mirroring the schedule** in both shed levels —
-  liveness evidence must survive exactly the hours we are under load, and the 5-minute
-  mirror is a fixed cost, not viewer amplification. Only the ics aggregate is skipped.
+- **`level:"off"` and `db del` both lift it.** The feed reads the doc **by id** on each
+  request, so an absent doc is an authoritative "no shedding". (It was not always: the old
+  capped whole-db read could not tell "deleted" from "sorted off the end", so deletion used
+  to keep a warm isolate shedding. `level:"off"` is still the clearer flip.) A read that
+  *fails* is still "don't know" → the isolate keeps the level it last saw.
+- **The tick does not shed at all.** It no longer touches user data or scales with traffic
+  (two keyed reads and, at most every 5 minutes, one feed fetch), so both its heartbeat and
+  its schedule mirror keep running: liveness evidence must survive exactly the hours we are
+  under load, and the schedule staying fresh is the reason to stay up.
 - **The feed answers 503, not an empty calendar.** Calendar clients back off on a 503 and
   keep the events they already synced; an empty calendar would read as "your picks are
   gone".
-- Client-side effect is immediate (it's a replicated doc); the backend follows within one
-  tick (≤1m). Measured on a probe deploy 2026-07-29: `read-only` produced the 503 within
-  25s, and `level:"off"` restored 200 within 50s.
+- Client-side effect is immediate (it's a replicated doc); the backend follows on the very
+  next feed request, since the switch is read per request rather than cached from a tick.
+  (Measured on the pre-rewrite probe deploy 2026-07-29, when the backend followed a tick
+  behind: `read-only` produced the 503 within 25s, `level:"off"` restored 200 within 50s.)
 - **Run the `db put` as the handle that OWNS the app** (`og` for the live app). Measured:
   a CLI signed in under a different handle gets `Error: owner only` for this doc — and for
   the pre-existing `grant` doc too — and `--admin` does NOT bypass the access function
@@ -159,47 +162,61 @@ The "My Faves" schedule tab offers two things, both served by `backend.js`:
 - **🔁 Subscribe on iPhone** — persistent: a `webcal://…/_api/faves.ics?t=<token>&n=<handle>`
   link (Copy link gives the https form for Google Calendar). The token is a
   per-user random **capability**, auto-minted client-side when the My Faves tab
-  opens (opt-in: no visit → no token → no ics aggregate; `n` is a display-only
-  label because iOS captures the calendar name at subscribe time). Unguessable —
+  opens (opt-in: no visit → no token → no feed; `n` is a display-only label
+  because iOS captures the calendar name at subscribe time — it also lets the
+  backend resolve the token with one keyed read instead of a scan, but it is a
+  hint only: the token in the doc must match the one presented). Unguessable —
   the earlier `?u=<handle>` form invited swapping in someone else's handle — and
   revocable: delete the user's `caltoken` doc and the feed drains. Still a
   **live feed**: new picks flow to subscribers automatically, sharing the link
   lets a friend follow your faves, and set times are re-joined against the live
   pickathon.com schedule feed (platform egress) on every refresh.
 
-Architecture constraint that shapes all of this: calendar clients refresh with
-**anonymous GETs**, and `ctx.db.query` denies anonymous callers outright — and
-denies access-fn-bound dbs on the `fetch` lane regardless (#3085). Only the
-`scheduled` lane (owner, admin mode) can read the `pickathon` db. So `backend.js`
-runs a **1-minute aggregation tick**: handle → {favorite eventIds, shareWithFriends
-shifts} into module-level isolate state, and the GET serves from that cache. All
-three handlers share one isolate per vibe. After an isolate eviction the cache is
-empty until the next tick (≤1m); the GET then serves the **anchor-only calendar**
-(a hard-coded "Gates Open" event rides in every response, so the feed is never
-empty and adding a subscription always validates). A transient schedule-feed
-failure still 502s so established subscribers keep previously-synced events.
+Architecture that shapes all of this: calendar clients refresh with **anonymous
+GETs**, which the read gate denies by default — anonymous outright, and
+access-fn-bound dbs on the `fetch` lane regardless (#3085). `backend.js` opts in
+with `config.fetch.unfilteredReads = { dbs: ["pickathon"], why: … }` (#3650),
+which lifts both denials **for this lane** and hands the authorization job to the
+handler: the `t=` capability token is how it does it. The GET then does its own
+**request-time keyed reads** — `ctx.db.get("caltoken-<n>")` (or a paged
+`field:"token"` lookup when the `n=` hint is absent or wrong) → the owner's
+favorites and shared shifts via one paged `field:"userId"` read → a live join
+against the pickathon.com schedule. A hard-coded "Gates Open" anchor event rides
+in every response, so the feed is never empty and adding a subscription always
+validates; a transient schedule-feed failure still 502s so established
+subscribers keep previously-synced events.
+
+**Superseded (and why):** the GET used to serve from an in-isolate cache built by
+a 1-minute `scheduled` tick that read the whole db, because that lane was the only
+one allowed to read it. Two costs, both real in production: the host caps a scan
+at **2000 docs sorted by `_id`**, silently, so once favorites pushed this db past
+2000 every user sorting after the cut lost picks from their feed (~43% of them);
+and a token minted seconds ago resolved to nothing until the next tick, which iOS
+shows as "Validation failed" at subscribe time. Both are gone — the reads are
+keyed, so they are correct at any db size and current to the second.
 
 Consequences to keep in mind:
 
-- **Freshness:** a new favorite reaches subscription refreshes within ~5 minutes
-  (plus the client's own refresh cadence and the 5-minute shared cache).
-- **Cold-window tradeoff (owner call)**: iOS validates the URL at add time, and a
-  cold-cache 503 there read as "Validation failed" — so cold now serves the valid
-  anchor-only calendar instead. The flip side: an existing subscriber whose
-  refresh lands in the ≤1m post-deploy/post-eviction window sees anchor-only
-  until their next refresh. Rare, self-healing, and subscribe-always-works wins.
+- **Freshness:** a new favorite reaches the next subscription refresh (plus the
+  client's own refresh cadence and the 5-minute shared cache). No tick latency.
+- **Every paged read loops on `next`, never on emptiness.** The host filters
+  *after* cutting the page, so a full page can filter down to zero docs and still
+  carry a cursor — stopping there would silently drop every doc behind it. Pinned
+  by tests in `backend.test.js`.
 - **Privacy:** a feed is reachable only through its random token — nothing is
-  exposed to handle-guessing, and users without a token have no aggregate at
-  all. Notes never leave the db; shifts are included only when
-  `shareWithFriends`.
-- **Scale:** `ctx.db.query` caps at 2000 docs per read. The live db is ~105 docs
-  today; if it ever approaches 2000, the aggregate silently truncates (the cache
-  records `truncated: true`) and this design needs revisiting.
+  exposed to handle-guessing, and a user without a token has no feed at all.
+  Notes are never read into a response; shifts are included only when
+  `shareWithFriends`. Note that `unfilteredReads` is scoped per **lane**, not per
+  route: everything inside `fetch` *could* read this db, so what leaves is
+  decided by `backend.js` alone.
+- **Cost:** one anonymous request costs a shed-switch get, a token lookup and a
+  paged picks read, bounded by `MAX_PAGES`. The `n=` hint keeps the token lookup
+  at one get for every URL the app itself generates.
 
 Remember `backend.js` runs **alone** in its isolate — no relative imports — so its
 timezone helpers are deliberately duplicated from `festival-utils.js`. Its own
 `fetch()` egress calls must use `globalThis.fetch` (bare `fetch` resolves to the
-exported handler). Tests: `backend.test.js` (formatter, aggregation, both lanes)
+exported handler). Tests: `backend.test.js` (formatter, both lanes, the keyed reads)
 and `schedule.test.js` (item flattening).
 
 ## Schedule data (docs-first, offline-ready)
@@ -222,27 +239,25 @@ docs: the diff read "nothing is mirrored" and re-put all ~330 events **every 60
 seconds**, holding the vibe's Durable Object at 97% occupancy so every visitor's
 first page load queued behind it. The fix is that the mirror no longer asks the
 db what it mirrored — it remembers, in `_id: 0-schedule-sync-state` (`type:
-schedulesync`, one content fingerprint per event). That `_id` leads with a
-**digit**, which sorts ahead of every id this app mints (`caltoken-`, `favorite-`,
-`note-`, `schedule-event-`, and the `019f…` uuid shifts), so it rides inside the
-cap at any db size. Owner-only write in `access.js`: the tick trusts it, so a
-forged one could freeze the schedule. An unchanged schedule now costs **zero
-writes**.
+schedulesync`, one content fingerprint per event), which it reads **by id**
+(`ctx.db.get`): one keyed read, the same cost and the same correctness on a
+20-doc db and a 200,000-doc one. Owner-only write in `access.js`: the tick trusts
+it, so a forged one could freeze the schedule. An unchanged schedule costs **zero
+writes**. (The digit-leading `_id` is a fossil of the era before keyed reads,
+when it had to sort ahead of every id the app mints. It is harmless and renaming
+it would strand the live doc, so it stays — but nothing reasons about sort order
+any more.)
 
-That last guarantee covers ids *we* mint, not all possible ids — `_id` is a free
-string, and 2000 docs starting with punctuation (below `0`) would evict even this
-one. Nothing in the app writes such an id; a signed-in stranger could, since the
-unknown-type branch in `access.js` accepts a write from anybody and merely routes
-it to `discard`. So the fingerprints are also held **in isolate memory**
-(`lastFingerprints`), and the tick treats a missing state doc as "use the copy",
-never as "nothing is mirrored". Concluding the latter takes a lost state doc *and*
-a cold isolate, and costs one burst rather than one a minute.
+The fingerprints are ALSO held **in isolate memory** (`lastFingerprints`), because
+"I could not read my state" must never be handled as "nothing is mirrored" — that
+is the reading that reopens the rewrite loop, whatever the read mechanism. Losing
+both the doc and the isolate's memory costs one burst, not one a minute.
 
-> **Watch for:** `pickathon tick: db read hit the 2000-doc query cap` in
-> `wrangler tail`. It is expected today and means the aggregate below is missing
-> the favorites that sort after the cut — those users' `.ics` feeds lose picks.
-> Fixing that needs a filtered or paginated backend read, which the platform
-> does not offer yet.
+> **Closed:** the `pickathon tick: db read hit the 2000-doc query cap` warning is
+> gone with the whole-db read that produced it. The platform's keyed/paginated
+> backend reads (`ctx.db.get`, `ctx.db.query` with `field`+`key`/`keys` and
+> `limit`/`after`) landed, and both the tick and the `.ics` feed now use them —
+> so no read in this app depends on the db being small.
 
 > **Retired:** the per-user `schedulecache` write-through doc
 > (`_id: schedule-cache-{userId}`) and the client-side background feed fetch. It

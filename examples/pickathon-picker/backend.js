@@ -7,34 +7,70 @@
 //   → 200 text/calendar — the SUBSCRIPTION lane (webcal://). The token is a
 //   per-user RANDOM CAPABILITY (a `caltoken` doc, auto-minted client-side the
 //   first time the user opens their schedule tab — opt-in: no visit, no token,
-//   no ics aggregate). Unlike the earlier handle-keyed URL it is unguessable
+//   no feed at all). Unlike the earlier handle-keyed URL it is unguessable
 //   (a handle in the URL invited swapping in someone else's), shareable on
 //   purpose, and revocable (delete the doc; the feed drains). It is still a
 //   live feed: new picks flow to every subscriber without re-subscribing, and
 //   set times come from a fresh join against the live pickathon.com schedule
 //   feed (platform egress) on every refresh.
 //
-// How the anonymous GET learns a user's favorites: it can't read the db —
-// ctx.db.query denies anonymous callers outright, and denies access-fn-bound
-// dbs on the user-triggerable `fetch` lane regardless (backend-db-callback.ts,
-// #3085). The one lane that CAN read the "pickathon" db is `scheduled` (runs
-// as the owner in admin mode), so a 1-minute tick aggregates
-// handle → {favorite eventIds, friend-shared shifts} into module state, and
-// the GET serves from that in-isolate cache. All three handlers share one
-// isolate per vibe, so the cache is visible across lanes; after an isolate
-// eviction the next tick (≤1m) repopulates it. Until then the GET serves the
-// never-empty anchor-only calendar (see ANCHOR_ITEMS) so ADDING a subscription
-// always validates; a transient feed failure still 502s so established
-// subscribers keep previously-synced events.
+// How the anonymous GET learns a user's favorites: it READS THEM, at request
+// time, with keyed reads. `config.fetch.unfilteredReads` (#3650) declares the
+// one db this feed needs, which lifts both the anonymous deny and the
+// access-fn-bound deny on this lane — so authorization becomes THIS file's job,
+// and the `t=` capability token is how it does it. The reads are keyed and
+// paged (`ctx.db.get` by id; `ctx.db.query` with `field`+`key`/`keys`, `limit`
+// and the `after` cursor — #4398), never a whole-db scan:
 //
-// Privacy: a feed is reachable only through its random token, so nothing is
-// exposed to handle-guessing. Notes never leave the db; shifts are included
-// only with shareWithFriends; users without a token have no aggregate at all.
+//   1. `t=` → the caltoken doc. `n=` (the display hint the client already puts
+//      in the URL) makes that one `ctx.db.get("caltoken-<n>")`; the token in
+//      the doc must equal the token presented, so a wrong or hostile `n` buys
+//      nothing and falls back to a paged `field: "token"` lookup.
+//   2. handle → that user's favorites and shared shifts, one paged
+//      `field: "userId"` read.
+//   3. favorite eventIds → the live pickathon.com schedule, joined per request.
+//
+// This replaced a 1-minute `scheduled` tick that read the WHOLE db, aggregated
+// handle → picks into module state, and had the GET serve from that in-isolate
+// cache. The host caps a scan at 2000 docs sorted by `_id` and says nothing
+// (backend-db-callback.ts); this db passed 2000 during Pickathon 2026 and every
+// favorite sorting after the cut went silently missing from its owner's feed —
+// ~43% of users. The cache also meant a just-minted token served nothing until
+// the next tick, which iOS shows as "Validation failed" at subscribe time.
+// Request-time reads fix both: correct at any db size, and current to the
+// second. The GET is now the only reader of user data.
+//
+// What the `scheduled` tick is still for (and only this): the central schedule
+// MIRROR — one public `scheduleitem` doc per festival event, which is what
+// every client renders from, offline — plus a roughly-hourly liveness
+// heartbeat. Both remember their own state in docs read BY ID, backed by an
+// in-isolate copy; neither reads more than a handful of docs, whatever the db
+// grows to. No user data passes through the tick at all any more, so its
+// cadence dropped from 1m to 5m (the mirror's own interval — a festival
+// schedule does not change every 60 seconds, and a cadence is a standing bill).
+//
+// Privacy is unchanged, and now enforced per request: a feed is reachable only
+// through its random token, so nothing is exposed to handle-guessing. Notes are
+// never read into a response; shifts are included only with shareWithFriends;
+// a user with no token has no feed. The unfilteredReads declaration is scoped
+// per LANE, not per route — every path inside `fetch` can read this db — so the
+// only reads in here are the three above, and the only thing that decides what
+// leaves is this file.
 //
 // This file runs ALONE in the backend isolate — no import resolution — so the
 // few festival-utils timezone helpers it needs are duplicated here on purpose.
 
-export const config = { scheduled: { interval: '1m' } };
+export const PICKATHON_DB = 'pickathon';
+
+export const config = {
+  scheduled: { interval: '5m' },
+  fetch: {
+    unfilteredReads: {
+      dbs: ['pickathon'],
+      why: 'GET /faves.ics?t=<token> is an anonymous calendar-subscription feed: calendar clients present an unguessable per-user capability token, never a session. The handler resolves that token to the handle that owns it and then reads only that handle docs — favorites and shareWithFriends shifts, keyed and paged. Notes and other people docs are never read into a response.',
+    },
+  },
+};
 
 const FESTIVAL_TZ = 'America/Los_Angeles';
 
@@ -238,26 +274,51 @@ const FESTIVAL_DATES = {
   Monday: '2026-08-03',
 };
 
-// The cross-lane cache: written by `scheduled` (the only lane that may read
-// the access-fn-bound db), read by anonymous GETs. Null until the first tick
-// after isolate boot — the GET answers 503 then, never a bogus empty calendar.
-let subCache = null;
-export const __resetSubCacheForTests = () => {
-  subCache = null;
-};
-
 const shiftStartOf = (s) =>
   s.start ??
   (FESTIVAL_DATES[s.day] && s.startTime ? `${FESTIVAL_DATES[s.day]}T${s.startTime}:00` : null);
 const shiftEndOf = (s) =>
   s.end ?? (FESTIVAL_DATES[s.day] && s.endTime ? `${FESTIVAL_DATES[s.day]}T${s.endTime}:00` : null);
 
-// The host caps `ctx.db.query` at this many docs — sorted by `_id`, then cut,
-// with no error and no cursor (backend-db-callback.ts). This db passed the cap
-// during Pickathon 2026, and everything sorting after the cut went invisible to
-// the tick. Nothing here can raise it; code that must survive a large db has to
-// stop depending on reading all of it. See § the mirror's state doc below.
-const BACKEND_QUERY_MAX_DOCS = 2000;
+// ── Reading the db ───────────────────────────────────────────────────────────
+// One page is one round trip to the host, and the host caps a page at 2000 docs
+// however large a `limit` asks for. PAGE_LIMIT trades round trips against the
+// size of the JSON body crossing the isolate boundary; MAX_PAGES bounds the
+// work ONE anonymous request can ask for, because this lane is reachable by
+// anybody with a URL.
+export const PAGE_LIMIT = 500;
+const MAX_PAGES = 40;
+
+// Read every doc matching a keyed query, page by page.
+//
+// The trap this exists to hold: the host filters AFTER cutting the page, so a
+// full page can filter down to ZERO docs and still carry a `next` cursor. A
+// loop that stops when a page comes back empty silently loses every doc behind
+// it — which for this feed means "your picks are gone". Loop on `next`, never
+// on emptiness. `next` is undefined exactly when the page was not full, i.e.
+// when the read is genuinely finished.
+const STOP = Symbol('stop');
+const readAllPages = async (ctx, options, onDocs) => {
+  let after;
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const rows = await ctx.db.query({
+      db: PICKATHON_DB,
+      limit: PAGE_LIMIT,
+      ...options,
+      ...(after === undefined ? {} : { after }),
+    });
+    const docs = Array.isArray(rows) ? rows : (rows && rows.docs) || [];
+    if (onDocs(docs) === STOP) return true;
+    after = rows && rows.next;
+    if (!after) return true;
+  }
+  // Bounded, and loud about it: better a short answer than an unbounded scan
+  // paid for by whoever loads the page behind this one on the same DO.
+  console.warn(
+    `pickathon feed: stopped a paged read after ${MAX_PAGES} pages (${JSON.stringify(options)}).`
+  );
+  return false;
+};
 
 // ── Load shedding ────────────────────────────────────────────────────────────
 // One owner-written config doc (`_id: 0-load-shed`, `level: off|read-only|
@@ -266,27 +327,31 @@ const BACKEND_QUERY_MAX_DOCS = 2000;
 // here on purpose and pinned by loadshed.test.js).
 //
 // What sheds here, and what deliberately does NOT:
-//   · the SUBSCRIPTION lane (GET /faves.ics?t=…) answers 503 + Retry-After.
-//     Calendar clients back off on a 503 and keep the events they already
-//     synced, so this is the one shed with no user-visible damage — an empty
-//     calendar would look like "your picks are gone".
-//   · the aggregate scan in `scheduled` is skipped — nothing reads it while the
-//     GET is 503ing, and while picks are paused it cannot go stale anyway.
-//   · the liveness HEARTBEAT still runs. A shed tick is still a tick that ran,
-//     and it is the only durable evidence of that (#4305) — losing it during the
-//     exact hours we are under load would blind the one alarm we have.
-//   · the 5-minute SCHEDULE MIRROR still runs, in BOTH shed levels. Shedding is
-//     about viewer-driven amplification (per-viewer queries and per-refresh feed
-//     joins), not about a fixed-cost job that runs 12 times an hour regardless of
-//     traffic — and the schedule staying fresh is the whole reason to stay up.
+//   · the SUBSCRIPTION lane (GET /faves.ics?t=…) answers 503 + Retry-After,
+//     BEFORE the token lookup, the picks read and the feed join — shedding the
+//     viewer work is the entire point. Calendar clients back off on a 503 and
+//     keep the events they already synced, so this is the one shed with no
+//     user-visible damage — an empty calendar would look like "your picks are
+//     gone".
+//   · the `scheduled` tick does not shed at all any more. It no longer touches
+//     user data or scales with traffic: it is one keyed read plus, at most every
+//     5 minutes, one feed fetch. The liveness HEARTBEAT keeps beating (a shed
+//     tick is still a tick that ran, and that doc is the only durable evidence
+//     of it — #4305), and the SCHEDULE MIRROR keeps running, because the
+//     schedule staying fresh is the whole reason to stay up.
 //
-// The level is remembered in the isolate as well as read from the doc, for the
-// §4a reason: a doc missing from a capped read means "don't know" → keep the
-// level we last saw, never "shedding is off" (that reading would re-open the
-// load spike the switch was flipped for). To turn shedding OFF, put `level:
-// "off"` — do not delete the doc, or a warm isolate keeps shedding.
-// A cold isolate that has never seen the doc fails OPEN: the `fetch` lane cannot
-// read the db at all, so normal service is the only safe default.
+// The GET reads the switch itself, by id, on each request — so flipping it takes
+// effect on the next request rather than after the next tick. Two readings of
+// "no level", and they are NOT the same:
+//   · the read came back EMPTY — a keyed get is authoritative about absence, so
+//     a deleted doc means shedding is off. (The old capped-scan design could not
+//     tell "deleted" from "sorted off the end", which is why it had to keep
+//     shedding and why the runbook said never to delete the doc.)
+//   · the read FAILED — that is "don't know", so keep the level this isolate
+//     last saw. Never "shedding is off": that reading would re-open the very
+//     load spike the switch was flipped for (§4a).
+// An isolate that has never seen the doc and cannot read it fails OPEN — normal
+// service is the only safe default for a switch we cannot see.
 export const LOADSHED_ID = '0-load-shed';
 export const LOADSHED_TYPE = 'loadshed';
 export const SHED_OFF = 'off';
@@ -308,116 +373,58 @@ const parseShedLevel = (doc) => {
   return SHED_LEVELS.includes(raw) ? raw : SHED_OFF;
 };
 
-// Read the level out of the tick's EXISTING whole-db read (the doc's
-// digit-leading `_id` sorts ahead of every id this app mints, so it rides inside
-// the query cap — no extra query), and remember it.
-export const readShedLevel = (docs) => {
-  const doc = (docs || []).find((d) => d && d._id === LOADSHED_ID);
-  if (doc) {
-    shedLevel = parseShedLevel(doc);
+// Read the switch by id — one `ctx.db.get`, no scan, current as of this request
+// — and remember it. See § Load shedding for why an empty read and a failed read
+// give different answers.
+export const readShedLevel = async (ctx) => {
+  if (!ctx || !ctx.db || typeof ctx.db.get !== 'function') return shedLevel ?? SHED_OFF;
+  try {
+    const doc = await ctx.db.get(LOADSHED_ID, { db: PICKATHON_DB });
+    shedLevel = doc ? parseShedLevel(doc) : SHED_OFF;
     return shedLevel;
-  }
-  if (shedLevel !== null && shedLevel !== SHED_OFF) {
+  } catch (err) {
     console.warn(
-      `pickathon tick: ${LOADSHED_ID} missing from the db read — keeping the in-isolate level ` +
-        `"${shedLevel}". Put level:"off" to lift shedding; deleting the doc does not.`
+      `pickathon feed: could not read ${LOADSHED_ID} (${String((err && err.message) || err)}) — ` +
+        `keeping the in-isolate level "${shedLevel ?? SHED_OFF}".`
     );
-    return shedLevel;
+    return shedLevel ?? SHED_OFF;
   }
-  shedLevel = shedLevel ?? SHED_OFF;
-  return shedLevel;
 };
 
-// Whether a level pauses writes/viewer amplification. `null` (this isolate has
-// never seen the doc) and `off` both read as not shedding.
+// Whether a level pauses viewer amplification. `null` (this isolate has never
+// seen the doc) and `off` both read as not shedding.
 const isSheddingLevel = (level) => level === SHED_READ_ONLY || level === SHED_SCHEDULE_ONLY;
-const isShedding = () => isSheddingLevel(shedLevel);
 
-// 1-minute aggregation tick (a short interval keeps the post-deploy/post-eviction cold window — where adding a NEW subscription fails with iOS's "Validation failed" — under a minute). Admin-lane read (unfiltered), so THIS code chooses
-// what becomes link-visible: favorite eventIds always (that's the feature),
-// shifts only when the user marked them shareWithFriends, notes never.
-// The tick is deliberately CHEAP: one read, and — at most every
-// SCHEDULE_SYNC_INTERVAL_MS — one feed fetch. It writes nothing unless the
+// The 5-minute tick. It exists for exactly two jobs, and NEITHER of them
+// touches user data: stamp the liveness heartbeat, and keep the central
+// schedule mirror in step with pickathon.com. There is no aggregate here any
+// more — the `.ics` GET reads what it needs when it is asked (see the header) —
+// so nothing about this tick's cost or correctness depends on how big the db
+// has grown. Both jobs remember their own state in a doc read BY ID, plus an
+// in-isolate copy; the tick reads two docs and, at most every
+// SCHEDULE_SYNC_INTERVAL_MS, fetches the feed. It writes nothing unless the
 // festival schedule actually changed.
 export async function scheduled(event, ctx) {
-  const docs = await ctx.db.query({ db: 'pickathon' });
-  // The shed level rides the read we just did (see § Load shedding). When we are
-  // shedding, skip the aggregate scan entirely — the GET lane is 503ing, so
-  // nothing reads it, and with picks paused it cannot drift either — but still
-  // beat the heartbeat and still run the schedule mirror.
-  if (isSheddingLevel(readShedLevel(docs))) {
-    await writeHeartbeat(event, ctx, docs);
-    await syncScheduleDocs(event, ctx, docs);
-    return;
-  }
-  const users = new Map();
-  const tokens = new Map();
-  const entryFor = (handle) => {
-    const key = String(handle).toLowerCase();
-    if (!users.has(key)) users.set(key, { eventIds: [], shifts: [] });
-    return users.get(key);
-  };
-  for (const d of docs) {
-    if (!d || !d.userId) continue;
-    if (d.type === 'caltoken') {
-      if (typeof d.token === 'string' && /^[A-Za-z0-9_-]{16,64}$/.test(d.token)) {
-        tokens.set(d.token, String(d.userId).toLowerCase());
-      }
-    } else if (d.type === 'favorite' && d.eventId != null) {
-      entryFor(d.userId).eventIds.push(String(d.eventId));
-    } else if (d.type === 'shift' && d.shareWithFriends) {
-      const start = shiftStartOf(d);
-      const end = shiftEndOf(d);
-      if (start && end)
-        entryFor(d.userId).shifts.push([
-          typeof d.kind === 'string' && d.kind.trim() !== '' ? d.kind.trim() : 'Shift',
-          start,
-          end,
-        ]);
-    }
-  }
-  // Opt-in means opt-in: keep aggregates ONLY for handles holding a token —
-  // no ics data is built for users who never opened the calendar surface.
-  const optedIn = new Set(tokens.values());
-  for (const handle of [...users.keys()]) {
-    if (!optedIn.has(handle)) users.delete(handle);
-  }
-  for (const entry of users.values()) {
-    entry.eventIds.sort();
-    entry.shifts.sort((a, b) => (a[1] < b[1] ? -1 : 1));
-  }
-  // A capped read is a SILENT read: the host returns 2000 docs and no signal.
-  // Say so in the log, because the aggregate below is then missing whatever
-  // sorted past the cut (favorites, `_id` "favorite-<handle>-<event>", are the
-  // only growing type and the only ones that can fall off) — those users' .ics
-  // feeds quietly lose picks. Visible in `wrangler tail`.
-  const truncated = docs.length >= BACKEND_QUERY_MAX_DOCS;
-  if (truncated) {
-    console.warn(
-      `pickathon tick: db read hit the ${BACKEND_QUERY_MAX_DOCS}-doc query cap ` +
-        `(last _id "${docs[docs.length - 1]?._id}") — favorites sorting after it are ` +
-        `missing from ics aggregates.`
-    );
-  }
-  subCache = {
-    at: Date.parse(event?.scheduledTime) || Date.now(),
-    users,
-    tokens,
-    truncated,
-  };
-
   // Liveness first: if this tick is alive, say so before anything that can fail.
-  // Passed the docs we already read — the heartbeat picks its own doc out of them
-  // rather than costing a second query.
-  await writeHeartbeat(event, ctx, docs);
-
-  // Central schedule mirror: refresh pickathon.com on its own (slower) cadence
-  // and upsert only the `scheduleitem` docs whose content changed. Clients read
-  // the schedule from these public docs — nobody fetches the feed per-user
-  // anymore. Passed the `docs` we already read so it can pick its state doc out
-  // of them; it never wipes the schedule on a transient feed failure.
-  await syncScheduleDocs(event, ctx, docs);
+  await writeHeartbeat(event, ctx);
+  // Central schedule mirror: refresh pickathon.com on its own cadence and upsert
+  // only the `scheduleitem` docs whose content changed. Clients read the
+  // schedule from these public docs — nobody fetches the feed per-user anymore.
+  // It never wipes the schedule on a transient feed failure.
+  await syncScheduleDocs(event, ctx);
 }
+
+// One doc, by id, tolerating a lane that cannot read (the POST download lane
+// passes no ctx at all) and a read that fails. `null` means "no doc"; `undefined`
+// means "could not tell" — a distinction both callers care about (§4a).
+const getDoc = async (ctx, id) => {
+  if (!ctx || !ctx.db || typeof ctx.db.get !== 'function') return undefined;
+  try {
+    return (await ctx.db.get(id, { db: PICKATHON_DB })) ?? null;
+  } catch (err) {
+    return undefined;
+  }
+};
 
 // ── Tick liveness heartbeat (scheduled lane) ─────────────────────────────────
 // The `scheduled` alarm has gone silently dead twice on unchanged code, and a
@@ -432,13 +439,12 @@ export async function scheduled(event, ctx) {
 // normal: the gate below is in-isolate and best-effort, not a promise.
 //
 // Discipline is the #4293 one. The gate is remembered, never re-derived from a
-// scan: an in-isolate timestamp, backed by the heartbeat doc found in the tick's
-// EXISTING whole-db read (its digit-leading `_id` sorts ahead of every id this
-// app mints, so it rides inside the 2000-doc cap — no extra query). Whichever of
-// the two is newer wins, and a doc missing from a capped read therefore reads as
-// "don't know" rather than "never beat". Only losing BOTH — no doc AND a cold
-// isolate — writes a beat immediately, which is the harmless direction: one
-// extra write per isolate boot, not one per tick.
+// scan: an in-isolate timestamp, backed by the heartbeat doc read BY ID — one
+// keyed `ctx.db.get`, reachable at any db size, with no sort window to fall out
+// of. Whichever of the two is newer wins, and a doc that is missing or
+// unreadable reads as "don't know" rather than "never beat". Only losing BOTH —
+// no doc AND a cold isolate — writes a beat immediately, which is the harmless
+// direction: one extra write per isolate boot, not one per tick.
 //
 // The stamp must CHANGE on every write or the platform dedupes a content-
 // identical re-put invisibly and the doc silently stops tracking liveness —
@@ -451,10 +457,13 @@ export const __resetHeartbeatForTests = () => {
   lastBeatAt = null;
 };
 
-export const writeHeartbeat = async (event, ctx, docs) => {
+export const writeHeartbeat = async (event, ctx) => {
   if (!ctx || !ctx.db || typeof ctx.db.put !== 'function') return null;
   const now = Date.parse(event?.scheduledTime) || Date.now();
-  const doc = (docs || []).find((d) => d && d._id === HEARTBEAT_ID);
+  const doc = await getDoc(ctx, HEARTBEAT_ID);
+  // A missing doc, an unreadable read, and an unparseable stamp all land on NaN,
+  // which the filter below drops — leaving the in-isolate copy to answer, and a
+  // cold isolate with no evidence at all to beat once.
   const docAt = doc ? Date.parse(doc.at) : NaN;
   const known = [lastBeatAt, Number.isFinite(docAt) ? docAt : null].filter((n) => n !== null);
   const last = known.length > 0 ? Math.max(...known) : null;
@@ -500,29 +509,25 @@ export const fetchScheduleItems = async (ids) => {
 //
 // It used to establish "unchanged" by diffing against the `scheduleitem` docs
 // found in the tick's whole-db read. That silently stopped working once the db
-// passed BACKEND_QUERY_MAX_DOCS: `schedule-event-*` sorts after `caltoken-*`,
-// `favorite-*` and `note-*`, so ALL of the mirror fell outside the capped
-// window, the diff saw zero existing items, and every tick re-put every event —
-// ~330 serialized writes a minute, which pinned this vibe's Durable Object at
-// 97% occupancy and left nothing behind them but queueing (a visitor's first
-// page load included).
+// passed the host's 2000-doc query cap: `schedule-event-*` sorts after
+// `caltoken-*`, `favorite-*` and `note-*`, so ALL of the mirror fell outside the
+// capped window, the diff saw zero existing items, and every tick re-put every
+// event — ~330 serialized writes a minute, which pinned this vibe's Durable
+// Object at 97% occupancy and left nothing behind them but queueing (a visitor's
+// first page load included).
 //
-// So the mirror now remembers what it mirrored itself, in ONE state doc: `_id`
-// leads with a DIGIT, which sorts ahead of every letter under both byte and
-// linguistic collation, so it sits in front of every id this app mints
-// (`caltoken-`, `favorite-`, `note-`, `schedule-event-`, and the uuid shifts,
-// whose `019f…` sorts after `0-`) and rides comfortably inside the cap however
-// large the db grows. It carries a content fingerprint per event id — never the
-// schedule itself, which lives in the public docs.
+// So the mirror remembers what it mirrored itself, in ONE state doc, read BY ID
+// (`ctx.db.get`) — no scan, no sort window to fall out of, the same cost on a
+// 20-doc db and a 200,000-doc one. It carries a content fingerprint per event id
+// — never the schedule itself, which lives in the public docs. (The `_id` leads
+// with a digit for historical reasons: that was the old workaround for having no
+// keyed read. It is harmless, and renaming it would strand the live doc, so it
+// stays — but nothing here reasons about sort order any more.)
 //
-// That is a guarantee about ids WE mint, not an absolute one: `_id` is a free
-// string, so 2000 docs beginning with punctuation (below `0`) would push even
-// this doc out of the window. Nothing in the app writes such an id, but a
-// signed-in stranger could — the unknown-type branch in access.js accepts a
-// write from anybody, it just routes it to `discard`. So the state doc is
-// backed up by an in-isolate copy (see lastFingerprints), and losing BOTH is
-// handled as "skip this sync", never as "nothing is mirrored" — the one
-// conclusion that reopens the rewrite loop.
+// The state doc is still backed by an in-isolate copy (see lastFingerprints),
+// because "I could not read my state" must never be handled as "nothing is
+// mirrored" — the one conclusion that reopens the rewrite loop. Losing both is
+// handled as "sync from scratch once per isolate", which is bounded.
 export const SCHEDULE_STATE_ID = '0-schedule-sync-state';
 export const SCHEDULE_STATE_TYPE = 'schedulesync';
 
@@ -663,7 +668,7 @@ export const diffScheduleAgainstState = (feedItems, stateDoc) => {
 // advance the cadence gate — never wipe the schedule on a transient upstream
 // hiccup (the same rule the old client-side fetch followed). Runs only when
 // given a write-capable ctx (admin-mode scheduled lane).
-export const syncScheduleDocs = async (event, ctx, docs) => {
+export const syncScheduleDocs = async (event, ctx) => {
   if (!ctx || !ctx.db || typeof ctx.db.put !== 'function') return null;
   const now = Date.parse(event?.scheduledTime) || Date.now();
   if (lastScheduleSyncAt !== null && now - lastScheduleSyncAt < SCHEDULE_SYNC_INTERVAL_MS) {
@@ -680,15 +685,14 @@ export const syncScheduleDocs = async (event, ctx, docs) => {
   const feedItems = ingestScheduleFeed(data);
   if (feedItems.length === 0) return { ok: false, error: 'empty feed' };
   lastScheduleSyncAt = now;
-  // The durable state doc first; the in-isolate copy is the backstop for the
-  // day it isn't in the read. `_id` is a free string, so enough docs sorting
-  // ahead of `0-` could push it out of the capped window — nothing the app
-  // writes does that, but nothing stops a signed-in stranger either.
-  let stateDoc = (docs || []).find((d) => d && d._id === SCHEDULE_STATE_ID);
+  // The durable state doc first (one keyed read); the in-isolate copy is the
+  // backstop for the day it is gone or unreadable. Either way the fallback is
+  // "use what this isolate remembers", never "nothing is mirrored".
+  let stateDoc = await getDoc(ctx, SCHEDULE_STATE_ID);
   if (!stateDoc && lastFingerprints !== null) {
     console.warn(
-      `pickathon tick: ${SCHEDULE_STATE_ID} missing from the db read — using the in-isolate ` +
-        `copy. If this persists, something is sorting ahead of it inside the query cap.`
+      `pickathon tick: ${SCHEDULE_STATE_ID} came back ${stateDoc === undefined ? 'unreadable' : 'empty'} — ` +
+        `using the in-isolate copy rather than re-mirroring the whole schedule.`
     );
     stateDoc = { fingerprints: lastFingerprints };
   }
@@ -700,7 +704,9 @@ export const syncScheduleDocs = async (event, ctx, docs) => {
     // a brand-new mirror, and the one shape an evicted state doc also takes.
     // Bounded either way — the line above means it can happen once per isolate,
     // not once per tick, which is the whole difference between this and #4293.
-    console.warn(`pickathon tick: no mirror state found — writing all ${puts.length} schedule docs.`);
+    console.warn(
+      `pickathon tick: no mirror state found — writing all ${puts.length} schedule docs.`
+    );
   }
   for (const doc of puts) await ctx.db.put(doc, { db: 'pickathon' });
   for (const _id of deletes) await ctx.db.delete(_id, { db: 'pickathon' });
@@ -801,12 +807,93 @@ const ANCHOR_ITEMS = [
   },
 ];
 
-// Subscription refresh: anonymous GET keyed by user handle. Served inline (no
-// attachment) so calendar clients treat it as a feed; short shared cache so a
-// popular handle doesn't hammer the feed join.
-const handleSubscription = async (url) => {
+// ── Resolving one subscriber, at request time ────────────────────────────────
+
+const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
+const HANDLE_RE = /^[a-z0-9][a-z0-9_-]{0,39}$/;
+const calTokenDocId = (userId) => `caltoken-${userId}`;
+
+// token → the handle it belongs to, or null.
+//
+// The token is the ONLY capability. `hint` is the `n=` display parameter the
+// client already puts in the subscribe URL; it turns the common case into a
+// single `ctx.db.get` instead of a paged scan, but it is never trusted: the
+// resolved doc's own token has to equal the one presented, so pointing `n=` at
+// somebody else's caltoken resolves nothing. A missing, stale or hostile hint
+// just falls through to the keyed lookup by `token`.
+export const resolveCalToken = async (ctx, token, hint) => {
+  if (!ctx || !ctx.db) return null;
+  const ok = (doc) =>
+    doc && doc.type === 'caltoken' && doc.token === token && doc.userId ? String(doc.userId) : null;
+  if (hint) {
+    const byId = ok(await getDoc(ctx, calTokenDocId(hint)));
+    if (byId !== null) return byId;
+  }
+  if (typeof ctx.db.query !== 'function') return null;
+  let found = null;
+  try {
+    await readAllPages(ctx, { field: 'token', key: token }, (docs) => {
+      for (const d of docs) {
+        found = ok(d);
+        if (found !== null) return STOP;
+      }
+    });
+  } catch (err) {
+    return null;
+  }
+  return found;
+};
+
+// Everything of one user's that may leave the db: favorite event ids, and shifts
+// they explicitly marked shareWithFriends. One paged keyed read on `userId`.
+//
+// Notes come back in this read (they carry a userId too) and are dropped right
+// here — the type check below is the privacy boundary, and it is deliberately a
+// whitelist: an unknown doc type contributes nothing to a feed.
+//
+// The handle is matched case-insensitively the way the old aggregate did, by
+// asking for both spellings: docs written before handles were normalized carry
+// mixed case, and a user whose caltoken says "Alice" still owns "favorite-alice-*".
+export const readUserPicks = async (ctx, handle) => {
+  const entry = { eventIds: [], shifts: [] };
+  if (!ctx || !ctx.db || typeof ctx.db.query !== 'function') return entry;
+  const keys = [...new Set([handle, handle.toLowerCase()])];
+  try {
+    await readAllPages(ctx, { field: 'userId', keys }, (docs) => {
+      for (const d of docs) {
+        if (!d) continue;
+        if (d.type === 'favorite' && d.eventId != null) {
+          entry.eventIds.push(String(d.eventId));
+        } else if (d.type === 'shift' && d.shareWithFriends) {
+          const start = shiftStartOf(d);
+          const end = shiftEndOf(d);
+          if (start && end)
+            entry.shifts.push([
+              typeof d.kind === 'string' && d.kind.trim() !== '' ? d.kind.trim() : 'Shift',
+              start,
+              end,
+            ]);
+        }
+      }
+    });
+  } catch (err) {
+    // A read that fails mid-way leaves a PARTIAL entry, which would silently
+    // drop picks. Answer with nothing instead: the response then degrades to the
+    // anchor calendar, and the next refresh (minutes away) tries again.
+    console.warn(`pickathon feed: picks read failed — ${String((err && err.message) || err)}`);
+    return { eventIds: [], shifts: [] };
+  }
+  entry.eventIds.sort();
+  entry.shifts.sort((a, b) => (a[1] < b[1] ? -1 : 1));
+  return entry;
+};
+
+// Subscription refresh: anonymous GET, authorized by the capability token in the
+// URL. Served inline (no attachment) so calendar clients treat it as a feed;
+// short shared cache so a popular feed doesn't hammer the schedule join.
+const handleSubscription = async (url, ctx) => {
   const t = url.searchParams.get('t') ?? '';
-  if (!/^[A-Za-z0-9_-]{16,64}$/.test(t)) {
+  if (!TOKEN_RE.test(t)) {
     return textResponse(
       400,
       "pass t=<calendar token> — open the app's My Faves tab to get your link"
@@ -817,7 +904,7 @@ const handleSubscription = async (url) => {
   // the one honest answer here — calendar clients back off and keep the events
   // they already synced, where an empty calendar would read as "your picks are
   // gone". Never cached: the shed can lift at any tick.
-  if (isShedding()) {
+  if (isSheddingLevel(await readShedLevel(ctx))) {
     return textResponse(
       503,
       'Festival mode: this calendar feed is paused for a little while. Your picks are safe — ' +
@@ -825,21 +912,21 @@ const handleSubscription = async (url) => {
       { 'retry-after': String(SHED_RETRY_AFTER_SECONDS), 'cache-control': 'no-store' }
     );
   }
-  // Display-only label: iOS captures the calendar NAME at subscribe time, and
-  // a just-minted token often beats the tick — without this the calendar is
-  // permanently named "@my". The token alone gates data; `n` labels it.
+  // Display-only label AND the lookup hint: iOS captures the calendar NAME at
+  // subscribe time, so a feed that cannot name itself is permanently "@my". The
+  // token alone gates data; `n` only labels it (and saves a scan — see
+  // resolveCalToken).
   const nRaw = (url.searchParams.get('n') ?? '').toLowerCase();
-  const displayName = /^[a-z0-9][a-z0-9_-]{0,39}$/.test(nRaw) ? nRaw : null;
-  // Cold cache (freshly booted isolate) AND unknown tokens serve the
-  // anchor-only calendar rather than an error, so ADDING a subscription always
-  // works — a just-minted token can beat the next tick, and iOS renders any
-  // add-time failure as "Validation failed". A revoked token converges to the
-  // same anchor-only feed. Tradeoff (owner call): a subscriber whose refresh
-  // lands in the ≤1m cold window sees anchor-only until their next refresh —
-  // rare and self-healing, vs. a guaranteed add-time failure after deploys.
-  const cold = subCache === null;
-  const handle = cold ? undefined : subCache.tokens.get(t);
-  const entry = (handle && subCache.users.get(handle)) || { eventIds: [], shifts: [] };
+  const displayName = HANDLE_RE.test(nRaw) ? nRaw : null;
+  // A token that resolves to nobody — never minted, revoked, or simply
+  // unreadable because this lane could not reach the db — serves the anchor-only
+  // calendar rather than an error, so ADDING a subscription always works: iOS
+  // renders any add-time failure as "Validation failed". A revoked token
+  // converges to the same anchor-only feed as its owner's picks drain away.
+  const resolved = await resolveCalToken(ctx, t, displayName);
+  const handle = resolved === null ? undefined : resolved.toLowerCase();
+  const entry =
+    resolved === null ? { eventIds: [], shifts: [] } : await readUserPicks(ctx, resolved);
   let eventItems = [];
   if (entry.eventIds.length > 0) {
     try {
@@ -854,10 +941,10 @@ const handleSubscription = async (url) => {
     start: r[1],
     end: r[2],
   }));
-  // LENIENT per-item validation: these rows come from the db aggregate and the
-  // schedule feed — sources the subscriber doesn't control — so a malformed
-  // legacy row drops out instead of 400ing the whole feed. A user with no
-  // (valid) faves gets an EMPTY calendar, not an error.
+  // LENIENT per-item validation: these rows come from the db and the schedule
+  // feed — sources the subscriber doesn't control — so a malformed legacy row
+  // drops out instead of 400ing the whole feed. A user with no (valid) faves
+  // gets the anchor calendar, not an error.
   const items = sanitizeFavesItems([...ANCHOR_ITEMS, ...eventItems, ...shiftRows]).slice(
     0,
     MAX_ITEMS
@@ -868,9 +955,10 @@ const handleSubscription = async (url) => {
       status: 200,
       headers: {
         'content-type': 'text/calendar; charset=utf-8',
-        // A cold/unresolved (anchor-only) response must not linger in any shared
-        // cache past the tick that fills the real data.
-        'cache-control': cold || !handle ? 'no-store' : 'public, max-age=300',
+        // An unresolved (anchor-only) response must not linger in any shared
+        // cache: the token may be seconds old, or the db momentarily unreadable,
+        // and the next request would otherwise be served the placeholder.
+        'cache-control': handle ? 'public, max-age=300' : 'no-store',
       },
     }
   );
@@ -886,7 +974,7 @@ export async function fetch(request, ctx) {
     );
   }
   if (request.method === 'GET' || request.method === 'HEAD') {
-    return handleSubscription(url);
+    return handleSubscription(url, ctx);
   }
   if (request.method !== 'POST') {
     return textResponse(405, 'method not allowed — GET a subscription or POST schedule items', {
