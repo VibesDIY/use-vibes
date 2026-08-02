@@ -7,7 +7,9 @@ import {
   buildFavesCalendar,
   decodeFeedEntities,
   scheduled,
-  __resetSubCacheForTests,
+  config,
+  PICKATHON_DB,
+  PAGE_LIMIT,
   __resetScheduleSyncForTests,
   __resetHeartbeatForTests,
   __resetShedForTests,
@@ -288,8 +290,9 @@ describe('decodeFeedEntities', () => {
   });
 });
 
-// The db docs the scheduled aggregation tick sees (admin-lane read of the
-// access-fn-bound db — the one lane allowed to read it).
+// The docs in the `pickathon` db. Both lanes read them now: the `fetch` lane by
+// keyed request-time reads (config.fetch.unfilteredReads), the `scheduled` lane
+// by id for its own state docs.
 const DB_DOCS = [
   { _id: 'favorite-Alice-101', type: 'favorite', userId: 'Alice', eventId: 101 },
   { _id: 'favorite-alice-201', type: 'favorite', userId: 'alice', eventId: '201' },
@@ -340,12 +343,93 @@ const DB_DOCS = [
 ];
 const T_ALICE = 'alice-token-1234567890A';
 const T_BOB = 'bob-token-1234567890BBB';
-const tick = () =>
-  scheduled({ scheduledTime: '2026-07-04T12:00:00Z' }, { db: { query: async () => DB_DOCS } });
 
-describe('fetch handler — GET /faves.ics?u=<handle> (subscription lane)', () => {
+// A faithful stand-in for the host's `ctx.db` (#4398): `get` by id, and `query`
+// that pages by `_id` with `limit`/`after` and applies `field`+`key`/`keys`
+// AFTER the page is cut — which is what makes an empty page with a live `next`
+// possible, the trap the read loops have to survive. The result is an Array with
+// non-enumerable `next`/`docs` riding along, exactly like the isolate shim.
+const mkStore = (docs = []) => {
+  const store = new Map(docs.map((d) => [d._id, d]));
+  const puts = [];
+  const deletes = [];
+  const queries = [];
+  const gets = [];
+  let getFails = null;
+  const enc = (v) => JSON.stringify(v ?? null);
+  return {
+    puts,
+    deletes,
+    queries,
+    gets,
+    store,
+    setDocs: (list) => {
+      store.clear();
+      for (const d of list) store.set(d._id, d);
+    },
+    failGets: (err) => {
+      getFails = err;
+    },
+    db: {
+      get: async (id, options) => {
+        gets.push({ id, options });
+        if (getFails) throw getFails;
+        const d = store.get(id);
+        return d ? { ...d } : null;
+      },
+      query: async (options = {}) => {
+        queries.push(options);
+        const all = [...store.values()].sort((a, b) =>
+          a._id < b._id ? -1 : a._id > b._id ? 1 : 0
+        );
+        const limit = Math.max(1, Math.min(options.limit ?? 2000, 2000));
+        const start =
+          typeof options.after === 'string' ? all.findIndex((d) => d._id > options.after) : 0;
+        const page = start === -1 ? [] : all.slice(start, start + limit);
+        const next = page.length === limit ? page[page.length - 1]._id : undefined;
+        let out = page;
+        if (options.field !== undefined) {
+          out = out.filter((d) => d[options.field] !== undefined);
+          if (options.key !== undefined)
+            out = out.filter((d) => enc(d[options.field]) === enc(options.key));
+          if (options.keys !== undefined)
+            out = out.filter((d) => options.keys.some((k) => enc(d[options.field]) === enc(k)));
+        }
+        const res = out.map((d) => ({ ...d }));
+        Object.defineProperty(res, 'next', { value: next, enumerable: false });
+        Object.defineProperty(res, 'docs', { value: res, enumerable: false });
+        return res;
+      },
+      put: async (doc) => {
+        puts.push(doc);
+        store.set(doc._id, doc);
+        return doc._id;
+      },
+      delete: async (id) => {
+        deletes.push(id);
+        store.delete(id);
+        return id;
+      },
+    },
+  };
+};
+const ctxOf = (docs = []) => {
+  const s = mkStore(docs);
+  return { ...s, ctx: { db: s.db } };
+};
+
+describe('config — the fetch lane declares its unfiltered reads', () => {
+  it('names the db the feed needs, with an honest why', () => {
+    // Without this declaration the anonymous GET cannot read the db at all, and
+    // the feed is back to being served from a tick-populated cache.
+    expect(config.fetch.unfilteredReads.dbs).toEqual([PICKATHON_DB]);
+    expect(typeof config.fetch.unfilteredReads.why).toBe('string');
+    expect(config.fetch.unfilteredReads.why.length).toBeGreaterThan(20);
+  });
+});
+
+describe('fetch handler — GET /faves.ics?t=<token> (subscription lane)', () => {
   beforeEach(() => {
-    __resetSubCacheForTests();
     __resetShedForTests();
   });
   afterEach(() => vi.unstubAllGlobals());
@@ -355,26 +439,14 @@ describe('fetch handler — GET /faves.ics?u=<handle> (subscription lane)', () =
     return spy;
   };
 
-  it('serves the never-empty anchor-only calendar before the first aggregation tick', async () => {
-    // iOS validates a NEW subscription by fetching at add time — a cold-cache
-    // error there reads as "Validation failed", so cold must serve a valid,
-    // non-empty calendar (owner call; anchor-only until the ≤1m tick).
-    feedOk();
-    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {});
-    expect(res.status).toBe(200);
-    expect(res.headers.get('cache-control')).toBe('no-store'); // don't pin the skeleton
-    const body = await res.text();
-    expect(body).toContain('SUMMARY:Gates Open');
-    expect(body).not.toContain('Built to Spill'); // faves arrive with the tick
-  });
-
-  it("serves a user's CURRENT faves: db-aggregated ids joined live against the feed", async () => {
+  it("serves a user's CURRENT faves: keyed request-time reads joined live against the feed", async () => {
     const fetchSpy = feedOk();
-    await tick();
-    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {});
+    const { ctx } = ctxOf(DB_DOCS);
+    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), ctx);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('text/calendar; charset=utf-8');
     expect(res.headers.get('content-disposition')).toBe(null); // a feed, not a download
+    expect(res.headers.get('cache-control')).toBe('public, max-age=300');
     const body = await res.text();
     expect(fetchSpy).toHaveBeenCalledWith(SCHEDULE_URL, expect.anything());
     expect(body).toContain('SUMMARY:Built to Spill'); // alice faved 101 (case-folded handle)
@@ -391,60 +463,192 @@ describe('fetch handler — GET /faves.ics?u=<handle> (subscription lane)', () =
     expect(body).toContain('REFRESH-INTERVAL;VALUE=DURATION:PT6H');
   });
 
-  it('serves fave-less holders and pre-tick tokens alike: valid anchor-only, never an error', async () => {
+  it('serves a just-minted token immediately — no tick to wait for', async () => {
+    // The whole point of the rewrite: a token written a second ago resolves on
+    // the very next request, where the cached design served anchor-only until
+    // the next tick (and iOS renders an add-time miss as "Validation failed").
     feedOk();
-    await tick();
-    const res = await icsFetch(req('/faves.ics?t=freshly-minted-token-000&n=jchris'), {});
+    const fresh = {
+      _id: 'caltoken-carol',
+      type: 'caltoken',
+      userId: 'carol',
+      token: 'carol-token-1234567890CC',
+    };
+    const { ctx } = ctxOf([
+      ...DB_DOCS,
+      fresh,
+      { _id: 'favorite-carol-102', type: 'favorite', userId: 'carol', eventId: 102 },
+    ]);
+    const body = await (await icsFetch(req(`/faves.ics?t=${fresh.token}`), ctx)).text();
+    expect(body).toContain('SUMMARY:Skills & Games');
+    expect(body).toContain('X-WR-CALNAME:@carol — Pickathon Picks');
+  });
+
+  it('serves fave-less holders and unknown tokens alike: valid anchor-only, never an error', async () => {
+    feedOk();
+    const { ctx } = ctxOf(DB_DOCS);
+    const res = await icsFetch(req('/faves.ics?t=freshly-minted-token-000&n=jchris'), ctx);
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('no-store'); // don't pin the placeholder
     const body = await res.text();
     expect(body).toContain('SUMMARY:Gates Open');
     // iOS captures the calendar name at subscribe time; the display-only n=
-    // param names it correctly even before the tick resolves the token.
+    // param names it even when the token resolves to nobody.
     expect(body).toContain('X-WR-CALNAME:@jchris — Pickathon Picks');
     expect((body.match(/BEGIN:VEVENT/g) || []).length).toBe(1);
   });
 
+  it('serves the never-empty anchor calendar when it cannot read the db at all', async () => {
+    // A ctx-less/db-less call (and any read failure) must still validate as a
+    // subscription rather than 500 — iOS reads an add-time error as "Validation
+    // failed" and the user never gets a working calendar.
+    feedOk();
+    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {});
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    const body = await res.text();
+    expect(body).toContain('SUMMARY:Gates Open');
+    expect(body).not.toContain('Built to Spill');
+  });
+
   it('derives legacy shift times from day + startTime/endTime', async () => {
     feedOk();
-    await tick();
-    const body = await (await icsFetch(req(`/faves.ics?t=${T_BOB}`), {})).text();
+    const { ctx } = ctxOf(DB_DOCS);
+    const body = await (await icsFetch(req(`/faves.ics?t=${T_BOB}`), ctx)).text();
     expect(body).toContain('SUMMARY:Gate');
     expect(body).toContain('DTSTART:20260731T170000Z'); // Friday 10:00 PDT
   });
 
-  it('does not aggregate users who never opted in (no token → no ics data at all)', async () => {
-    // The tick fixture has no caltoken for a "nobody" user, and the opt-in
-    // filter also drops fave-holders without tokens from the users map.
-    feedOk();
-    await tick();
-    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {});
-    expect(res.status).toBe(200); // alice opted in and serves normally
-  });
-
   it('400s a missing or malformed token and 502s a broken feed', async () => {
     feedOk();
-    await tick();
-    expect((await icsFetch(req('/faves.ics'), {})).status).toBe(400);
-    expect((await icsFetch(req('/faves.ics?t=short'), {})).status).toBe(400);
-    expect((await icsFetch(req('/faves.ics?t=bad$token!!!!!!!!!!!'), {})).status).toBe(400);
+    const { ctx } = ctxOf(DB_DOCS);
+    expect((await icsFetch(req('/faves.ics'), ctx)).status).toBe(400);
+    expect((await icsFetch(req('/faves.ics?t=short'), ctx)).status).toBe(400);
+    expect((await icsFetch(req('/faves.ics?t=bad$token!!!!!!!!!!!'), ctx)).status).toBe(400);
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('nope', { status: 500 }))
     );
-    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {})).status).toBe(502);
+    // 502, never an empty 200: established subscribers keep the events they
+    // already synced instead of watching their calendar empty out.
+    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), ctx)).status).toBe(502);
   });
 
   it("shifts don't touch the feed: a shifts-only user serves without egress", async () => {
     const fetchSpy = feedOk();
-    await scheduled(
-      { scheduledTime: '2026-07-04T12:00:00Z' },
-      { db: { query: async () => [DB_DOCS[3], DB_DOCS[7]] } }
-    );
-    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {});
+    const { ctx } = ctxOf([DB_DOCS[3], DB_DOCS[7]]);
+    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), ctx);
     expect(res.status).toBe(200);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(await res.text()).toContain('SUMMARY:Volunteer');
+  });
+});
+
+// ── The rewrite: the GET reads the db itself, keyed ──────────────────────────
+// The cache is gone. These pin the read discipline that replaced it: every read
+// is keyed (never a whole-db scan), the token is still the only capability, and
+// every paged loop follows `next` rather than stopping on an empty page.
+describe('subscription lane — request-time keyed reads', () => {
+  beforeEach(() => __resetShedForTests());
+  afterEach(() => vi.unstubAllGlobals());
+  const feedOk = () =>
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify(FEED), { status: 200 }))
+    );
+
+  it('never issues an unkeyed whole-db query', async () => {
+    feedOk();
+    const s = ctxOf(DB_DOCS);
+    await icsFetch(req(`/faves.ics?t=${T_ALICE}&n=alice`), s.ctx);
+    expect(s.queries.length).toBeGreaterThan(0);
+    for (const q of s.queries) {
+      expect(q.field).toBeDefined(); // keyed, always
+      expect(q.limit).toBeLessThanOrEqual(2000); // and paged
+      expect(q.db).toBe(PICKATHON_DB);
+    }
+  });
+
+  it('resolves the token by id when n= names the right handle — one get, no scan', async () => {
+    feedOk();
+    const s = ctxOf(DB_DOCS);
+    await icsFetch(req(`/faves.ics?t=${T_ALICE}&n=alice`), s.ctx);
+    expect(s.gets.map((g) => g.id)).toContain('caltoken-alice');
+    // The hint short-circuits the scan: no query by `token` was needed.
+    expect(s.queries.filter((q) => q.field === 'token')).toEqual([]);
+  });
+
+  it('n= is a HINT, never the capability: a wrong hint still serves the token owner', async () => {
+    feedOk();
+    const s = ctxOf(DB_DOCS);
+    const body = await (await icsFetch(req(`/faves.ics?t=${T_ALICE}&n=bob`), s.ctx)).text();
+    expect(body).toContain('SUMMARY:Built to Spill'); // alice's pick
+    expect(body).not.toContain('Skills'); // never bob's
+    expect(body).toContain('X-WR-CALNAME:@alice — Pickathon Picks');
+  });
+
+  it("a hint pointing at someone else's caltoken doc serves nothing of theirs", async () => {
+    // get('caltoken-bob') resolves a real doc — but its token is not the one
+    // presented, so it must be rejected, not trusted.
+    feedOk();
+    const s = ctxOf(DB_DOCS.filter((d) => d._id !== 'caltoken-alice'));
+    const body = await (
+      await icsFetch(req('/faves.ics?t=some-other-token-0000000&n=bob'), s.ctx)
+    ).text();
+    expect(body).not.toContain('Skills');
+    expect((body.match(/BEGIN:VEVENT/g) || []).length).toBe(1); // anchor only
+  });
+
+  it('resolves a token with no hint by paging field:token — a first page that filters to EMPTY still carries next', async () => {
+    // The idiom's whole trap. These fillers sort ahead of `caltoken-*` and carry
+    // no `token` field, so page one comes back with zero docs and a live `next`.
+    // A loop that stops on an empty page loses every subscriber.
+    feedOk();
+    const filler = Array.from({ length: PAGE_LIMIT + 50 }, (_, i) => ({
+      _id: `0filler-${String(i).padStart(5, '0')}`,
+      type: 'other',
+      userId: 'nobody',
+    }));
+    const s = ctxOf([...filler, ...DB_DOCS]);
+    const body = await (await icsFetch(req(`/faves.ics?t=${T_ALICE}`), s.ctx)).text();
+    const tokenPages = s.queries.filter((q) => q.field === 'token');
+    expect(tokenPages.length).toBeGreaterThan(1); // it kept going past the empty page
+    expect(body).toContain('SUMMARY:Built to Spill');
+  });
+
+  it('pages the picks read too — favorites past the first page still reach the feed', async () => {
+    feedOk();
+    // Docs that HAVE a userId but the wrong one: they survive the field filter,
+    // fail the key filter, and fill a whole page with nothing.
+    const filler = Array.from({ length: PAGE_LIMIT + 50 }, (_, i) => ({
+      _id: `0filler-${String(i).padStart(5, '0')}`,
+      type: 'favorite',
+      userId: 'someoneelse',
+      eventId: 102,
+    }));
+    const s = ctxOf([...filler, ...DB_DOCS]);
+    const body = await (await icsFetch(req(`/faves.ics?t=${T_ALICE}&n=alice`), s.ctx)).text();
+    expect(body).toContain('SUMMARY:Built to Spill');
+    expect(body).toContain('SUMMARY:Night Act');
+    expect(body).not.toContain('Skills'); // someoneelse's pick never leaks in
+  });
+
+  it('a read failure degrades to the anchor calendar, never a 500', async () => {
+    feedOk();
+    const s = ctxOf(DB_DOCS);
+    s.failGets(new Error('Access denied'));
+    const bad = { db: { ...s.db, query: async () => Promise.reject(new Error('Access denied')) } };
+    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), bad);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain('SUMMARY:Gates Open');
+  });
+
+  it('an opted-out user has no feed: deleting the caltoken drains it to the anchor', async () => {
+    feedOk();
+    const s = ctxOf(DB_DOCS.filter((d) => d._id !== 'caltoken-alice'));
+    const body = await (await icsFetch(req(`/faves.ics?t=${T_ALICE}`), s.ctx)).text();
+    expect(body).not.toContain('Built to Spill');
+    expect((body.match(/BEGIN:VEVENT/g) || []).length).toBe(1);
   });
 });
 
@@ -496,44 +700,24 @@ describe('fetch handler — POST /faves.ics', () => {
 // any db size, so a steady schedule costs ZERO writes.
 describe('schedule mirror — unchanged schedule must cost zero writes', () => {
   beforeEach(() => {
-    __resetSubCacheForTests();
     __resetScheduleSyncForTests();
     __resetHeartbeatForTests();
     __resetShedForTests();
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  // A ctx that records every write and replays the docs a capped read returns.
-  const mkCtx = (docs = []) => {
-    const store = new Map(docs.map((d) => [d._id, d]));
-    const puts = [];
-    const deletes = [];
-    return {
-      puts,
-      deletes,
-      docs: () => [...store.values()],
-      db: {
-        query: async () => [...store.values()],
-        put: async (doc) => {
-          puts.push(doc);
-          store.set(doc._id, doc);
-          return doc._id;
-        },
-        delete: async (id) => {
-          deletes.push(id);
-          store.delete(id);
-          return id;
-        },
-      },
-    };
-  };
+  // The tick's ctx is the shared store mock: it reads its state docs BY ID and
+  // never scans, so `queries` staying empty is itself an assertion.
+  const mkCtx = (docs = []) => mkStore(docs);
   const feedOk = () => {
     const spy = vi.fn(async () => new Response(JSON.stringify(FEED), { status: 200 }));
     vi.stubGlobal('fetch', spy);
     return spy;
   };
   // Successive ticks, SCHEDULE_SYNC_INTERVAL_MS apart so each one is due.
-  const at = (n) => ({ scheduledTime: new Date(1e12 + n * SCHEDULE_SYNC_INTERVAL_MS).toISOString() });
+  const at = (n) => ({
+    scheduledTime: new Date(1e12 + n * SCHEDULE_SYNC_INTERVAL_MS).toISOString(),
+  });
 
   it('mirrors the feed on the first sync and records a fingerprint per event', async () => {
     feedOk();
@@ -561,37 +745,58 @@ describe('schedule mirror — unchanged schedule must cost zero writes', () => {
     expect(ctx.deletes).toEqual([]);
   });
 
-  it('stays quiet even when the capped read cannot see the schedule docs at all', async () => {
-    // Prod's exact shape: the read returns the state doc (its _id leads with a
-    // digit, so it sorts to the front and survives the cap) but NOT one single
-    // `schedule-event-*` doc. This is the case that used to re-put everything.
+  it('never scans the db — every tick read is by id', async () => {
+    // #4293's root cause was the tick reading the whole db and diffing against
+    // what it happened to see. There is no whole-db read left to be capped.
+    feedOk();
+    const ctx = mkCtx(DB_DOCS);
+    await scheduled(at(0), ctx);
+    await scheduled(at(1), ctx);
+    expect(ctx.queries).toEqual([]);
+    expect(ctx.gets.map((g) => g.id).sort()).toEqual(
+      expect.arrayContaining([HEARTBEAT_ID, SCHEDULE_STATE_ID])
+    );
+  });
+
+  it('stays quiet on a fresh isolate that reads its state doc back', async () => {
+    // A restarted isolate has no memory: the durable state doc read BY ID is
+    // what keeps it from re-putting every event. This is the case that used to
+    // re-put everything, because the state fell outside the capped window.
     feedOk();
     const seed = mkCtx(DB_DOCS);
     await scheduled(at(0), seed);
-    const state = seed.puts.find((d) => d._id === SCHEDULE_STATE_ID);
-    const capped = mkCtx([...DB_DOCS, state]); // no scheduleitem docs survive the cap
-    await scheduled(at(1), capped);
-    expect(capped.puts).toEqual([]);
-    expect(capped.deletes).toEqual([]);
+    __resetScheduleSyncForTests(); // isolate boot: memory gone, db intact
+    const restarted = mkCtx([...seed.store.values()]);
+    await scheduled(at(1), restarted);
+    expect(restarted.puts).toEqual([]);
+    expect(restarted.deletes).toEqual([]);
   });
 
-  it('falls back to the in-isolate copy when the state doc is not in the read', async () => {
-    // The state doc's _id sorts ahead of everything this app mints, but _id is a
-    // free string — enough docs beginning with punctuation would evict it, and a
-    // signed-in stranger can write those (unknown types are accepted, just routed
-    // to `discard`). Losing it must NOT read as "nothing is mirrored".
+  it('falls back to the in-isolate copy when the state doc read comes back empty', async () => {
+    // A keyed get is authoritative about absence — but "absent" must still mean
+    // "use the copy", never "nothing is mirrored". That second reading is the
+    // one that reopens the rewrite loop, whatever the read mechanism.
     feedOk();
     const ctx = mkCtx(DB_DOCS);
     await scheduled(at(0), ctx);
     ctx.puts.length = 0;
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    // Same isolate, but the read no longer contains the state doc.
-    const evicted = {
-      db: { ...ctx.db, query: async () => ctx.docs().filter((d) => d._id !== SCHEDULE_STATE_ID) },
-    };
-    await scheduled(at(1), evicted);
+    ctx.store.delete(SCHEDULE_STATE_ID); // same isolate, state doc gone
+    await scheduled(at(1), ctx);
     expect(ctx.puts).toEqual([]); // the isolate remembered — no rewrite storm
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('missing from the db read'));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining(SCHEDULE_STATE_ID));
+    warn.mockRestore();
+  });
+
+  it('uses the in-isolate copy when the state read FAILS outright', async () => {
+    feedOk();
+    const ctx = mkCtx(DB_DOCS);
+    await scheduled(at(0), ctx);
+    ctx.puts.length = 0;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    ctx.failGets(new Error('Access denied'));
+    await scheduled(at(1), ctx);
+    expect(ctx.puts).toEqual([]);
     warn.mockRestore();
   });
 
@@ -633,7 +838,7 @@ describe('schedule mirror — unchanged schedule must cost zero writes', () => {
     const ctx = mkCtx(DB_DOCS);
     await scheduled(at(0), ctx);
     expect(spy).toHaveBeenCalledTimes(1);
-    // A minute later: the aggregate still refreshes, the feed is left alone.
+    // A minute later: the tick ran, the feed was left alone.
     await scheduled({ scheduledTime: new Date(1e12 + 60_000).toISOString() }, ctx);
     expect(spy).toHaveBeenCalledTimes(1);
   });
@@ -666,24 +871,26 @@ describe('schedule mirror — unchanged schedule must cost zero writes', () => {
     expect(ctx.puts.filter((d) => d.type === 'scheduleitem').length).toBe(3);
   });
 
-  it('warns when the db read comes back capped, because the host says nothing', async () => {
+  it('costs the same on a huge db as on an empty one (no scan to be capped)', async () => {
+    // The old tick read every doc, so its cost — and its correctness — tracked
+    // the db's size. 20k docs must not change a single read it makes.
     feedOk();
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const filler = Array.from({ length: 2000 }, (_, i) => ({
+    const filler = Array.from({ length: 20000 }, (_, i) => ({
       _id: `favorite-user${String(i).padStart(5, '0')}-1`,
       type: 'favorite',
       userId: `user${i}`,
       eventId: 101,
     }));
-    await scheduled(at(0), mkCtx(filler));
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('2000-doc query cap'));
-    warn.mockRestore();
+    const big = mkCtx([...filler, ...DB_DOCS]);
+    await scheduled(at(0), big);
+    expect(big.queries).toEqual([]);
+    expect(big.gets.length).toBeLessThanOrEqual(4);
+    expect(big.puts.filter((d) => d.type === 'scheduleitem').length).toBe(3);
   });
 });
 
 describe('tick liveness heartbeat — the only durable proof the alarm ran', () => {
   beforeEach(() => {
-    __resetSubCacheForTests();
     __resetScheduleSyncForTests();
     __resetHeartbeatForTests();
     __resetShedForTests();
@@ -695,13 +902,7 @@ describe('tick liveness heartbeat — the only durable proof the alarm ran', () 
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  const mkCtx = (docs = []) => {
-    const puts = [];
-    return {
-      puts,
-      db: { query: async () => docs, put: async (d) => puts.push(d), delete: async () => {} },
-    };
-  };
+  const mkCtx = (docs = []) => mkStore(docs);
   const beats = (ctx) => ctx.puts.filter((d) => d.type === HEARTBEAT_TYPE);
   const tick = (ms) => ({ scheduledTime: new Date(ms).toISOString() });
   const T0 = 1e12;
@@ -714,7 +915,7 @@ describe('tick liveness heartbeat — the only durable proof the alarm ran', () 
     ]);
   });
 
-  it('beats at most once an hour — a 1m tick must not mint a write a minute', async () => {
+  it('beats at most once an hour — a frequent tick must not mint a write per tick', async () => {
     const ctx = mkCtx([]);
     await scheduled(tick(T0), ctx);
     await scheduled(tick(T0 + 60_000), ctx);
@@ -731,9 +932,9 @@ describe('tick liveness heartbeat — the only durable proof the alarm ran', () 
     expect(stamps[0]).not.toBe(stamps[1]);
   });
 
-  it('honours a recent heartbeat doc from the read after an isolate restart', async () => {
-    // Fresh isolate (no memory), but the doc is right there in the whole-db read
-    // its digit-leading _id guarantees a seat in — so nothing is due.
+  it('honours a recent heartbeat doc read BY ID after an isolate restart', async () => {
+    // Fresh isolate (no memory), but one keyed get finds the doc — reachable at
+    // any db size, no sort window to fall out of — so nothing is due.
     const ctx = mkCtx([
       { _id: HEARTBEAT_ID, type: HEARTBEAT_TYPE, at: new Date(T0 - 60_000).toISOString() },
     ]);
@@ -741,20 +942,30 @@ describe('tick liveness heartbeat — the only durable proof the alarm ran', () 
     expect(beats(ctx)).toEqual([]);
   });
 
-  it('beats when the doc in the read is stale — a dead-then-revived alarm says so', async () => {
+  it('beats when the doc it reads back is stale — a dead-then-revived alarm says so', async () => {
     const ctx = mkCtx([
-      { _id: HEARTBEAT_ID, type: HEARTBEAT_TYPE, at: new Date(T0 - 3 * 60 * 60 * 1000).toISOString() },
+      {
+        _id: HEARTBEAT_ID,
+        type: HEARTBEAT_TYPE,
+        at: new Date(T0 - 3 * 60 * 60 * 1000).toISOString(),
+      },
     ]);
     await scheduled(tick(T0), ctx);
     expect(beats(ctx)).toHaveLength(1);
   });
 
-  it('a doc missing from a capped read means "don’t know", never "never beat"', async () => {
-    // The #4293 shape: losing the doc from the read must not restart the writes.
+  it('a missing or unreadable doc means "don’t know", never "never beat"', async () => {
+    // The #4293 shape: losing the doc must not restart the writes. The isolate's
+    // own memory is the backstop, whichever way the read fails.
     const ctx = mkCtx([]);
     await scheduled(tick(T0), ctx);
-    await scheduled(tick(T0 + 60_000), mkCtx([])); // same isolate, doc absent
-    expect(beats(ctx)).toHaveLength(1);
+    const absent = mkCtx([]); // same isolate, doc absent
+    await scheduled(tick(T0 + 60_000), absent);
+    expect(beats(absent)).toEqual([]);
+    const broken = mkCtx([]);
+    broken.failGets(new Error('Access denied'));
+    await scheduled(tick(T0 + 120_000), broken);
+    expect(beats(broken)).toEqual([]);
   });
 
   it('treats an unparseable stamp as no evidence and beats now', async () => {
@@ -770,7 +981,6 @@ describe('tick liveness heartbeat — the only durable proof the alarm ran', () 
 
 describe('load shedding — the owner-flipped config doc', () => {
   beforeEach(() => {
-    __resetSubCacheForTests();
     __resetScheduleSyncForTests();
     __resetHeartbeatForTests();
     __resetShedForTests();
@@ -783,45 +993,25 @@ describe('load shedding — the owner-flipped config doc', () => {
     return spy;
   };
   const shedDoc = (level) => ({ _id: LOADSHED_ID, type: LOADSHED_TYPE, level });
-  const mkCtx = (docs = []) => {
-    const puts = [];
-    const deletes = [];
-    let rows = docs;
-    return {
-      puts,
-      deletes,
-      setDocs: (d) => {
-        rows = d;
-      },
-      db: {
-        query: async () => rows,
-        put: async (d) => {
-          puts.push(d);
-          return d._id;
-        },
-        delete: async (id) => {
-          deletes.push(id);
-          return id;
-        },
-      },
-    };
-  };
-  const at = (n) => ({ scheduledTime: new Date(1e12 + n * SCHEDULE_SYNC_INTERVAL_MS).toISOString() });
+  const at = (n) => ({
+    scheduledTime: new Date(1e12 + n * SCHEDULE_SYNC_INTERVAL_MS).toISOString(),
+  });
 
   it('serves the subscription normally when the doc is absent (fail-open)', async () => {
     feedOk();
-    await scheduled(at(0), mkCtx(DB_DOCS));
-    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {});
+    const { ctx } = ctxOf(DB_DOCS);
+    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), ctx);
     expect(res.status).toBe(200);
     expect(await res.text()).toContain('SUMMARY:Built to Spill');
   });
 
   it('serves normally when the level is off or unrecognized (a typo must not shed)', async () => {
     feedOk();
-    await scheduled(at(0), mkCtx([...DB_DOCS, shedDoc('off')]));
-    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {})).status).toBe(200);
-    await scheduled(at(1), mkCtx([...DB_DOCS, shedDoc('readonly')])); // fat-fingered
-    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {})).status).toBe(200);
+    const off = ctxOf([...DB_DOCS, shedDoc('off')]);
+    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), off.ctx)).status).toBe(200);
+    __resetShedForTests();
+    const typo = ctxOf([...DB_DOCS, shedDoc('readonly')]); // fat-fingered
+    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), typo.ctx)).status).toBe(200);
   });
 
   it('503s the subscription lane with a retry-after while shedding, in BOTH shed levels', async () => {
@@ -829,10 +1019,9 @@ describe('load shedding — the owner-flipped config doc', () => {
     // synced — which is why this is a 503 and not an empty calendar.
     for (const level of ['read-only', 'schedule-only']) {
       __resetShedForTests();
-      __resetSubCacheForTests();
       feedOk();
-      await scheduled(at(0), mkCtx([...DB_DOCS, shedDoc(level)]));
-      const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {});
+      const { ctx } = ctxOf([...DB_DOCS, shedDoc(level)]);
+      const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), ctx);
       expect(res.status).toBe(503);
       expect(res.headers.get('retry-after')).toBe(String(SHED_RETRY_AFTER_SECONDS));
       expect(res.headers.get('cache-control')).toBe('no-store');
@@ -842,67 +1031,87 @@ describe('load shedding — the owner-flipped config doc', () => {
     }
   });
 
+  it('sheds BEFORE doing any viewer work — no token lookup, no feed join', async () => {
+    // The point of the switch is to stop viewer-driven amplification, so the
+    // 503 has to come first, not after the reads it is meant to prevent.
+    const feed = feedOk();
+    const s = ctxOf([...DB_DOCS, shedDoc('read-only')]);
+    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), s.ctx)).status).toBe(503);
+    expect(s.queries).toEqual([]);
+    expect(s.gets.map((g) => g.id)).toEqual([LOADSHED_ID]);
+    expect(feed).not.toHaveBeenCalled();
+  });
+
+  it('takes effect on the very next request — no tick to wait for', async () => {
+    feedOk();
+    const s = ctxOf(DB_DOCS);
+    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), s.ctx)).status).toBe(200);
+    s.store.set(LOADSHED_ID, shedDoc('read-only'));
+    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), s.ctx)).status).toBe(503);
+  });
+
   it('a malformed token still 400s before the shed check (shedding is not a bug bucket)', async () => {
     feedOk();
-    await scheduled(at(0), mkCtx([...DB_DOCS, shedDoc('read-only')]));
-    expect((await icsFetch(req('/faves.ics?t=short'), {})).status).toBe(400);
+    const { ctx } = ctxOf([...DB_DOCS, shedDoc('read-only')]);
+    expect((await icsFetch(req('/faves.ics?t=short'), ctx)).status).toBe(400);
   });
 
-  it('skips the aggregate while shedding but STILL writes the heartbeat', async () => {
-    // Liveness must survive shedding: a shed tick is still a tick that ran, and
-    // the heartbeat is the only durable evidence of that (#4305).
-    feedOk();
-    const ctx = mkCtx([...DB_DOCS, shedDoc('read-only')]);
-    await scheduled(at(0), ctx);
-    expect(ctx.puts.filter((d) => d.type === HEARTBEAT_TYPE)).toHaveLength(1);
-    // No aggregate was built, so the GET has nothing to serve even if it tried.
-    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {})).status).toBe(503);
-  });
-
-  it('keeps the 5-minute schedule mirror running in BOTH shed levels', async () => {
-    // Shedding targets viewer-driven amplification, not the fixed-cost mirror —
-    // and the schedule staying fresh is the whole point of staying up.
+  it('does not shed the tick: heartbeat and mirror both run in BOTH shed levels', async () => {
+    // Shedding targets viewer-driven amplification, not the fixed-cost tick —
+    // and the schedule staying fresh is the whole point of staying up. Liveness
+    // must survive shedding too: a shed tick is still a tick that ran (#4305).
     for (const level of ['read-only', 'schedule-only']) {
       __resetShedForTests();
       __resetScheduleSyncForTests();
+      __resetHeartbeatForTests();
       feedOk();
-      const ctx = mkCtx([...DB_DOCS, shedDoc(level)]);
+      const ctx = mkStore([...DB_DOCS, shedDoc(level)]);
       await scheduled(at(0), ctx);
+      expect(ctx.puts.filter((d) => d.type === HEARTBEAT_TYPE)).toHaveLength(1);
       expect(ctx.puts.filter((d) => d.type === 'scheduleitem').length).toBe(3);
       expect(ctx.puts.some((d) => d._id === SCHEDULE_STATE_ID)).toBe(true);
     }
   });
 
-  it('honours the in-isolate copy when the doc falls out of a capped read', async () => {
-    // §4a: a missing doc means "don't know" → use the remembered level. It must
-    // never read as "shedding is off", which would re-open the very load spike
-    // the switch was flipped for.
+  it('keeps the remembered level when the shed doc cannot be read', async () => {
+    // §4a: a read that fails means "don't know" → keep the level we last saw. It
+    // must never read as "shedding is off", which would re-open the very load
+    // spike the switch was flipped for. (A doc that is genuinely ABSENT from a
+    // keyed read is a different, authoritative answer — see the test below.)
     feedOk();
-    const ctx = mkCtx([...DB_DOCS, shedDoc('read-only')]);
-    await scheduled(at(0), ctx);
+    const s = ctxOf([...DB_DOCS, shedDoc('read-only')]);
+    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), s.ctx)).status).toBe(503);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    ctx.setDocs(DB_DOCS); // same isolate, the config doc is no longer in the read
-    await scheduled(at(1), ctx);
-    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {})).status).toBe(503);
+    s.failGets(new Error('Access denied'));
+    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), s.ctx)).status).toBe(503);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining(LOADSHED_ID));
     warn.mockRestore();
   });
 
-  it('lifts the shed as soon as the doc says off, and re-fills the aggregate', async () => {
+  it('lifts the shed as soon as the doc says off, and serves the real feed again', async () => {
     feedOk();
-    const ctx = mkCtx([...DB_DOCS, shedDoc('read-only')]);
-    await scheduled(at(0), ctx);
-    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {})).status).toBe(503);
-    ctx.setDocs([...DB_DOCS, shedDoc('off')]);
-    await scheduled(at(1), ctx);
-    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {});
+    const s = ctxOf([...DB_DOCS, shedDoc('read-only')]);
+    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), s.ctx)).status).toBe(503);
+    s.store.set(LOADSHED_ID, shedDoc('off'));
+    const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), s.ctx);
     expect(res.status).toBe(200);
     expect(await res.text()).toContain('SUMMARY:Built to Spill');
   });
 
-  it('a cold isolate that has never seen the doc serves normally (fail-open)', async () => {
-    // The GET lane cannot read the db at all, so before the first tick it has no
-    // idea whether we are shedding. Fail-open is the only safe default.
+  it('a DELETED shed doc lifts the shed — a keyed read is authoritative about absence', async () => {
+    // The capped-scan design could not tell "deleted" from "fell off the end",
+    // so it had to keep shedding and the runbook said never to delete the doc.
+    // A keyed get can, so deleting it is now a legitimate way to lift.
+    feedOk();
+    const s = ctxOf([...DB_DOCS, shedDoc('read-only')]);
+    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), s.ctx)).status).toBe(503);
+    s.store.delete(LOADSHED_ID);
+    expect((await icsFetch(req(`/faves.ics?t=${T_ALICE}`), s.ctx)).status).toBe(200);
+  });
+
+  it('a ctx that cannot read the db at all serves normally (fail-open)', async () => {
+    // Before #3650's unfilteredReads declaration the GET lane could not read the
+    // db, and that must stay the safe direction: serve, never shed by accident.
     feedOk();
     const res = await icsFetch(req(`/faves.ics?t=${T_ALICE}`), {});
     expect(res.status).toBe(200);
