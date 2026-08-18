@@ -9,12 +9,12 @@ festival is an edit to two files instead of a fork.
 
 ## What you change
 
-| File | What lives there |
-| --- | --- |
-| `festival-config.js` | name, db name, deployed URL, timezone, day table, header copy, links |
-| `backend.js` — the `FESTIVAL CONFIG` block | the same values again, for the isolate (it resolves no imports) |
-| `backend.js` — the `FEED ADAPTER` block | `ingestScheduleFeed()`: the shape of this festival's published data |
-| `styles.js` | the palette — Tailwind arbitrary values, so they stay literal here |
+| File                                       | What lives there                                                     |
+| ------------------------------------------ | -------------------------------------------------------------------- |
+| `festival-config.js`                       | name, db name, deployed URL, timezone, day table, header copy, links |
+| `backend.js` — the `FESTIVAL CONFIG` block | the same values again, for the isolate (it resolves no imports)      |
+| `backend.js` — the `FEED ADAPTER` block    | `ingestScheduleFeed()`: the shape of this festival's published data  |
+| `styles.js`                                | the palette — Tailwind arbitrary values, so they stay literal here   |
 
 `festival-config.test.js` fails the build if the two config copies drift apart.
 
@@ -48,7 +48,7 @@ moves orphans every favorite anyone has made.
 
 The mirror fetches on the **scheduled** lane, through platform egress, so CORS
 never applies — a festival site that a browser can't fetch is still fine here.
-The test is whether the *worker* can reach it:
+The test is whether the _worker_ can reach it:
 
 1. **Site reachable from the worker** — point `SCHEDULE_URL` at it. Most sites,
    including CORS-locked ones.

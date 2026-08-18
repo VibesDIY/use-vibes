@@ -776,7 +776,9 @@ describe('schedule mirror — unchanged schedule must cost zero writes', () => {
     return spy;
   };
   // Successive ticks, SCHEDULE_SYNC_INTERVAL_MS apart so each one is due.
-  const at = (n) => ({ scheduledTime: new Date(1e12 + n * SCHEDULE_SYNC_INTERVAL_MS).toISOString() });
+  const at = (n) => ({
+    scheduledTime: new Date(1e12 + n * SCHEDULE_SYNC_INTERVAL_MS).toISOString(),
+  });
 
   it('never reads the whole db — every tick read is a point get', async () => {
     // The tick's whole-db query is what #4293 rode in on, and it is gone. If this
@@ -967,7 +969,11 @@ describe('tick liveness heartbeat — the only durable proof the alarm ran', () 
 
   it('beats when the stored stamp is stale — a dead-then-revived alarm says so', async () => {
     const ctx = mkDb([
-      { _id: HEARTBEAT_ID, type: HEARTBEAT_TYPE, at: new Date(T0 - 3 * 60 * 60 * 1000).toISOString() },
+      {
+        _id: HEARTBEAT_ID,
+        type: HEARTBEAT_TYPE,
+        at: new Date(T0 - 3 * 60 * 60 * 1000).toISOString(),
+      },
     ]);
     await scheduled(tick(T0), ctx);
     expect(beats(ctx)).toHaveLength(1);
@@ -1005,7 +1011,9 @@ describe('load shedding — the owner-flipped config doc', () => {
     return spy;
   };
   const shedDoc = (level) => ({ _id: LOADSHED_ID, type: LOADSHED_TYPE, level });
-  const at = (n) => ({ scheduledTime: new Date(1e12 + n * SCHEDULE_SYNC_INTERVAL_MS).toISOString() });
+  const at = (n) => ({
+    scheduledTime: new Date(1e12 + n * SCHEDULE_SYNC_INTERVAL_MS).toISOString(),
+  });
 
   it('serves the subscription normally when the doc is absent (fail-open)', async () => {
     feedOk();

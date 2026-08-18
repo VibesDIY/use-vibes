@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { readFriendParam, writeFriendParamToUrl, readSuperParam, readNowParam } from './url-state.js';
+import {
+  readFriendParam,
+  writeFriendParamToUrl,
+  readSuperParam,
+  readNowParam,
+} from './url-state.js';
 
 // A stand-in for window/window.top: enough Location + History surface for the helpers,
 // with replaceState actually rewriting the location so a set→clear round trip is

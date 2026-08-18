@@ -59,13 +59,16 @@ describe('access.js — channel routing', () => {
     expect(ok.grant).toEqual({ public: ['schedule'] });
   });
 
-  it('only the owner can write the schedule mirror\'s state doc', () => {
+  it("only the owner can write the schedule mirror's state doc", () => {
     // The tick TRUSTS this doc to decide the schedule is already up to date, so
     // a stranger forging it could freeze the festival schedule. Without its own
     // branch it would fall through to the unknown-type branch, which takes a
     // write from anybody.
     expect(
-      run({ type: 'schedulesync', fingerprints: {} }, null, { userHandle: 'mallory', isOwner: false })
+      run({ type: 'schedulesync', fingerprints: {} }, null, {
+        userHandle: 'mallory',
+        isOwner: false,
+      })
     ).toEqual({ forbidden: 'owner only' });
     const { ok } = run({ type: 'schedulesync', fingerprints: {} }, null, {
       userHandle: 'jchris',
@@ -122,14 +125,18 @@ describe('access.js — channel routing', () => {
     // fallback has to keep it inside this branch rather than dropping it into
     // the accept-from-anybody one.
     const owner = { userHandle: 'jchris', isOwner: true };
-    expect(run({}, { _id: '0-load-shed', type: 'loadshed', level: 'off' }, owner).ok.channels).toEqual(
-      ['schedule']
-    );
     expect(
-      run({}, { _id: '0-load-shed', type: 'loadshed', level: 'read-only' }, {
-        userHandle: 'mallory',
-        isOwner: false,
-      })
+      run({}, { _id: '0-load-shed', type: 'loadshed', level: 'off' }, owner).ok.channels
+    ).toEqual(['schedule']);
+    expect(
+      run(
+        {},
+        { _id: '0-load-shed', type: 'loadshed', level: 'read-only' },
+        {
+          userHandle: 'mallory',
+          isOwner: false,
+        }
+      )
     ).toEqual({ forbidden: 'owner only' });
   });
 
@@ -139,13 +146,12 @@ describe('access.js — channel routing', () => {
     ).toEqual({ forbidden: 'owner only' });
   });
 
-  it('an anonymous reader can read a schedule item but NOT another user\'s favorite', () => {
+  it("an anonymous reader can read a schedule item but NOT another user's favorite", () => {
     // Read visibility is decided by whether the doc's stored channel is public.
-    const sched = run(
-      { type: 'scheduleitem', eventId: '42' },
-      null,
-      { userHandle: 'jchris', isOwner: true }
-    ).ok;
+    const sched = run({ type: 'scheduleitem', eventId: '42' }, null, {
+      userHandle: 'jchris',
+      isOwner: true,
+    }).ok;
     const fav = run({ type: 'favorite', userId: 'alice', eventId: '1' }, null, alice).ok;
     const publicOf = (d) => (d.grant && d.grant.public) || [];
     // scheduleitem exposes a public channel → anonymous/all can read it.

@@ -153,7 +153,9 @@ describe('buildDaySchedule', () => {
 
   it('groups an after-midnight pick onto the prior festival night', () => {
     const events = eventsFromScheduleDocs([doc({ eventId: 'late', start: '2026-08-01T01:00:00' })]);
-    expect(buildDaySchedule('Friday', events, [], shiftStartRaw).map((r) => r.id)).toEqual(['late']);
+    expect(buildDaySchedule('Friday', events, [], shiftStartRaw).map((r) => r.id)).toEqual([
+      'late',
+    ]);
   });
 });
 
@@ -179,9 +181,9 @@ describe('makeShiftBounds', () => {
 
 describe('byStart', () => {
   it('orders two events by festival-local start', () => {
-    expect(byStart({ start: '2026-07-31T09:00:00' }, { start: '2026-07-31T10:00:00' })).toBeLessThan(
-      0
-    );
+    expect(
+      byStart({ start: '2026-07-31T09:00:00' }, { start: '2026-07-31T10:00:00' })
+    ).toBeLessThan(0);
   });
 });
 
@@ -232,10 +234,7 @@ describe('groupByTimeSlot', () => {
       ev('a', '2026-07-31T16:00:00', '2026-07-31T17:00:00'),
       ev('b', '2026-07-31T18:00:00', '2026-07-31T19:00:00'),
     ]);
-    expect(groups.map((g) => g.start)).toEqual([
-      '2026-07-31T16:00:00',
-      '2026-07-31T18:00:00',
-    ]);
+    expect(groups.map((g) => g.start)).toEqual(['2026-07-31T16:00:00', '2026-07-31T18:00:00']);
   });
 
   it('groups a shift and an event that start together, by the same rule', () => {
@@ -248,7 +247,11 @@ describe('groupByTimeSlot', () => {
   });
 
   it('reads a shift through the bounds accessors, not its raw fields', () => {
-    const legacy = { type: 'shift', id: 's', data: { _id: 's', day: DAY2, startTime: '09:00', endTime: '17:00' } };
+    const legacy = {
+      type: 'shift',
+      id: 's',
+      data: { _id: 's', day: DAY2, startTime: '09:00', endTime: '17:00' },
+    };
     const [g] = group([legacy]);
     expect(g.start).toBe(`${D[DAY2]}T09:00:00`);
     expect(g.end).toBe(`${D[DAY2]}T17:00:00`);
@@ -301,7 +304,12 @@ describe('parseTestClock', () => {
 // The Now tab's selection under a fixed clock — the states a QA screenshot needs to
 // distinguish, including the end-of-set boundary and the 4 AM night roll.
 describe('now/next selection at a fixed test clock', () => {
-  const ev = (venueTitle, start, end) => ({ eventId: `${venueTitle}-${start}`, venueTitle, start, end });
+  const ev = (venueTitle, start, end) => ({
+    eventId: `${venueTitle}-${start}`,
+    venueTitle,
+    start,
+    end,
+  });
   const events = [
     ev('Woods', '2026-07-31T19:00:00', '2026-07-31T20:00:00'),
     ev('Mtn', '2026-07-31T19:30:00', '2026-07-31T20:30:00'),
@@ -321,11 +329,15 @@ describe('now/next selection at a fixed test clock', () => {
   });
 
   it('counts a set as playing from its exact start', () => {
-    expect(setsOnNow(events, clock('2026-07-31T19:00')).map((e) => e.venueTitle)).toEqual(['Woods']);
+    expect(setsOnNow(events, clock('2026-07-31T19:00')).map((e) => e.venueTitle)).toEqual([
+      'Woods',
+    ]);
   });
 
   it('offers the not-yet-started set as up next', () => {
-    expect(upNextSets(events, clock('2026-07-31T19:45')).map((e) => e.venueTitle)).toEqual(['Barn']);
+    expect(upNextSets(events, clock('2026-07-31T19:45')).map((e) => e.venueTitle)).toEqual([
+      'Barn',
+    ]);
   });
 
   it('has nothing on stage and nothing next once the night is over', () => {

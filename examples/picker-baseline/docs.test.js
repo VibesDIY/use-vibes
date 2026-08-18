@@ -137,7 +137,14 @@ describe('ensureCalToken — mint exactly once per user, ever', () => {
   });
 
   it('swallows a refused write (offline) rather than throwing into the effect', async () => {
-    const db = { get: async () => { throw new Error('Not found'); }, put: async () => { throw new Error('offline'); } };
+    const db = {
+      get: async () => {
+        throw new Error('Not found');
+      },
+      put: async () => {
+        throw new Error('offline');
+      },
+    };
     await expect(
       ensureCalToken({ database: db, userId: 'alice', getRandomValues: rnd })
     ).resolves.toBe(null);

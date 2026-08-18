@@ -46,15 +46,18 @@
 // festival-config.js on purpose; festival-config.test.js pins them in sync.
 // Instantiating a new festival means editing THIS block and the FEED ADAPTER
 // below — nothing else in this file.
-export const BACKEND_DB = 'examplefest';
-export const FESTIVAL_NAME = 'Example Fest';
-export const ICS_SLUG = 'example-fest-2026';
+export const BACKEND_DB = 'tellurideblues';
+export const FESTIVAL_NAME = 'Telluride Blues & Brews';
+export const ICS_SLUG = 'telluride-blues-2026';
 // One URL, fetched through platform egress on the scheduled lane — so a feed
 // with no CORS header (most festival sites) is fine here even though the client
 // could never fetch it directly. If the site is unreachable from the worker too,
 // the same mirror runs off an owner-written snapshot doc instead; the read path
 // downstream does not change either way.
-export const SCHEDULE_URL = 'https://example.com/schedule.json';
+// Squarespace serves any page as JSON with `?format=json`; `mainContent` is the
+// page's own markup. There is no CORS header on it, which is why the mirror runs
+// on the scheduled lane through platform egress and the client never fetches it.
+export const SCHEDULE_URL = 'https://tellurideblues.com/schedule?format=json';
 const SCHEDULE_ACCEPT = 'application/json';
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -68,7 +71,7 @@ export const config = {
   },
 };
 
-const FESTIVAL_TZ = 'America/Los_Angeles'; // keep in sync with festival-config.js `tz`
+export const FESTIVAL_TZ = 'America/Denver'; // keep in sync with festival-config.js `tz`
 
 const hasExplicitTZ = (s) => /([+-]\d\d:\d\d|Z)$/.test(s);
 const ensureT = (s = '') => (s.includes('T') ? s : s.replace(' ', 'T'));
@@ -261,11 +264,10 @@ export const decodeFeedEntities = (s) => {
 // Festival day → calendar date, for legacy shift docs stored without absolute
 // start/end (they carry day + startTime/endTime only). Mirrors FESTIVAL_2026.
 const FESTIVAL_DATES = {
-  Thursday: '2026-07-30',
-  Friday: '2026-07-31',
-  Saturday: '2026-08-01',
-  Sunday: '2026-08-02',
-  Monday: '2026-08-03',
+  Thursday: '2026-09-17',
+  Friday: '2026-09-18',
+  Saturday: '2026-09-19',
+  Sunday: '2026-09-20',
 };
 
 const shiftStartOf = (s) =>
@@ -524,36 +526,107 @@ export const scheduleItemId = (eventId) => `schedule-event-${eventId}`;
 // ingestFeed, minus the client-only `day`: the client derives day via
 // festivalDayFor at read time, keeping the 4 AM night-cutoff in one place and
 // the stored content stable (so the diff below doesn't churn on cutoff logic).
-// ── FEED ADAPTER — replace per festival ──────────────────────────────────────
-// The one function that knows the SHAPE of a given festival's published data.
-// Input: whatever SCHEDULE_URL returns. Output: a flat array of
-//   { eventId, title, start, end, venueTitle, url?, venueColor?, lineup? }
-// with `start`/`end` as naive local times in the festival's timezone.
-// `eventId` MUST be stable across refetches — a content-hashed id
-// (`date|HHMM|stageSlug|titleSlug`) if the source has no id of its own, or every
-// refresh orphans everybody's favorites.
+// ── FEED ADAPTER — Telluride's published grid ────────────────────────────────
+// The source is the festival's own schedule page, served as JSON by Squarespace
+// (`?format=json`); `mainContent` is that page's markup, and its structure IS
+// the schedule: <h1> is a day, <h2> is a stage, and each <p> under a stage is
+// "start - end MERIDIEM - Artist".
+//
+// What this deliberately does NOT do: invent times. The late-night Juke Joints
+// club shows publish door times only, with no set times, so they are not
+// mirrored — a picker that guesses when a set starts is worse than one that
+// admits it doesn't know. If Telluride publishes them, they arrive by extending
+// this function; nothing else in the app changes.
+//
+// eventId is content-hashed (`date|HHMM|stageSlug|titleSlug`) because the source
+// carries no ids of its own — and an id that moves on a refetch orphans every
+// favorite anyone has made.
+
+const DAY_DATES = {
+  Thursday: '2026-09-17',
+  Friday: '2026-09-18',
+  Saturday: '2026-09-19',
+  Sunday: '2026-09-20',
+};
+const stripTags = (s) => s.replace(/<[^>]+>/g, '');
+const decode = (s) =>
+  s
+    .replace(/&amp;/g, '&')
+    .replace(/&#8217;|&rsquo;|’/g, '’')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+const slug = (s) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40);
+
+// "4:30" + "PM" → "16:30". A start with no meridiem inherits the end's, then
+// rolls back an hour-block if that would put it after the end (12:00 - 1:00 PM).
+const to24 = (h, m, mer) => {
+  let hh = h % 12;
+  if (mer === 'PM') hh += 12;
+  return `${String(hh).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+const parseRange = (text) => {
+  const m = text.match(
+    /^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?\s*[-–—]\s*(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/i
+  );
+  if (!m) return null;
+  const endMer = m[6].toUpperCase();
+  const startMer = (m[3] || '').toUpperCase() || endMer;
+  let start = to24(+m[1], +(m[2] || 0), startMer);
+  const end = to24(+m[4], +(m[5] || 0), endMer);
+  // Inherited meridiem can overshoot: "12:00 - 1:00 PM" is noon→13:00, not 24:00.
+  if (!m[3] && start > end) start = to24(+m[1], +(m[2] || 0), startMer === 'PM' ? 'AM' : 'PM');
+  return { start, end };
+};
+
 export const ingestScheduleFeed = (data) => {
-  const list = [];
-  if (data === null || typeof data !== 'object') return list;
-  for (const vid in data) {
-    const venue = data[vid];
-    if (!venue || !Array.isArray(venue.events)) continue;
-    for (const ev of venue.events) {
-      if (ev == null || ev.id == null) continue;
-      const item = {
-        eventId: ev.id,
-        title: decodeFeedEntities(String(ev.title ?? '')),
-        start: ensureT(String(ev.start ?? '')),
-        end: ensureT(String(ev.end ?? '')),
-        venueTitle: decodeFeedEntities(String(venue.title ?? '')),
-        lineup: ev.lineup && typeof ev.lineup === 'object' ? ev.lineup : {},
-      };
-      if (typeof ev.url === 'string' && ev.url !== '') item.url = ev.url;
-      if (venue.color != null) item.venueColor = venue.color;
-      list.push(item);
+  const html = data && typeof data.mainContent === 'string' ? data.mainContent : '';
+  if (!html) return [];
+  const out = [];
+  let day = null;
+  let stage = null;
+  const nodes = html.match(/<(h1|h2|h3|p)\b[^>]*>[\s\S]*?<\/\1>/gi) || [];
+  for (const node of nodes) {
+    const tag = node.slice(1, 3).toLowerCase().replace('>', '');
+    const text = decode(stripTags(node));
+    if (!text) continue;
+    if (tag === 'h1') {
+      const d = text.match(/^(Thursday|Friday|Saturday|Sunday)/i);
+      day = d ? d[1] : null;
+      stage = null;
+      continue;
     }
+    if (tag === 'h2') {
+      stage = text;
+      continue;
+    }
+    if (!day || !DAY_DATES[day]) continue;
+    const range = parseRange(text);
+    if (!range) continue;
+    const title = decode(text.replace(/^[^-–—]*[-–—][^-–—]*[-–—]\s*/, ''));
+    if (!title || /located at|Box Office/i.test(text)) continue;
+    const date = DAY_DATES[day];
+    const stageName = stage || 'Special Events';
+    const eventId = `${date}|${range.start.replace(':', '')}|${slug(stageName)}|${slug(title)}`;
+    out.push({
+      eventId,
+      title,
+      start: `${date}T${range.start}:00`,
+      end: `${date}T${range.end}:00`,
+      venueTitle: stageName,
+      url: 'https://tellurideblues.com/schedule',
+      lineup: {},
+    });
   }
-  return list;
+  return out;
 };
 
 // Deterministic serialization for content comparison: object keys sorted so a
@@ -775,11 +848,11 @@ const handleDownload = async (request) => {
 const ANCHOR_ITEMS = [
   {
     id: 'gates-open-2026',
-    title: 'Gates Open',
+    title: 'Festival Gates Open',
     start: '2026-09-18T11:30:00',
-    end: '2026-09-18T12:30:00',
-    location: 'Somewhere, ST',
-    url: 'https://example.com',
+    end: '2026-09-18T12:00:00',
+    location: 'Town Park, Telluride, CO',
+    url: 'https://tellurideblues.com/schedule',
   },
 ];
 

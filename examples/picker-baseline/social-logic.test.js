@@ -34,9 +34,9 @@ describe('profilePicksVisible', () => {
   const followed = new Set(['alice']);
 
   it('shows a followed handle picks', () => {
-    expect(
-      profilePicksVisible({ handle: 'alice', isSelf: false, followedHandles: followed })
-    ).toBe(true);
+    expect(profilePicksVisible({ handle: 'alice', isSelf: false, followedHandles: followed })).toBe(
+      true
+    );
   });
 
   it('shows nothing for someone you do not follow', () => {
@@ -79,7 +79,9 @@ describe('followButtonState', () => {
   });
 
   it('waits for the graph snapshot before offering an action', () => {
-    expect(followButtonState({ isSelf: false, signedIn: true, socialReady: false })).toBe('loading');
+    expect(followButtonState({ isSelf: false, signedIn: true, socialReady: false })).toBe(
+      'loading'
+    );
   });
 
   it('reflects the edge state once known', () => {
