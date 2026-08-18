@@ -73,10 +73,18 @@ const byTypeUser = (doc) => [doc.type, doc.userId];
 // inline placeholder instead of a broken-image icon.
 function Logo() {
   const [failed, setFailed] = useState(false);
+  // A festival with no logo of its own renders NOTHING here — never an <img>
+  // with an empty src, which paints a broken-image glyph rather than firing
+  // onError. The header's title carries the identity in that case; hotlinking
+  // a festival's logo is a choice each instantiation makes deliberately.
+  if (!LOGO_URL) return null;
+  // A configured logo that fails to load is a different case — offline, or a
+  // cached view whose CSP blocks remote images — and there the wordmark is the
+  // only thing standing between the reader and an anonymous header.
   if (failed)
     return (
       <div
-        className="h-32 w-20 shrink-0 flex items-center justify-center text-center leading-tight font-black text-lg text-[#4A4A4A] dark:text-[#e9e9e9]"
+        className={`h-32 w-20 shrink-0 flex items-center justify-center text-center leading-tight font-black text-lg ${c.bodyText}`}
         role="img"
         aria-label={FESTIVAL.name}
       >
@@ -659,14 +667,16 @@ export default function FestivalPicker() {
         <div className={`${c.headerBg} ${c.border} p-2.5`}>
           <div className="flex items-start justify-between gap-1 flex-wrap">
             <div className="flex items-center gap-1">
-              <a
-                href={FESTIVAL.officialUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0"
-              >
-                <Logo />
-              </a>
+              {FESTIVAL.logoUrl && (
+                <a
+                  href={FESTIVAL.officialUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0"
+                >
+                  <Logo />
+                </a>
+              )}
               <div>
                 <h1 className={`text-4xl font-black ${c.bodyText} mb-[1px]`}>
                   {superMode ? `SUPER ${FESTIVAL.title}` : FESTIVAL.title}
