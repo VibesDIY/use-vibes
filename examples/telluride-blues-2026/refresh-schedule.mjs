@@ -16,7 +16,9 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { ingestScheduleFeed, SCHEDULE_URL } from './backend.js';
 import { FESTIVAL } from './festival-config.js';
 
-const VIBE = 'jchris/telluride-blues-2026';
+// Derived, so cloning this app to another handle is ONE edit (festival-config.js)
+// rather than two files that can disagree about which app they're writing to.
+const VIBE = FESTIVAL.vibeUrl.split('/vibe/')[1];
 const CHUNK_BYTES = 90_000; // the platform's doc ceiling is 100 KB; leave headroom
 const DRY = process.argv.includes('--dry-run');
 
