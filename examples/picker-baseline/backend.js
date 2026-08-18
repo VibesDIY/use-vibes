@@ -56,6 +56,11 @@ export const ICS_SLUG = 'example-fest-2026';
 // downstream does not change either way.
 export const SCHEDULE_URL = 'https://example.com/schedule.json';
 const SCHEDULE_ACCEPT = 'application/json';
+// Which door this festival's data comes through: 'fetch' (the worker can reach
+// the feed) or 'snapshot' (it can't — an owner-written snapshot doc instead).
+// Probe before choosing: a site that curls fine from a laptop can still 403 the
+// worker, and the only honest test is the deployed tick's own log line.
+export const SCHEDULE_SOURCE = 'fetch';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const config = {
@@ -388,7 +393,20 @@ export async function scheduled(event, ctx) {
   // and upsert only the `scheduleitem` docs whose content changed. Clients read
   // the schedule from these public docs — nobody fetches the feed per-user
   // anymore. It never wipes the schedule on a transient feed failure.
-  await syncScheduleDocs(event, ctx);
+  const mirror = await syncScheduleDocs(event, ctx);
+  // The mirror is the one part of the tick that depends on somebody else's
+  // server, and its failures are quiet by construction (a failed fetch leaves
+  // the existing schedule alone rather than wiping it). A vibe backend's
+  // console goes nowhere, so say it on the lane that is actually readable:
+  //   vibes-diy app logs <owner>/<slug> --since 1h
+  // (a test ctx, and any older runtime, has no log lane — never let telemetry
+  // be the thing that breaks the tick)
+  const log = ctx && typeof ctx.log === 'function' ? (...a) => ctx.log(...a) : () => {};
+  if (mirror && mirror.ok === false) {
+    log('warn', 'schedule mirror failed', mirror);
+  } else if (mirror && (mirror.put || mirror.deleted)) {
+    log('info', 'schedule mirror updated', mirror);
+  }
 }
 
 // ── Tick liveness heartbeat (scheduled lane) ─────────────────────────────────
@@ -637,6 +655,39 @@ export const diffScheduleAgainstState = (feedItems, stateDoc) => {
   return { puts, deletes, fingerprints };
 };
 
+// ── Data door 2: the owner-written snapshot ──────────────────────────────────
+// When the festival's site 403s platform egress (it can serve a browser fine and
+// still refuse the worker — Telluride, DEF CON), the schedule is fetched and
+// parsed OUTSIDE by `refresh-schedule.mjs` and written here as one or more
+// `schedule-snapshot-<seq>` docs. The tick reads them BY ID — never a scan, so
+// the read cost does not grow with the db (#4293) — and mirrors them into the
+// same `scheduleitem` docs the fetch lane would have produced. Everything
+// downstream is identical; only where `feedItems` comes from changes.
+export const SNAPSHOT_ID_PREFIX = 'schedule-snapshot-';
+export const SNAPSHOT_TYPE = 'schedulesnapshot';
+export const MAX_SNAPSHOT_CHUNKS = 40;
+
+export const readScheduleSnapshot = async (ctx) => {
+  const head = await getDoc(ctx, `${SNAPSHOT_ID_PREFIX}0`);
+  if (!head || typeof head.body !== 'string') return null;
+  const total = Number(head.total) || 1;
+  if (total > MAX_SNAPSHOT_CHUNKS) return null;
+  let body = head.body;
+  for (let seq = 1; seq < total; seq++) {
+    const part = await getDoc(ctx, `${SNAPSHOT_ID_PREFIX}${seq}`);
+    // A partially-written snapshot must read as NO snapshot: half a schedule
+    // would mirror as "these events were deleted".
+    if (!part || typeof part.body !== 'string') return null;
+    body += part.body;
+  }
+  try {
+    const items = JSON.parse(body);
+    return Array.isArray(items) ? items : null;
+  } catch {
+    return null;
+  }
+};
+
 // The scheduled central fetch. At most once per SCHEDULE_SYNC_INTERVAL_MS:
 // fetch the feed, diff against the state doc, upsert only the changed docs
 // (deleting vanished events), and persist the new state — LAST, so a put that
@@ -651,15 +702,22 @@ export const syncScheduleDocs = async (event, ctx) => {
   if (lastScheduleSyncAt !== null && now - lastScheduleSyncAt < SCHEDULE_SYNC_INTERVAL_MS) {
     return { ok: true, skipped: 'not due' };
   }
-  let data;
-  try {
-    const res = await globalThis.fetch(SCHEDULE_URL, { headers: { accept: SCHEDULE_ACCEPT } });
-    if (!res.ok) throw new Error(`schedule feed ${res.status}`);
-    data = await res.json();
-  } catch (err) {
-    return { ok: false, error: String((err && err.message) || err) };
+  let feedItems;
+  if (SCHEDULE_SOURCE === 'snapshot') {
+    const snapshot = await readScheduleSnapshot(ctx);
+    if (!snapshot) return { ok: false, error: 'no snapshot' };
+    feedItems = snapshot;
+  } else {
+    let data;
+    try {
+      const res = await globalThis.fetch(SCHEDULE_URL, { headers: { accept: SCHEDULE_ACCEPT } });
+      if (!res.ok) throw new Error(`schedule feed ${res.status}`);
+      data = await res.json();
+    } catch (err) {
+      return { ok: false, error: String((err && err.message) || err) };
+    }
+    feedItems = ingestScheduleFeed(data);
   }
-  const feedItems = ingestScheduleFeed(data);
   if (feedItems.length === 0) return { ok: false, error: 'empty feed' };
   lastScheduleSyncAt = now;
   // The durable state doc first; the in-isolate copy is the backstop for the day

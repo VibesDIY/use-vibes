@@ -71,6 +71,19 @@ export default function (doc, oldDoc, user, ctx) {
     return { channels: ['discard'], grant: {} };
   }
 
+  // An owner-written schedule SNAPSHOT (`_id: schedule-snapshot-<seq>`): the
+  // second data door. Some festival sites 403 the platform's egress even though
+  // they serve a browser fine (Telluride, DEF CON), so the schedule is fetched
+  // and parsed OUTSIDE and put here by the owner; the tick reads these docs
+  // instead of the network and mirrors them into `scheduleitem` docs exactly as
+  // before. OWNER-ONLY WRITE for the same reason as the sync state: this is what
+  // the mirror trusts. `discard` channel — clients read the mirrored schedule,
+  // never the raw snapshot.
+  if (type === 'schedulesnapshot') {
+    if (!user.isOwner) throw { forbidden: 'owner only' };
+    return { channels: ['discard'], grant: {} };
+  }
+
   // The load-shed switch (`_id: 0-load-shed`, see loadshed.js): one owner-written
   // doc whose `level` turns viewer-driven work off during the festival rush
   // without a redeploy. Two halves, both load-bearing:
