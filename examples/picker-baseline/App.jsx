@@ -33,10 +33,11 @@ import {
   profilePicksVisible,
   armPath,
 } from './social-logic.js';
+import { FESTIVAL } from './festival-config.js';
 import {
   favoriteDocId,
   noteDocId,
-  migratePickathonDoc,
+  migrateFestivalDoc,
   icsSubscribePath,
   ensureCalToken,
 } from './docs.js';
@@ -72,31 +73,44 @@ const byTypeUser = (doc) => [doc.type, doc.userId];
 // inline placeholder instead of a broken-image icon.
 function Logo() {
   const [failed, setFailed] = useState(false);
+  // A festival with no logo of its own renders NOTHING here — never an <img>
+  // with an empty src, which paints a broken-image glyph rather than firing
+  // onError. The header's title carries the identity in that case; hotlinking
+  // a festival's logo is a choice each instantiation makes deliberately.
+  if (!LOGO_URL) return null;
+  // A configured logo that fails to load is a different case — offline, or a
+  // cached view whose CSP blocks remote images — and there the wordmark is the
+  // only thing standing between the reader and an anonymous header.
   if (failed)
     return (
       <div
-        className="h-32 w-20 shrink-0 flex items-center justify-center text-center leading-tight font-black text-lg text-[#4A4A4A] dark:text-[#e9e9e9]"
+        className={`h-32 w-20 shrink-0 flex items-center justify-center text-center leading-tight font-black text-lg ${c.bodyText}`}
         role="img"
-        aria-label="Pickathon"
+        aria-label={FESTIVAL.name}
       >
-        Pickathon
+        {FESTIVAL.name}
       </div>
     );
   return (
-    <img src={LOGO_URL} alt="Pickathon" className="h-32 w-auto" onError={() => setFailed(true)} />
+    <img
+      src={LOGO_URL}
+      alt={FESTIVAL.name}
+      className="h-32 w-auto"
+      onError={() => setFailed(true)}
+    />
   );
 }
 
-export default function PickathonPicker() {
+export default function FestivalPicker() {
   const { viewer, ViewerTag, isViewerPending } = useViewer();
   // Optimistic writes + anonymous local writes (with sign-in migration) now come from
   // useFireproof itself: local-first writes with cloud+overlay reads are the default
   // for every vibe (the old `anonymousLocal` flag is deprecated and ignored), and the
   // returning-signed-out guard is handled internally. So nothing below branches on auth.
-  const { database, useLiveQuery, useDocument } = useFireproof('pickathon', {
-    migrate: migratePickathonDoc,
+  const { database, useLiveQuery, useDocument } = useFireproof(FESTIVAL.dbName, {
+    migrate: migrateFestivalDoc,
   });
-  const { can, ready } = useVibe('pickathon');
+  const { can, ready } = useVibe(FESTIVAL.dbName);
   // The follow graph lives in the PLATFORM (Settings → Social) — the app stores
   // no edge docs. `ready` is false for anonymous viewers and during the initial
   // round-trip, so every social surface gates on it. Mutations resolve after the
@@ -165,8 +179,8 @@ export default function PickathonPicker() {
   const socialHeld = socialPausedAt(shedLevel);
 
   // Docs-first schedule: the festival schedule is server-maintained. A 1-minute
-  // `scheduled` tick in backend.js mirrors the pickathon.com feed into public,
-  // world-readable `scheduleitem` docs in this same `pickathon` db (access.js).
+  // `scheduled` tick in backend.js mirrors the festival's published schedule
+  // into public, world-readable `scheduleitem` docs in this same db (access.js).
   // Every client — including anonymous/signed-out — pulls those docs into its
   // LOCAL store on first use of the db, so the schedule renders OFFLINE with no
   // network fetch and no per-user keying. There is no client-side feed fetch.
@@ -259,7 +273,6 @@ export default function PickathonPicker() {
   const lastEventsRef = useRef(liveEvents);
   if (liveEvents.length > 0) lastEventsRef.current = liveEvents;
   const events = retainEvents(liveEvents, lastEventsRef.current);
-
   // Writes are refused in the offline cached view — surface a notice instead of
   // crashing or silently eating the tap. Success returns the put/del result, so
   // callers that need to know (e.g. the extras form) can check for it.
@@ -642,37 +655,42 @@ export default function PickathonPicker() {
   // into the iframe. No trailing slash (it costs a 301). Old query QR codes keep working
   // indefinitely via the fallback. The canonical host URL isn't knowable from inside the
   // sandbox, so the vibe path is hardcoded.
-  // (When iterating on the qa copy, point this at qa/pickathon-picker so scanned QRs
-  // stay inside the test app; flip back to og before promoting.)
-  const connectUrl = `https://vibes.diy/vibe/og/pickathon-picker#friend=${encodeURIComponent(userId)}`;
+  // (When iterating on a qa copy, point FESTIVAL.vibeUrl at it so scanned QRs stay
+  // inside the test app; flip back before promoting.)
+  const connectUrl = `${FESTIVAL.vibeUrl}#friend=${encodeURIComponent(userId)}`;
 
   return (
     <div className={`min-h-screen ${c.pageBg}`} style={{ touchAction: 'manipulation' }}>
-      <div className={`max-w-6xl mx-auto ${c.cardBg} shadow-2xl ${c.border} overflow-hidden`}>
+      {/* No `overflow-hidden` here: any clipping ancestor silently turns the sticky
+          nav below into a normal static bar. */}
+      <div className={`max-w-6xl mx-auto ${c.cardBg} shadow-2xl ${c.border}`}>
         <div className={`${c.headerBg} ${c.border} p-2.5`}>
           <div className="flex items-start justify-between gap-1 flex-wrap">
             <div className="flex items-center gap-1">
-              <a
-                href="https://pickathon.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0"
-              >
-                <Logo />
-              </a>
+              {FESTIVAL.logoUrl && (
+                <a
+                  href={FESTIVAL.officialUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0"
+                >
+                  <Logo />
+                </a>
+              )}
               <div>
                 <h1 className={`text-4xl font-black ${c.bodyText} mb-[1px]`}>
-                  {superMode ? 'SUPER PICKATHON PICKER' : 'PICKATHON PICKER'}
+                  {superMode ? `SUPER ${FESTIVAL.title}` : FESTIVAL.title}
                 </h1>
-                <p className={`${c.bodyText} text-base font-bold`}>
-                  Jul 30 – Aug 2, 2026 · Pendarvis Farm, Happy Valley, OR
-                </p>
+                <p className={`${c.bodyText} text-base font-bold`}>{FESTIVAL.subtitle}</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className={`${c.navBg} ${c.border} p-2`}>
+        {/* Sticky: the header (logo + dates) scrolls away, the tab bar pins to the top
+            of the viewport so switching views never needs a scroll back up. Opaque
+            background is load-bearing — content scrolls underneath it. */}
+        <div className={`sticky top-0 z-30 ${c.navBg} ${c.border} p-2 shadow-md`}>
           <div className="flex flex-wrap gap-[3px]">
             {['browse', 'bands', 'favorites', 'friends', 'shifts', 'schedule', 'now']
               .filter((v) => {
@@ -706,9 +724,9 @@ export default function PickathonPicker() {
                     `My Faves${myFavIds.size > 0 ? ` (${myFavIds.size})` : ''}`}
                 </button>
               ))}
-            {superMode && (
+            {superMode && FESTIVAL.mapUrl && (
               <a
-                href="https://pickathon.com/wp-content/uploads/2025/07/2025-Pickathon-Festival-Map_Web_Hyperlinks.pdf"
+                href={FESTIVAL.mapUrl}
                 target="map"
                 rel="noopener noreferrer"
                 className={c.navBtn(false)}
@@ -824,7 +842,6 @@ export default function PickathonPicker() {
                   favCounts={favCounts}
                   friendPicksByEvent={friendPicksByEvent}
                   ViewerTag={ProfileTag}
-                  nowTick={nowTick}
                   c={c}
                 />
               )}
@@ -1060,7 +1077,17 @@ function ProfileTab({
     [handle, visible, allShifts]
   );
   const build = (day) => buildDaySchedule(day, profileFavoriteEvents, profileShifts, shiftStartRaw);
-  return <ProfileView handle={handle} schedule={{ ...schedule, build, shiftStartRaw }} {...rest} />;
+  // Either kind of follower-visible content counts as "arrived" — a profile that
+  // shares only extras is not still-loading.
+  const hasPicks = profileFavoriteEvents.length > 0 || profileShifts.length > 0;
+  return (
+    <ProfileView
+      handle={handle}
+      hasPicks={hasPicks}
+      schedule={{ ...schedule, build, shiftStartRaw }}
+      {...rest}
+    />
+  );
 }
 
 // My Faves tab: my own schedule plus the calendar-subscription controls, which
@@ -1091,8 +1118,9 @@ function MyFavesTab({
   // LOCAL MINTING of the calendar capability token: generated client-side the
   // moment the schedule tab opens with subscribable content. The optimistic
   // write makes it visible to the live query (and the button URL) instantly;
-  // until the backend's ≤1m tick learns it, the endpoint serves the valid
-  // anchor-only calendar, so even an immediate subscribe tap can't fail.
+  // the backend resolves the token on the very next request, so an immediate
+  // subscribe tap serves the real calendar (and an unknown token still serves
+  // the valid anchor-only one, so it can't fail either way).
   // Opt-in: users who never open this tab get no token and no ics aggregate.
   // The token (not the handle) rides the URL — unguessable, revocable.
   const { docs: calTokens } = useLiveQuery(byTypeUser, { key: ['caltoken', userId] });
