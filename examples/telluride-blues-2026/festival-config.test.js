@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { FESTIVAL } from './festival-config.js';
-import { BACKEND_DB, FESTIVAL_NAME, FESTIVAL_TZ, SCHEDULE_URL, ICS_SLUG } from './backend.js';
+import {
+  config,
+  BACKEND_DB,
+  FESTIVAL_NAME,
+  FESTIVAL_TZ,
+  SCHEDULE_URL,
+  ICS_SLUG,
+} from './backend.js';
 
 // The backend isolate resolves no imports, so backend.js duplicates a handful of
 // config values. Duplication is fine; DRIFT is not — a db name that disagrees
@@ -9,6 +16,12 @@ import { BACKEND_DB, FESTIVAL_NAME, FESTIVAL_TZ, SCHEDULE_URL, ICS_SLUG } from '
 describe('festival-config ⇄ backend.js', () => {
   it('addresses the same db from both lanes', () => {
     expect(BACKEND_DB).toBe(FESTIVAL.dbName);
+  });
+
+  it('declares that same db in the fetch-lane read grant', () => {
+    // The grant has to be a static string literal (the platform validates it at
+    // push time), so it cannot reference BACKEND_DB — this is the guard.
+    expect(config.fetch.unfilteredReads.dbs).toEqual([FESTIVAL.dbName]);
   });
 
   it('names the same festival', () => {

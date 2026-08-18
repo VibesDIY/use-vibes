@@ -65,7 +65,10 @@ export const config = {
   scheduled: { interval: '1m' },
   fetch: {
     unfilteredReads: {
-      dbs: [BACKEND_DB],
+      // A STRING LITERAL, not BACKEND_DB: the platform validates this
+      // declaration statically at push time and rejects a computed value.
+      // festival-config.test.js pins it equal to BACKEND_DB.
+      dbs: ['tellurideblues'],
       why: "anonymous calendar clients refresh /faves.ics with an unguessable per-user capability token; the handler resolves that token to one handle and reads only that handle's docs",
     },
   },

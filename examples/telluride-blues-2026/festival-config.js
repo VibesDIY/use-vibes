@@ -6,7 +6,7 @@ export const FESTIVAL = {
   name: 'Telluride Blues & Brews',
   shortName: 'TELLURIDE BLUES & BREWS',
   dbName: 'tellurideblues',
-  vibeUrl: 'https://vibes.diy/vibe/festival/telluride-blues-2026',
+  vibeUrl: 'https://vibes.diy/vibe/jchris/telluride-blues-2026',
 
   tz: 'America/Denver',
   dayOrder: ['Thursday', 'Friday', 'Saturday', 'Sunday'],
