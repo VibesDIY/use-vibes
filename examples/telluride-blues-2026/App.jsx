@@ -50,9 +50,6 @@ import {
   SHED_SOCIAL_LINE,
 } from './loadshed.js';
 import { c } from './styles.js';
-// Side-effectful import: starts the responsiveness sampler at module eval, so the
-// boot window the freeze reports point at is inside its coverage. See perf-probe.js.
-import { markPerf, schedulePerfReports } from './perf-probe.js';
 import ScheduleView from './ScheduleView.jsx';
 import BandsView from './BandsView.jsx';
 import BrowseView from './BrowseView.jsx';
@@ -138,19 +135,6 @@ export default function FestivalPicker() {
   // is signed in (or was, and is being restored) would otherwise be told to sign in.
   // Unknown may persist for a whole visit; that is a prompt we correctly never show.
   const settledSignedOut = !isViewerPending && !signedIn;
-
-  // Perf probe milestones (temporary diagnostic — perf-probe.js): when identity
-  // settled and when the schedule first had content. Idempotent, write nothing.
-  // `viewerSoft` vs `viewerSettle` is the load-bearing pair: soft = the first
-  // moment ANY handle reached this app (the remembered-identity paint, if it
-  // fired), settle = the authoritative confirmation. soft≈settle means the
-  // remembered-identity cache never painted early for this session.
-  useEffect(() => {
-    if (!isViewerPending) markPerf('viewerSettle');
-  }, [isViewerPending]);
-  useEffect(() => {
-    if (viewer?.userHandle) markPerf('viewerSoft');
-  }, [viewer?.userHandle]);
 
   // Logged-out visitors favorite anonymously (local, migrated on sign-in). Notes/
   // shifts/friends stay signed-in. Gate signed-in writes on the app's own access.js
@@ -281,24 +265,6 @@ export default function FestivalPicker() {
   const lastEventsRef = useRef(liveEvents);
   if (liveEvents.length > 0) lastEventsRef.current = liveEvents;
   const events = retainEvents(liveEvents, lastEventsRef.current);
-  useEffect(() => {
-    if (events.length > 0) markPerf('firstEvents');
-  }, [events.length > 0]);
-
-  // Perf probe reports (temporary diagnostic — perf-probe.js): two bounded LWW
-  // writes per signed-in session, skipped while shedding. Shed level rides a ref
-  // so a mid-session flip is honored without rescheduling.
-  const shedLevelRef = useRef(shedLevel);
-  shedLevelRef.current = shedLevel;
-  useEffect(() => {
-    if (!signedIn) return;
-    return schedulePerfReports({
-      database,
-      userId,
-      isHeld: () => shedLevelRef.current !== 'off',
-    });
-  }, [signedIn, userId, database]);
-
   // Writes are refused in the offline cached view — surface a notice instead of
   // crashing or silently eating the tap. Success returns the put/del result, so
   // callers that need to know (e.g. the extras form) can check for it.

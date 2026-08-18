@@ -33,7 +33,13 @@ import {
   profilePicksVisible,
   armPath,
 } from './social-logic.js';
-import { favoriteDocId, noteDocId, migratePickathonDoc, icsSubscribePath, ensureCalToken } from './docs.js';
+import {
+  favoriteDocId,
+  noteDocId,
+  migratePickathonDoc,
+  icsSubscribePath,
+  ensureCalToken,
+} from './docs.js';
 import {
   LOADSHED_TYPE,
   shedLevelFromDocs,
@@ -224,7 +230,10 @@ export default function PickathonPicker() {
     stop: setVisibility ? () => stopSharing() : null,
   };
   const armSharing = () => {
-    const path = armPath({ disarmed: disarmedRef.current, canSetVisibility: Boolean(setVisibility) });
+    const path = armPath({
+      disarmed: disarmedRef.current,
+      canSetVisibility: Boolean(setVisibility),
+    });
     runSharing(path === 'level' ? setVisibility('followers') : requestFollowersAccess());
   };
 
@@ -272,7 +281,6 @@ export default function PickathonPicker() {
     }),
     [database]
   );
-
 
   useEffect(() => {
     const id = setInterval(() => setNowTick(Date.now()), 30000);
@@ -611,10 +619,7 @@ export default function PickathonPicker() {
   );
 
   const favoriteEvents = useMemo(
-    () =>
-      events
-        .filter((e) => myFavIds.has(e.eventId))
-        .sort(byStart),
+    () => events.filter((e) => myFavIds.has(e.eventId)).sort(byStart),
     [events, myFavIds]
   );
 
@@ -1054,11 +1059,8 @@ function ProfileTab({
     () => (visible ? sharedShiftsFor(handle, allShifts) : []),
     [handle, visible, allShifts]
   );
-  const build = (day) =>
-    buildDaySchedule(day, profileFavoriteEvents, profileShifts, shiftStartRaw);
-  return (
-    <ProfileView handle={handle} schedule={{ ...schedule, build, shiftStartRaw }} {...rest} />
-  );
+  const build = (day) => buildDaySchedule(day, profileFavoriteEvents, profileShifts, shiftStartRaw);
+  return <ProfileView handle={handle} schedule={{ ...schedule, build, shiftStartRaw }} {...rest} />;
 }
 
 // My Faves tab: my own schedule plus the calendar-subscription controls, which
