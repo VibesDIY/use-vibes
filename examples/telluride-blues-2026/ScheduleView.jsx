@@ -16,7 +16,7 @@ function GapStrip({ startMs, endMs, allDayEvents, fmtTime }) {
   const endStr = fmtTime(new Date(endMs).toISOString());
   return (
     <div className="rounded-lg m-0.5  px-[7px] py-[5px] bg-white/40 dark:bg-white/10 flex items-center gap-0.5">
-      <span className="text-xs font-bold text-[#4A4A4A]/60 dark:text-[#e9e9e9]/60">
+      <span className="text-xs font-bold text-[#26243F]/60 dark:text-[#E9E7F4]/60">
         {startStr}–{endStr} · {count} act{count !== 1 ? 's' : ''}
       </span>
     </div>
@@ -86,7 +86,7 @@ export default function ScheduleView({
 
         return (
           <div key={day} className={c.schedDay}>
-            <h3 className="text-xl font-black mb-1 px-[14px] text-white">
+            <h3 className={`text-xl mb-1 px-[14px] text-white ${c.display}`}>
               {day} — {getDateForDay(day)}
             </h3>
             <dl className="space-y-0.5 m-0">
@@ -135,8 +135,11 @@ export default function ScheduleView({
                                       ? item.data.kind || item.data.title || 'Shift'
                                       : item.title}
                                   </h4>
-                                  {isEvent && (
-                                    <span className="px-0.5 py-[0.5px] rounded-full text-xs font-black m-0.5  uppercase bg-[#BACD32] text-[#4A4A4A]">
+                                  {isEvent && tag && (
+                                    <span
+                                      className="px-0.5 py-[0.5px] rounded-full text-xs font-black m-0.5 uppercase"
+                                      style={{ backgroundColor: tag.color, color: tag.textColor }}
+                                    >
                                       {tag.label}
                                     </span>
                                   )}
@@ -144,7 +147,7 @@ export default function ScheduleView({
                                     <button
                                       onClick={() => onToggleFavorite(item.data)}
                                       disabled={picksPaused}
-                                      className={`p-[1px] rounded-lg m-0.5  text-xs font-bold px-0.5 ${picksPaused ? c.shedInert : ''} ${myFavIds && myFavIds.has(item.data.eventId) ? 'bg-[#CD6C0C] text-white' : 'bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9]'}`}
+                                      className={`p-[1px] rounded-lg m-0.5  text-xs font-bold px-0.5 ${picksPaused ? c.shedInert : ''} ${myFavIds && myFavIds.has(item.data.eventId) ? 'bg-[#C25A16] text-white' : 'bg-white dark:bg-[#221F45] text-[#26243F] dark:text-[#E9E7F4]'}`}
                                     >
                                       <HeartIcon
                                         state={
@@ -187,7 +190,7 @@ export default function ScheduleView({
                                   )}
                                 {isEvent && !showNoteField && notes && notes[item.data.eventId] ? (
                                   <div
-                                    className={`mt-0.5 p-1.5 bg-[#EEE] dark:bg-[#22252d] rounded-lg m-0.5 `}
+                                    className={`mt-0.5 p-1.5 bg-[#EEE] dark:bg-[#221F45] rounded-lg m-0.5 `}
                                   >
                                     <p className={`text-sm font-bold ${c.bodyText}`}>
                                       {notes[item.data.eventId]}

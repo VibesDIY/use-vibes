@@ -189,18 +189,20 @@ export default function ProfileView({
       >
         <BigAvatar ViewerTag={ViewerTag} handle={handle} isSelf={isSelf} />
         <div className="flex flex-col gap-[6px] min-w-0">
-          <h2 className={`text-2xl font-black ${c.bodyText}`}>
+          {/* onHeader, not bodyText: this card sits on headerBg, which is the
+              festival's indigo in both colour schemes. */}
+          <h2 className={`text-2xl font-black ${c.onHeader}`}>
             {isSelf ? 'Your profile' : 'Profile'}
           </h2>
           {/* The scaled tag clips its own username away, so the handle is text here. */}
-          <p className={`text-lg font-bold truncate ${c.bodyText}`}>@{handle}</p>
+          <p className={`text-lg font-bold truncate ${c.onHeader}`}>@{handle}</p>
           <div>{followBtn()}</div>
         </div>
       </div>
 
       <div>
         {isSelf && (
-          <div className="mb-1.5 p-[14px] bg-white dark:bg-[#22252d] rounded-2xl m-0.5">
+          <div className="mb-1.5 p-[14px] bg-white dark:bg-[#221F45] rounded-2xl m-0.5">
             <p className={`font-bold ${c.bodyText}`}>
               This is your public profile — this is what others see.
             </p>
@@ -212,7 +214,7 @@ export default function ProfileView({
             the separate per-app pick-sharing arm: without it, even approved followers
             see an empty schedule. */}
         {sharingOff && (
-          <div className="mb-1.5 p-[14px] bg-[#CD6C0C] rounded-2xl m-0.5 flex flex-col items-center gap-[8px]">
+          <div className="mb-1.5 p-[14px] bg-[#C25A16] rounded-2xl m-0.5 flex flex-col items-center gap-[8px]">
             <p className="text-white font-bold text-center">
               Your picks are hidden from your followers — turn on sharing so your profile shows your
               schedule.
@@ -220,7 +222,7 @@ export default function ProfileView({
             <button
               onClick={sharing.arm}
               disabled={sharing.busy}
-              className="py-[7px] px-[14px] font-black rounded-2xl m-0.5 bg-white text-[#CD6C0C] hover:opacity-90 transition-all"
+              className="py-[7px] px-[14px] font-black rounded-2xl m-0.5 bg-white text-[#C25A16] hover:opacity-90 transition-all"
             >
               Share my picks with followers
             </button>

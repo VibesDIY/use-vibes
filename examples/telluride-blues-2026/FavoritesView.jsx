@@ -19,10 +19,10 @@ export default function FavoritesView({
 }) {
   return (
     <div>
-      <div className="mb-1.5 p-2 bg-[#BACD32] dark:bg-[#2c3510] rounded-2xl m-0.5 ">
+      <div className="mb-1.5 p-2 bg-[#F7E9C4] dark:bg-[#302818] rounded-2xl m-0.5 ">
         <div className="flex items-center justify-between mb-[3px] flex-wrap gap-0.5">
           <h3 className={`text-lg font-black ${c.bodyText}`}>
-            {viewingUser ? `Viewing ${viewingUser}'s picks` : 'Pickers (tap to view their picks)'}
+            {viewingUser ? `Viewing ${viewingUser}'s picks` : 'Fans (tap to view their picks)'}
           </h3>
           {viewingUser && (
             <button onClick={() => setViewingUser(null)} className={c.btnCyan}>
@@ -35,7 +35,7 @@ export default function FavoritesView({
             <button
               key={u.userId}
               onClick={() => setViewingUser(u.userId === userId ? null : u.userId)}
-              className={`flex items-center gap-0.5 p-[1px] rounded-full m-0.5  transition-all ${viewingUser === u.userId || (!viewingUser && u.userId === userId) ? 'bg-[#CD6C0C]' : 'bg-white dark:bg-[#22252d] hover:bg-[#71AD44] dark:hover:bg-[#1d3015]'}`}
+              className={`flex items-center gap-0.5 p-[1px] rounded-full m-0.5  transition-all ${viewingUser === u.userId || (!viewingUser && u.userId === userId) ? 'bg-[#C25A16]' : 'bg-white dark:bg-[#221F45] hover:bg-[#71AD44] dark:hover:bg-[#1d3015]'}`}
               title={`${u.count} pick${u.count === 1 ? '' : 's'}`}
             >
               <ViewerTag userHandle={u.userId} />
@@ -64,9 +64,14 @@ export default function FavoritesView({
                   <div className="flex-1">
                     <div className="flex items-center gap-0.5 mb-[1px] flex-wrap">
                       <h3 className={`text-xl font-black ${c.bodyText}`}>{event.title}</h3>
-                      <span className="px-0.5 py-[0.5px] rounded-full text-xs font-black m-0.5  uppercase bg-[#BACD32] text-[#4A4A4A]">
-                        {tag.label}
-                      </span>
+                      {tag && (
+                        <span
+                          className="px-0.5 py-[0.5px] rounded-full text-xs font-black m-0.5 uppercase"
+                          style={{ backgroundColor: tag.color, color: tag.textColor }}
+                        >
+                          {tag.label}
+                        </span>
+                      )}
                     </div>
                     <div className={`space-y-[1px] text-sm font-bold ${c.bodyText}`}>
                       <p>{event.venueTitle}</p>

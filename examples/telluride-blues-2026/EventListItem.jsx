@@ -40,9 +40,18 @@ export default function EventListItem({
             </span>
           )}
           <h3 className={`text-xl font-black ${c.bodyText}`}>{event.title}</h3>
-          <span className="px-0.5 py-[0.5px] rounded-full text-xs font-black m-0.5  uppercase bg-[#BACD32] text-[#4A4A4A]">
-            {tag.label}
-          </span>
+          {/* Only when the feed names a lineup of its own. Telluride's doesn't,
+              and a pill reading "MUSIC" on all 54 sets is a coloured shape
+              carrying no information — the stage prints on the meta line below
+              and tints the card. */}
+          {tag && (
+            <span
+              className="px-0.5 py-[0.5px] rounded-full text-xs font-black m-0.5 uppercase"
+              style={{ backgroundColor: tag.color, color: tag.textColor }}
+            >
+              {tag.label}
+            </span>
+          )}
         </div>
         {/* Venue/time on the left, heart floated right on the same line — on every
             screen size (the old layout dropped the button onto its own row on mobile). */}

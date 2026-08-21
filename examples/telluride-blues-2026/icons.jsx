@@ -103,3 +103,33 @@ export function CheckIcon({ size = 20, className = '' }) {
     </svg>
   );
 }
+
+// The festival's own mark is theirs — this is a fan-made app — so the header
+// draws its own sun instead: a ring of flame in the two warm hues off the
+// festival's palette, around an open centre so it sits on any surface. Inline
+// so it costs no request (a schedule app boots on campground signal).
+const SUN_FLAME = 'M43 25 C39 14, 46 11, 41.5 0.5 C56 8, 58 16, 57 25 Z';
+const SUN_FLAME_SHORT = 'M45 25.5 C42 19, 47 15.5, 44.5 7 C53.5 13, 56 19, 55 25.5 Z';
+
+export function SunMark({ size = 56, className = '' }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      className={className}
+      role="img"
+      aria-label="Telluride Blues & Brews"
+    >
+      {Array.from({ length: 20 }, (_, i) => (
+        <path
+          key={i}
+          d={i % 2 ? SUN_FLAME_SHORT : SUN_FLAME}
+          fill={i % 2 ? '#E4AF20' : '#F08040'}
+          transform={`rotate(${i * 18} 50 50)`}
+        />
+      ))}
+      <circle cx="50" cy="50" r="24" fill="none" stroke="#F08040" strokeWidth="2.5" />
+    </svg>
+  );
+}

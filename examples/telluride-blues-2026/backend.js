@@ -1,4 +1,4 @@
-// Pickathon Picker backend: serve faves schedules as .ics.
+// Festival schedule backend: mirror the schedule, serve faves as .ics.
 //
 // POST /_api/faves.ics  { items: [{ id, title, start, end, location?, url? }] }
 //   → 200 text/calendar attachment (<slug>-faves.ics) — one-shot download of

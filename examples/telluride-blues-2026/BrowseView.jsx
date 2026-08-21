@@ -45,7 +45,7 @@ export default function BrowseView({
         <select
           value={selectedDay}
           onChange={(e) => setSelectedDay(e.target.value)}
-          className={`p-2 m-0.5 ${c.border} rounded-2xl font-bold bg-white dark:bg-[#22252d] ${c.bodyText}`}
+          className={`p-2 m-0.5 ${c.border} rounded-2xl font-bold bg-white dark:bg-[#221F45] ${c.bodyText}`}
         >
           <option value="all">All Days</option>
           {displayDays.map((day) => (
@@ -68,7 +68,7 @@ export default function BrowseView({
         const daysToShow = displayDays.filter((day) => byDay[day]?.length > 0);
         return daysToShow.map((day) => (
           <div key={day} className={c.schedDay}>
-            <h3 className="text-xl font-black mb-1 px-[14px] text-white">
+            <h3 className={`text-xl mb-1 px-[14px] text-white ${c.display}`}>
               {day} — {getDateForDay(day)}
             </h3>
             {/* Time slots: the time prints once as a label on the green and the cards
