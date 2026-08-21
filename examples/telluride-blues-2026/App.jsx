@@ -677,17 +677,17 @@ export default function FestivalSchedule() {
               className="shrink-0"
               title={`${FESTIVAL.name} — official site`}
             >
-              {FESTIVAL.logoUrl ? <Logo /> : <SunMark size={64} />}
+              {FESTIVAL.logoUrl ? <Logo /> : <SunMark className="w-12 h-12 sm:w-16 sm:h-16" />}
             </a>
             <div className="min-w-0">
               <h1
-                className={`text-3xl sm:text-4xl ${c.display} ${c.onHeader} leading-[0.95] mb-[3px] text-balance`}
+                className={`text-2xl sm:text-4xl ${c.display} ${c.onHeader} leading-[0.95] mb-[3px] text-balance break-words`}
               >
                 {superMode ? `SUPER ${FESTIVAL.title}` : FESTIVAL.title}
               </h1>
               {/* Gold, the way the site sets its section labels — the one warm
                   note that keeps the band from reading as a plain blue bar. */}
-              <p className="text-[#E4AF20] text-sm sm:text-base font-bold uppercase tracking-wide">
+              <p className="text-[#E4AF20] text-xs sm:text-base font-bold uppercase tracking-wide">
                 {FESTIVAL.subtitle}
               </p>
             </div>

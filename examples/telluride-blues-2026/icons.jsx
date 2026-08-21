@@ -114,6 +114,8 @@ const SUN_FLAME_SHORT = 'M45 25.5 C42 19, 47 15.5, 44.5 7 C53.5 13, 56 19, 55 25
 export function SunMark({ size = 56, className = '' }) {
   return (
     <svg
+      // width/height are the fallback; a w-/h- utility in className wins, which
+      // is how the header shrinks the mark on a phone.
       width={size}
       height={size}
       viewBox="0 0 100 100"

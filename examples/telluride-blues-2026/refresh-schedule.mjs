@@ -1,8 +1,18 @@
 // Refresh the schedule snapshot this app's tick reads.
 //
-// Telluride's site serves a browser (and this script) fine but 403s the
-// platform's egress, so the fetch+parse happens HERE and the result is written
-// into the vibe as `schedule-snapshot-<seq>` docs. The deployed tick reads those
+// Telluride's site serves a browser (and this script) fine, but the PLATFORM's
+// egress gate refuses it — the gate admits an outbound host only if that host
+// answers with an `Access-Control-Allow-Origin` of `*` or the vibe's own origin,
+// and Squarespace sends neither. (Measured: a deployed probe got
+// `{"vibesEgressDenied":true,"gate":"cors","host":"tellurideblues.com"}`. It is
+// the gate refusing, not Telluride — worth knowing, because "they block us" and
+// "we require a header they don't send" have different fixes.) So the
+// fetch+parse happens HERE and the result is written into the vibe as
+// `schedule-snapshot-<seq>` docs.
+//
+// Requires the account's DEFAULT handle to be the vibe's owner handle — the
+// owner-only gate reads that, not the account, and not --handle. See README
+// § Running the refresh. The deployed tick reads those
 // by id and mirrors them into `scheduleitem` docs — the same docs the fetch lane
 // would have produced, so nothing downstream knows the difference.
 //
