@@ -74,7 +74,7 @@ export default function FriendsView({
   // Signed-in but the graph snapshot hasn't arrived yet — skeleton, not lists.
   if (!socialReady) {
     return (
-      <div className="mb-1.5 p-2.5 bg-white dark:bg-[#22252d] rounded-2xl m-0.5">
+      <div className="mb-1.5 p-2.5 bg-white dark:bg-[#221F45] rounded-2xl m-0.5">
         <p className={`font-bold ${c.bodyText}`}>Loading your follows…</p>
       </div>
     );
@@ -83,7 +83,7 @@ export default function FriendsView({
   return (
     <div>
       {canWrite && !sharing.enabled && (
-        <div className="mb-1.5 p-2.5 bg-[#CD6C0C] rounded-2xl m-0.5 flex flex-col items-center gap-1">
+        <div className="mb-1.5 p-2.5 bg-[#C25A16] rounded-2xl m-0.5 flex flex-col items-center gap-1">
           <p className="text-white font-bold text-center">
             Your picks are currently hidden from your followers — turn on sharing so they can see
             your schedule.
@@ -91,7 +91,7 @@ export default function FriendsView({
           <button
             onClick={sharing.arm}
             disabled={sharing.busy}
-            className="py-[7px] px-2.5 font-black rounded-2xl m-0.5 bg-white text-[#CD6C0C] hover:opacity-90 transition-all"
+            className="py-[7px] px-2.5 font-black rounded-2xl m-0.5 bg-white text-[#C25A16] hover:opacity-90 transition-all"
           >
             Share my picks with followers
           </button>
@@ -111,7 +111,7 @@ export default function FriendsView({
           </button>
         </div>
       )}
-      <div className="flex flex-col items-center gap-1 p-2.5 bg-[#BACD32] dark:bg-[#2c3510] rounded-2xl m-0.5  mb-1.5">
+      <div className="flex flex-col items-center gap-1 p-2.5 bg-[#F7E9C4] dark:bg-[#302818] rounded-2xl m-0.5  mb-1.5">
         <div className="flex items-center gap-0.5 flex-wrap justify-center">
           <p className={`text-lg font-bold ${c.bodyText}`}>
             Share this link so people can follow you
@@ -132,7 +132,7 @@ export default function FriendsView({
         <div className="flex items-center gap-[3px]">
           <button
             onClick={copyLink}
-            className={`flex items-center gap-0.5 py-[7px] px-2.5 font-bold rounded-2xl m-0.5  transition-all ${copied ? 'bg-[#71AD44] text-white' : 'bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#BACD32] dark:hover:bg-[#2c3510]'}`}
+            className={`flex items-center gap-0.5 py-[7px] px-2.5 font-bold rounded-2xl m-0.5  transition-all ${copied ? 'bg-[#71AD44] text-white' : 'bg-white dark:bg-[#221F45] text-[#26243F] dark:text-[#E9E7F4] hover:bg-[#F7E9C4] dark:hover:bg-[#302818]'}`}
           >
             {copied ? (
               <>
@@ -174,7 +174,7 @@ export default function FriendsView({
           {myHandle && onOpenProfile && (
             <button
               onClick={() => onOpenProfile(myHandle)}
-              className="py-[7px] px-[14px] font-bold rounded-2xl m-0.5 bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#BACD32] dark:hover:bg-[#2c3510] transition-all"
+              className="py-[7px] px-[14px] font-bold rounded-2xl m-0.5 bg-white dark:bg-[#221F45] text-[#26243F] dark:text-[#E9E7F4] hover:bg-[#F7E9C4] dark:hover:bg-[#302818] transition-all"
             >
               Preview my profile
             </button>
@@ -187,7 +187,7 @@ export default function FriendsView({
       </div>
 
       {requests.length > 0 && (
-        <div className="mb-1.5 p-2.5 bg-[#BACD32] dark:bg-[#2c3510] rounded-2xl m-0.5 ">
+        <div className="mb-1.5 p-2.5 bg-[#F7E9C4] dark:bg-[#302818] rounded-2xl m-0.5 ">
           <h3 className={`text-xl font-black mb-1 ${c.bodyText}`}>
             Follow requests ({requests.length})
           </h3>
@@ -198,7 +198,7 @@ export default function FriendsView({
             {requests.map((r) => (
               <div
                 key={`req-${r.handle}`}
-                className="flex items-center gap-0.5 p-0.5 rounded-full m-0.5 bg-white dark:bg-[#22252d]"
+                className="flex items-center gap-0.5 p-0.5 rounded-full m-0.5 bg-white dark:bg-[#221F45]"
               >
                 <ViewerTag userHandle={r.handle} />
                 <button
@@ -211,7 +211,7 @@ export default function FriendsView({
                 <button
                   onClick={() => mutate(removeFollower, r.handle)}
                   disabled={busy.has(r.handle)}
-                  className="py-[1px] px-1 rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#181a20] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#B22222] hover:text-white transition-all"
+                  className="py-[1px] px-1 rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#191833] text-[#26243F] dark:text-[#E9E7F4] hover:bg-[#B22222] hover:text-white transition-all"
                   title="Decline — they can request again later"
                 >
                   Decline
@@ -222,7 +222,7 @@ export default function FriendsView({
         </div>
       )}
 
-      <div className="mb-1.5 p-2.5 bg-white dark:bg-[#22252d] rounded-2xl m-0.5 ">
+      <div className="mb-1.5 p-2.5 bg-white dark:bg-[#221F45] rounded-2xl m-0.5 ">
         <p className={`text-sm font-bold mb-1 ${c.bodyText} italic`}>
           {followingActive.length > 0
             ? 'Tap someone you follow to see their schedule'
@@ -232,7 +232,7 @@ export default function FriendsView({
           <div className="flex items-center flex-wrap gap-0.5 mb-1.5">
             <button
               onClick={() => setSelectedFriend(selectedFriend === ALL_FRIENDS ? null : ALL_FRIENDS)}
-              className={`py-[5px] px-2 font-black rounded-full m-0.5 transition-all ${selectedFriend === ALL_FRIENDS ? 'bg-[#CD6C0C] text-white' : 'bg-[#71AD44] dark:bg-[#1d3015] text-white hover:opacity-90'}`}
+              className={`py-[5px] px-2 font-black rounded-full m-0.5 transition-all ${selectedFriend === ALL_FRIENDS ? 'bg-[#C25A16] text-white' : 'bg-[#71AD44] dark:bg-[#1d3015] text-white hover:opacity-90'}`}
             >
               All
             </button>
@@ -246,7 +246,7 @@ export default function FriendsView({
                 type="checkbox"
                 checked={!!includeMyFaves}
                 onChange={(e) => setIncludeMyFaves(e.target.checked)}
-                className="w-4 h-4 accent-[#CD6C0C]"
+                className="w-4 h-4 accent-[#C25A16]"
               />
               include my faves
             </label>
@@ -263,7 +263,7 @@ export default function FriendsView({
             {followingActive.map((f) => (
               <div
                 key={`fw-${f.handle}`}
-                className={`flex items-center gap-0.5 p-0.5 rounded-full m-0.5  transition-all ${selectedFriend === f.handle ? 'bg-[#CD6C0C]' : 'bg-[#BACD32] dark:bg-[#2c3510]'}`}
+                className={`flex items-center gap-0.5 p-0.5 rounded-full m-0.5  transition-all ${selectedFriend === f.handle ? 'bg-[#C25A16]' : 'bg-[#F7E9C4] dark:bg-[#302818]'}`}
               >
                 <button
                   onClick={() => setSelectedFriend(selectedFriend === f.handle ? null : f.handle)}
@@ -274,7 +274,7 @@ export default function FriendsView({
                 <button
                   onClick={() => mutate(unfollow, f.handle)}
                   disabled={busy.has(f.handle)}
-                  className="px-0.5 py-[1px] rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#B22222] hover:text-white transition-all"
+                  className="px-0.5 py-[1px] rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#221F45] text-[#26243F] dark:text-[#E9E7F4] hover:bg-[#B22222] hover:text-white transition-all"
                   title="Unfollow"
                 >
                   ×
@@ -284,7 +284,7 @@ export default function FriendsView({
             {followingRequested.map((f) => (
               <div
                 key={`fw-${f.handle}`}
-                className="flex items-center gap-0.5 p-0.5 rounded-full m-0.5 bg-white dark:bg-[#22252d] opacity-80"
+                className="flex items-center gap-0.5 p-0.5 rounded-full m-0.5 bg-white dark:bg-[#221F45] opacity-80"
                 title="They have a private account — waiting for approval"
               >
                 <ViewerTag userHandle={f.handle} />
@@ -292,7 +292,7 @@ export default function FriendsView({
                 <button
                   onClick={() => mutate(unfollow, f.handle)}
                   disabled={busy.has(f.handle)}
-                  className="px-0.5 py-[1px] rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#181a20] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#B22222] hover:text-white transition-all"
+                  className="px-0.5 py-[1px] rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#191833] text-[#26243F] dark:text-[#E9E7F4] hover:bg-[#B22222] hover:text-white transition-all"
                   title="Cancel request"
                 >
                   ×
@@ -322,7 +322,7 @@ export default function FriendsView({
                   <button
                     onClick={() => mutate(follow, f.handle)}
                     disabled={busy.has(f.handle)}
-                    className="py-[1px] px-1 rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#CD6C0C] hover:text-white transition-all"
+                    className="py-[1px] px-1 rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#221F45] text-[#26243F] dark:text-[#E9E7F4] hover:bg-[#C25A16] hover:text-white transition-all"
                   >
                     Follow back
                   </button>
@@ -331,7 +331,7 @@ export default function FriendsView({
                   <button
                     onClick={() => mutate(removeFollower, f.handle)}
                     disabled={busy.has(f.handle)}
-                    className="px-0.5 py-[1px] rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#B22222] hover:text-white transition-all"
+                    className="px-0.5 py-[1px] rounded-full m-0.5 text-xs font-bold bg-white dark:bg-[#221F45] text-[#26243F] dark:text-[#E9E7F4] hover:bg-[#B22222] hover:text-white transition-all"
                     title="Remove this follower — soft: they can follow you again later (block is the hard version, in Settings)"
                   >
                     ×

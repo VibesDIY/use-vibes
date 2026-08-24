@@ -58,7 +58,7 @@ import FriendsView, { ALL_FRIENDS } from './FriendsView.jsx';
 import ProfileView from './ProfileView.jsx';
 import NowView from './NowView.jsx';
 import ShiftsView from './ShiftsView.jsx';
-import { ClipboardIcon, CheckIcon } from './icons.jsx';
+import { ClipboardIcon, CheckIcon, SunMark } from './icons.jsx';
 
 // The on-site home screen. Temporarily on for owner testing — flip to false (or drop
 // 'now' from the tab array below) to hide the tab, its render, and its feeders.
@@ -101,7 +101,7 @@ function Logo() {
   );
 }
 
-export default function FestivalPicker() {
+export default function FestivalSchedule() {
   const { viewer, ViewerTag, isViewerPending } = useViewer();
   // Optimistic writes + anonymous local writes (with sign-in migration) now come from
   // useFireproof itself: local-first writes with cloud+overlay reads are the default
@@ -664,25 +664,32 @@ export default function FestivalPicker() {
       {/* No `overflow-hidden` here: any clipping ancestor silently turns the sticky
           nav below into a normal static bar. */}
       <div className={`max-w-6xl mx-auto ${c.cardBg} shadow-2xl ${c.border}`}>
-        <div className={`${c.headerBg} ${c.border} p-2.5`}>
-          <div className="flex items-start justify-between gap-1 flex-wrap">
-            <div className="flex items-center gap-1">
-              {FESTIVAL.logoUrl && (
-                <a
-                  href={FESTIVAL.officialUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0"
-                >
-                  <Logo />
-                </a>
-              )}
-              <div>
-                <h1 className={`text-4xl font-black ${c.bodyText} mb-[1px]`}>
-                  {superMode ? `SUPER ${FESTIVAL.title}` : FESTIVAL.title}
-                </h1>
-                <p className={`${c.bodyText} text-base font-bold`}>{FESTIVAL.subtitle}</p>
-              </div>
+        {/* The identity band, built like the festival's own site opens a page:
+            deep indigo, the sun mark, and the name in heavy tracked caps. The
+            text here is onHeader, never bodyText — headerBg is a dark surface in
+            both colour schemes. */}
+        <div className={`${c.headerBg} ${c.border} px-2.5 py-3`}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <a
+              href={FESTIVAL.officialUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0"
+              title={`${FESTIVAL.name} — official site`}
+            >
+              {FESTIVAL.logoUrl ? <Logo /> : <SunMark className="w-12 h-12 sm:w-16 sm:h-16" />}
+            </a>
+            <div className="min-w-0">
+              <h1
+                className={`text-2xl sm:text-4xl ${c.display} ${c.onHeader} leading-[0.95] mb-[3px] text-balance break-words`}
+              >
+                {superMode ? `SUPER ${FESTIVAL.title}` : FESTIVAL.title}
+              </h1>
+              {/* Gold, the way the site sets its section labels — the one warm
+                  note that keeps the band from reading as a plain blue bar. */}
+              <p className="text-[#E4AF20] text-xs sm:text-base font-bold uppercase tracking-wide">
+                {FESTIVAL.subtitle}
+              </p>
             </div>
           </div>
         </div>

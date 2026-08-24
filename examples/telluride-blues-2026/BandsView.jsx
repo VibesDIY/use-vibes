@@ -1,7 +1,7 @@
 import React from 'react';
 import { HeartIcon, StarIcon } from './icons.jsx';
 import { fmtDate, fmtTime } from './festival-utils.js';
-import { eventCardBg } from './styles.js';
+import { eventCardBg, stageTint } from './styles.js';
 
 export default function BandsView({
   bandsList,
@@ -82,8 +82,8 @@ export default function BandsView({
             }
             className="px-2 py-1.5 rounded-xl m-0.5  font-black text-sm cursor-pointer hover:opacity-80 transition-all"
             style={{
-              backgroundColor: grouped[key][0].lineup?.color || '#d7c57d',
-              color: grouped[key][0].lineup?.textColor || '#000',
+              backgroundColor: grouped[key][0].lineup?.color || stageTint(grouped[key][0]),
+              color: grouped[key][0].lineup?.textColor || '#26243F',
             }}
           >
             {labelFor(key)} ({grouped[key].length})
@@ -95,8 +95,8 @@ export default function BandsView({
           <h3
             className="text-lg font-black mb-[3px] px-2 py-1.5 rounded-xl m-0.5  inline-block"
             style={{
-              backgroundColor: grouped[key][0].lineup?.color || '#d7c57d',
-              color: grouped[key][0].lineup?.textColor || '#000',
+              backgroundColor: grouped[key][0].lineup?.color || stageTint(grouped[key][0]),
+              color: grouped[key][0].lineup?.textColor || '#26243F',
             }}
           >
             {labelFor(key)} ({grouped[key].length})
@@ -105,9 +105,11 @@ export default function BandsView({
             {grouped[key].map((band) => {
               const allFaved = band.events.every((e) => myFavIds.has(e.eventId));
               const anyFav = band.events.some((e) => myFavIds.has(e.eventId));
-              const lineupLabel = band.lineup?.id || 'music';
-              const lineupColor = band.lineup?.color || '#d7c57d';
-              const lineupText = band.lineup?.textColor || '#000';
+              // No fallback label: see lineupTag in styles.js — a pill reading
+              // "MUSIC" on every band is a coloured shape carrying no information.
+              const lineupLabel = band.lineup?.id;
+              const lineupColor = band.lineup?.color || stageTint(band);
+              const lineupText = band.lineup?.textColor || '#26243F';
               return (
                 <div
                   key={band.title}
@@ -119,7 +121,7 @@ export default function BandsView({
                       <button
                         onClick={() => toggleAllBand(band)}
                         disabled={picksPaused}
-                        className={`shrink-0 text-2xl p-1.5 rounded-2xl m-0.5  font-bold transition-all ${picksPaused ? c.shedInert : ''} ${allFaved ? 'bg-[#CD6C0C] text-white hover:opacity-90' : anyFav ? 'bg-[#CD6C0C]/40 text-white hover:opacity-90' : 'bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#BACD32] dark:hover:bg-[#2c3510]'}`}
+                        className={`shrink-0 text-2xl p-1.5 rounded-2xl m-0.5  font-bold transition-all ${picksPaused ? c.shedInert : ''} ${allFaved ? 'bg-[#C25A16] text-white hover:opacity-90' : anyFav ? 'bg-[#C25A16]/40 text-white hover:opacity-90' : 'bg-white dark:bg-[#221F45] text-[#26243F] dark:text-[#E9E7F4] hover:bg-[#F7E9C4] dark:hover:bg-[#302818]'}`}
                       >
                         <HeartIcon
                           state={allFaved ? 'full' : anyFav ? 'half' : 'empty'}
@@ -130,9 +132,11 @@ export default function BandsView({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-0.5 mb-0.5 flex-wrap">
                         <h3 className={`text-xl font-black ${c.bodyText}`}>{band.title}</h3>
-                        <span className="px-[3px] py-[1px] rounded-full text-xs font-black m-0.5  uppercase bg-[#BACD32] text-[#4A4A4A]">
-                          {lineupLabel}
-                        </span>
+                        {lineupLabel && (
+                          <span className="px-[3px] py-[1px] rounded-full text-xs font-black m-0.5 uppercase bg-[#F7E9C4] text-[#26243F]">
+                            {lineupLabel}
+                          </span>
+                        )}
                         {superMode && band.events.some((e) => favCounts[e.eventId] > 0) && (
                           <span
                             className={`${c.badge} inline-flex items-center gap-0.5`}
@@ -144,7 +148,7 @@ export default function BandsView({
                         )}
                       </div>
                       <p
-                        className={`text-sm font-bold mb-0.5 text-[#4A4A4A]/70 dark:text-[#e9e9e9]/70`}
+                        className={`text-sm font-bold mb-0.5 text-[#26243F]/70 dark:text-[#E9E7F4]/70`}
                       >
                         {band.venueList.join(' · ')} · {band.events.length} set
                         {band.events.length > 1 ? 's' : ''}
@@ -156,7 +160,7 @@ export default function BandsView({
                               <button
                                 onClick={() => toggleFavorite(e)}
                                 disabled={picksPaused}
-                                className={`text-sm px-0.5 py-[0.5px] rounded-lg m-0.5  font-bold transition-all ${picksPaused ? c.shedInert : ''} ${myFavIds.has(e.eventId) ? 'bg-[#CD6C0C] text-white' : 'bg-white dark:bg-[#22252d] text-[#4A4A4A] dark:text-[#e9e9e9] hover:bg-[#BACD32] dark:hover:bg-[#2c3510]'}`}
+                                className={`text-sm px-0.5 py-[0.5px] rounded-lg m-0.5  font-bold transition-all ${picksPaused ? c.shedInert : ''} ${myFavIds.has(e.eventId) ? 'bg-[#C25A16] text-white' : 'bg-white dark:bg-[#221F45] text-[#26243F] dark:text-[#E9E7F4] hover:bg-[#F7E9C4] dark:hover:bg-[#302818]'}`}
                               >
                                 <HeartIcon
                                   state={myFavIds.has(e.eventId) ? 'full' : 'empty'}

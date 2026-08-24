@@ -53,7 +53,7 @@ export default function NowView({
       </div>
 
       {nowSets.length === 0 ? (
-        <div className="mb-1.5 p-2 bg-white dark:bg-[#22252d] rounded-2xl m-0.5 ">
+        <div className="mb-1.5 p-2 bg-white dark:bg-[#221F45] rounded-2xl m-0.5 ">
           <p className={`font-bold ${c.bodyText}`}>Nothing is on stage right now.</p>
         </div>
       ) : (
@@ -62,7 +62,7 @@ export default function NowView({
 
       <h3 className={`text-xl font-black mb-[3px] ${c.bodyText}`}>Up Next</h3>
       {nextSets.length === 0 ? (
-        <div className="p-2 bg-white dark:bg-[#22252d] rounded-2xl m-0.5 ">
+        <div className="p-2 bg-white dark:bg-[#221F45] rounded-2xl m-0.5 ">
           <p className={`font-bold ${c.bodyText}`}>No more sets scheduled.</p>
         </div>
       ) : (

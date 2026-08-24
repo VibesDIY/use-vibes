@@ -1,8 +1,21 @@
 // Refresh the schedule snapshot this app's tick reads.
 //
-// Telluride's site serves a browser (and this script) fine but 403s the
-// platform's egress, so the fetch+parse happens HERE and the result is written
-// into the vibe as `schedule-snapshot-<seq>` docs. The deployed tick reads those
+// Telluride's site serves a browser (and this script) fine, but the PLATFORM's
+// egress gate refuses it — the gate admits an outbound host only if that host
+// answers with an `Access-Control-Allow-Origin` of `*` or the vibe's own origin,
+// and Squarespace sends neither. (Measured: a deployed probe got
+// `{"vibesEgressDenied":true,"gate":"cors","host":"tellurideblues.com"}`. It is
+// the gate refusing, not Telluride — worth knowing, because "they block us" and
+// "we require a header they don't send" have different fixes.) So the
+// fetch+parse happens HERE and the result is written into the vibe as
+// `schedule-snapshot-<seq>` docs.
+//
+// The snapshot write is owner-only, and the owner check is HANDLE-scoped: it
+// compares the acting handle to the vibe's owner handle, not your account to
+// the account that owns it. So this pins the acting handle explicitly rather
+// than depending on whatever the operator's default handle happens to be
+// (which used to mean a set-default-handle dance around every refresh, and a
+// bare `owner only` for anyone who skipped it). The deployed tick reads those
 // by id and mirrors them into `scheduleitem` docs — the same docs the fetch lane
 // would have produced, so nothing downstream knows the difference.
 //
@@ -19,6 +32,9 @@ import { FESTIVAL } from './festival-config.js';
 // Derived, so cloning this app to another handle is ONE edit (festival-config.js)
 // rather than two files that can disagree about which app they're writing to.
 const VIBE = FESTIVAL.vibeUrl.split('/vibe/')[1];
+// The vibe's owner handle, pinned onto every write below. Derived from the same
+// single source as VIBE so the two can never disagree about which app this is.
+const OWNER_HANDLE = VIBE.split('/')[0];
 const CHUNK_BYTES = 90_000; // the platform's doc ceiling is 100 KB; leave headroom
 const DRY = process.argv.includes('--dry-run');
 
@@ -70,7 +86,18 @@ chunks.forEach((chunk, seq) => {
   };
   execFileSync(
     'npx',
-    ['vibes-diy', 'db', 'put', JSON.stringify(doc), '--db', FESTIVAL.dbName, '--vibe', VIBE],
+    [
+      'vibes-diy',
+      'db',
+      'put',
+      JSON.stringify(doc),
+      '--db',
+      FESTIVAL.dbName,
+      '--vibe',
+      VIBE,
+      '--handle',
+      OWNER_HANDLE,
+    ],
     { stdio: 'inherit' }
   );
 });
