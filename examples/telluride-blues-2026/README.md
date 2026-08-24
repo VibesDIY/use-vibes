@@ -58,25 +58,34 @@ in-town events.
 **Not mirrored: the late-night Juke Joints club shows.** They publish door times
 only — no set times — and guessing them would be worse than omitting them.
 
-**Verify at deploy time** that the worker itself can reach the URL (a site can
-serve a session fine and still 403 worker egress — the DEF CON case). If it
-can't, the fallback is an owner-written snapshot doc; the read path downstream
-doesn't change.
+**Porting this to another festival?** Probe the worker's egress before assuming
+a door — a site that serves your browser fine can still be refused, and the
+refusal body says which gate and why. Land on Door 1/2 if you can; this app is
+Door 3 and pays for it with a recurring manual refresh.
 
-### Running the refresh — the handle trap
-
-`refresh-schedule.mjs` writes an owner-only doc, and **`user.isOwner` follows the
-account's DEFAULT handle, not the account**. This app is owned by the `festival`
-handle, so an operator whose default handle is something else gets
-`Error: owner only` even though they own both handles — and `--handle festival`
-on `db put` does _not_ fix it (it moves the acting handle for grants, not the
-owner flag). Set the default handle for the duration and put it back after:
+### Running the refresh
 
 ```bash
-npx vibes-diy user-settings --set-default-handle festival
 node refresh-schedule.mjs
-npx vibes-diy user-settings --set-default-handle <your-usual-handle>
 ```
+
+That is the whole thing now, whatever your own default handle is.
+
+It used not to be. The snapshot write is owner-only and the owner check is
+**handle-scoped** — it compares the acting handle to the vibe's owner handle,
+not your account to the account that owns the app. This app is owned by
+`festival`, so an operator whose default handle was their personal one got
+`Error: owner only` even though they owned both handles, and `--handle` on
+`db put` was silently inert (VibesDIY/vibes.diy#4326: the flag resolved
+addressing but never rode the wire as an identity). The documented workaround
+was to flip the account's default handle around every refresh and flip it back.
+
+That flag now works, so the script pins `--handle <owner>` itself, derived from
+`FESTIVAL.vibeUrl`. Re-measured 2026-08-24 with the default handle set to a
+_different_ owned handle: `--handle festival` writes, and a bare write still
+fails with `owner only` — the fix threaded the acting handle through, it did
+not make the owner check account-based. So the pin is load-bearing, not
+belt-and-braces.
 
 Set times move in the last weeks before a festival. Re-capture the fixture and
 re-run the tests before the flight opens:
