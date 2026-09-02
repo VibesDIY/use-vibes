@@ -9,6 +9,9 @@ import {
   mentionDocId,
   authorLooksUnheard,
   AUDIENCE_MIN_POSTS,
+  classifyScreenshotResponse,
+  screenshotAttemptUrl,
+  SCREENSHOT_MAX_BLOB_BYTES,
   extractPrompt,
   promptKey,
   moderatePrompt,
@@ -2254,5 +2257,54 @@ describe('authorLooksUnheard — is anyone listening to the account we would rep
   it('ignores a corpus that carries no engagement counts', () => {
     expect(authorLooksUnheard(['just text', 'more text', 'and more'])).toBe(false);
     expect(authorLooksUnheard(Array.from({ length: 20 }, () => 'text'))).toBe(false);
+  });
+});
+
+describe('classifyScreenshotResponse — a degraded reply must say why (#107)', () => {
+  const head = (status, contentType) => classifyScreenshotResponse({ status, contentType });
+
+  it('names the four ways this used to look identical', () => {
+    expect(head(404, 'text/html')).toEqual({ pending: true, reason: 'not-captured-yet' });
+    expect(head(503, 'text/html')).toEqual({ pending: true, reason: 'http-503' });
+    // An egress denial arrives as a JSON body, which is why it read as "still
+    // settling" forever — it is a different thing and now says so.
+    expect(head(200, 'application/json')).toEqual({
+      pending: true,
+      reason: 'not-an-image:application/json',
+    });
+    expect(head(200, '')).toEqual({ pending: true, reason: 'not-an-image:none' });
+  });
+
+  it('passes status and type before the body is read', () => {
+    expect(head(200, 'image/jpeg')).toEqual({ pending: false, reason: null, upload: true });
+    expect(head(200, 'image/jpeg; charset=binary').upload).toBe(true);
+  });
+
+  it('separates an empty body (wait) from an oversized one (do not wait)', () => {
+    const sized = (byteLength) =>
+      classifyScreenshotResponse({ status: 200, contentType: 'image/jpeg', byteLength });
+    expect(sized(0)).toEqual({ pending: true, reason: 'empty-body' });
+    expect(sized(SCREENSHOT_MAX_BLOB_BYTES + 1)).toEqual({ pending: false, reason: 'too-large' });
+    expect(sized(33667).upload).toBe(true);
+  });
+});
+
+describe('screenshotAttemptUrl — one cached miss must not outlive every wait', () => {
+  const url = 'https://tiny-hugs--mentions.cli-v2.vibesdiy.net/screenshot.png';
+
+  it('asks a fresh URL on each retry', () => {
+    expect(screenshotAttemptUrl(url, 0)).toBe(url);
+    expect(screenshotAttemptUrl(url, 1)).toBe(`${url}?shot=1`);
+    expect(screenshotAttemptUrl(url, 4)).toBe(`${url}?shot=4`);
+    expect(new Set([1, 2, 3, 4, 5].map((i) => screenshotAttemptUrl(url, i))).size).toBe(5);
+  });
+
+  it('keeps an existing query string intact', () => {
+    expect(screenshotAttemptUrl(`${url}?v=2`, 3)).toBe(`${url}?v=2&shot=3`);
+  });
+
+  it('leaves a missing url alone', () => {
+    expect(screenshotAttemptUrl(undefined, 2)).toBe(undefined);
+    expect(screenshotAttemptUrl('', 2)).toBe('');
   });
 });

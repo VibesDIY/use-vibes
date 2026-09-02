@@ -957,6 +957,54 @@ async function enrichToken(ctx, t) {
 // Fetch the app screenshot and upload it as a Bluesky image blob. Returns a
 // discriminated result so the reply can WAIT for a not-yet-captured screenshot
 // (the blog engine's wait-for-media-ready pattern) instead of posting an
+/** Bluesky rejects blobs over ~1MB; a giant screenshot won't shrink by waiting. */
+export const SCREENSHOT_MAX_BLOB_BYTES = 950000;
+
+/**
+ * Why the screenshot isn't an embed yet — as a NAME, not a boolean.
+ *
+ * Every failure here used to collapse into the same silent `{ pending: true }`:
+ * a 404, an HTML placeholder, an empty body, an egress denial (which arrives as
+ * a JSON body, so it reads as "not an image"), and a thrown fetch. From outside,
+ * a lane wedged on a denial looked exactly like one politely waiting for the
+ * capture queue — which is how the first reply of the restarted lane went out as
+ * a bare link card while the screenshot sat there serving 200 (#107). Classify
+ * the failure, keep the reason.
+ */
+export function classifyScreenshotResponse({ status, contentType, byteLength }) {
+  if (status === 404) return { pending: true, reason: 'not-captured-yet' };
+  if (!(status >= 200 && status < 300)) return { pending: true, reason: `http-${status}` };
+  const type = String(contentType || '')
+    .split(';')[0]
+    .trim()
+    .toLowerCase();
+  // An egress denial and an HTML error page both land here, and both are worth
+  // seeing by name — neither is "the queue hasn't written it yet".
+  if (!type.startsWith('image/'))
+    return { pending: true, reason: `not-an-image:${type || 'none'}` };
+  // The status/type verdict is reachable before the body is read; callers pass no
+  // byteLength for that first pass and call again once they have the bytes.
+  if (byteLength === undefined) return { pending: false, reason: null, upload: true };
+  if (!(byteLength > 0)) return { pending: true, reason: 'empty-body' };
+  if (byteLength > SCREENSHOT_MAX_BLOB_BYTES) return { pending: false, reason: 'too-large' };
+  return { pending: false, reason: null, upload: true };
+}
+
+/**
+ * A fresh URL per attempt, so a cached miss can't pin the lane to the fallback.
+ *
+ * The reply lane starts polling seconds after publish, when the capture genuinely
+ * isn't written — and that 404 is cacheable (the screenshot host serves
+ * `cache-control: public, max-age=86400`, and states it on the miss as well as the
+ * hit). One cached miss anywhere between the worker and the origin would otherwise
+ * outlive every remaining wait, so each attempt asks a URL that no earlier attempt
+ * can have poisoned. Harmless when nothing was cached.
+ */
+export function screenshotAttemptUrl(url, waitIndex) {
+  if (!url || !(waitIndex > 0)) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}shot=${waitIndex}`;
+}
+
 // imageless card the moment the app serves:
 //   { embed }         — ready and uploaded (app.bsky.embed.images)
 //   { pending: true } — not captured yet; retry next tick. The publish queue
@@ -966,24 +1014,58 @@ async function enrichToken(ctx, t) {
 //                       don't spin — fall straight to the link card.
 // Bytes ride the CORS-parity egress lane: the screenshot host serves image/jpeg
 // with `Access-Control-Allow-Origin: *`, so this is a browser-faithful GET.
-async function fetchScreenshotEmbed(m, accessJwt) {
+async function fetchScreenshotEmbed(ctx, m, accessJwt) {
   if (!m.screenshotUrl) return { pending: false };
+  const url = screenshotAttemptUrl(m.screenshotUrl, m.screenshotWaits || 0);
+  // Every exit from here says WHY in one bounded line: the URL's own host and a
+  // reason token, never a body or a header value. `vibes-diy app logs
+  // jchris/mention-hub --since 1h` is where a degraded reply explains itself.
+  const note = (reason, extra) => {
+    // ctx.log postdates this vibe; a runtime without it must not throw here.
+    if (!ctx || typeof ctx.log !== 'function') return;
+    ctx.log('info', '[screenshot]', {
+      reason,
+      slug: m.appSlug || null,
+      waits: m.screenshotWaits || 0,
+      ...extra,
+    });
+  };
   let res;
   try {
-    res = await fetch(m.screenshotUrl);
-  } catch {
+    res = await fetch(url);
+  } catch (e) {
+    note('fetch-threw', { transport: String((e && e.message) || e).slice(0, 120) });
     return { pending: true }; // transient / not-yet-served
   }
   const contentType = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
-  if (res.status === 404) return { pending: true }; // queue hasn't written it yet
-  if (!res.ok || !contentType.startsWith('image/')) return { pending: true }; // placeholder/HTML → still settling
+  // Two passes: reject on status/type before spending the body read, then on size.
+  const head = classifyScreenshotResponse({ status: res.status, contentType });
+  if (!head.upload) {
+    note(head.reason);
+    return { pending: head.pending };
+  }
   const bytes = await res.arrayBuffer();
-  if (bytes.byteLength === 0) return { pending: true };
-  // Bluesky rejects blobs >~1MB; the publish screenshot is a q85 720p JPEG
-  // (well under), but a giant one won't shrink by waiting — give up on the image.
-  if (bytes.byteLength > 950000) return { pending: false };
+  const sized = classifyScreenshotResponse({
+    status: res.status,
+    contentType,
+    byteLength: bytes.byteLength,
+  });
+  if (!sized.upload) {
+    note(sized.reason, { bytes: bytes.byteLength });
+    return { pending: sized.pending };
+  }
   const up = await bskyUploadBlob(bytes, contentType, accessJwt);
-  if (!up.ok) return { pending: false };
+  if (!up.ok) {
+    // The reason this lane was blind: an upload refusal fell straight through to
+    // the link card, indistinguishable from having no screenshot at all.
+    note('upload-failed', {
+      bytes: bytes.byteLength,
+      status: up.status || null,
+      detail: String(up.message || up.egressDenied || up.transport || 'unknown').slice(0, 120),
+    });
+    return { pending: false };
+  }
+  note('attached', { bytes: bytes.byteLength });
   return {
     embed: {
       $type: 'app.bsky.embed.images',
@@ -1013,7 +1095,7 @@ async function replyToMention(ctx, m, t, accessJwt) {
     // Prefer the app screenshot as a full image embed; wait a few ticks for the
     // publish queue to write it before settling for a bare link card, so the
     // reply reliably shows what was built (the blog engine's media-ready gate).
-    const shot = await fetchScreenshotEmbed(m, accessJwt);
+    const shot = await fetchScreenshotEmbed(ctx, m, accessJwt);
     if (!shot.embed && shot.pending && (m.screenshotWaits || 0) < MAX_SCREENSHOT_WAITS) {
       await log(ctx, {
         op: 'reply-awaiting-screenshot',
