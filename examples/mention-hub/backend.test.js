@@ -7,6 +7,8 @@ import {
   bskyPermalink,
   dayKey,
   mentionDocId,
+  authorLooksUnheard,
+  AUDIENCE_MIN_POSTS,
   extractPrompt,
   promptKey,
   moderatePrompt,
@@ -2209,5 +2211,48 @@ describe('pdsHostFromDidDoc — chat must target the account PDS (#3591)', () =>
         service: [{ id: '#atproto_pds', serviceEndpoint: 'http://insecure.example' }],
       })
     ).toBeNull();
+  });
+});
+
+describe('authorLooksUnheard — is anyone listening to the account we would reply to?', () => {
+  const posts = (n, { likes = 0, replies = 0, engaged = 0 } = {}) =>
+    Array.from({ length: n }, (_, i) => ({
+      text: `post ${i}`,
+      likeCount: i < engaged ? likes || 1 : 0,
+      replyCount: i < engaged ? replies : 0,
+    }));
+
+  // The shape that prompted the gate: an affirmation broadcast account whose
+  // last 30 posts drew one like in total (ckgcashking.bsky.social, 2026-09-02).
+  it('skips an account whose own posts draw nothing', () => {
+    expect(authorLooksUnheard(posts(30, { engaged: 1 }))).toBe(true);
+  });
+
+  // A real person with a modest audience: 12 of 28 posts silent. Well clear.
+  it('keeps a real account with a small but live audience', () => {
+    expect(authorLooksUnheard(posts(28, { engaged: 16 }))).toBe(false);
+  });
+
+  it('counts a reply with no likes as being heard', () => {
+    const p = posts(20);
+    p[0].replyCount = 3;
+    p[1].replyCount = 1;
+    p[2].replyCount = 1;
+    expect(authorLooksUnheard(p)).toBe(false);
+  });
+
+  // "Not enough to judge" must never read as "unheard" — that is the direction
+  // that would silently strangle the lane rather than merely narrow it.
+  it('does not judge a sample smaller than the floor', () => {
+    expect(authorLooksUnheard(posts(AUDIENCE_MIN_POSTS - 1))).toBe(false);
+    expect(authorLooksUnheard([])).toBe(false);
+    expect(authorLooksUnheard(undefined)).toBe(false);
+  });
+
+  // Threads hands the derivation plain strings (no counts available), and a
+  // corpus with no counts must fall through rather than skip every author.
+  it('ignores a corpus that carries no engagement counts', () => {
+    expect(authorLooksUnheard(['just text', 'more text', 'and more'])).toBe(false);
+    expect(authorLooksUnheard(Array.from({ length: 20 }, () => 'text'))).toBe(false);
   });
 });

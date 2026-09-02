@@ -553,6 +553,47 @@ export function parseSolicitationVerdict(text) {
   return null;
 }
 
+// Would an uninvited reply reach anybody? A proactive reply is a gift only if
+// someone is actually listening to the person we reply to; where nobody is, it
+// is noise posted at a wall — the same instinct behind the bot filter, one step
+// further. This asks the cheapest honest question available: across the poster's
+// own recent posts, did ANYONE like or reply?
+//
+// Measured on four real accounts (2026-09-02), share of recent posts with zero
+// likes AND zero replies:
+//   ckgcashking.bsky.social  29/30 (0.97)  affirmation broadcast, 7 followers, follows 0
+//   hn.rbrt.fr               29/30 (0.97)  news mirror (also caught by the bot filter)
+//   j-chris.bsky.social      12/28 (0.43)  a real person with a modest audience
+//   writestuff.bsky.social    3/26 (0.12)  an active weekly writers' community
+// So 0.9 sits in open space: it catches the two nobody-is-listening accounts with
+// room to spare, and clears a real small account by a wide margin.
+//
+// This is deliberately an audience proxy, not a quality judgement, and it is
+// deliberately blunt: the cost of a false skip is one reply we never send, while
+// the cost of a false accept is an uninvited post in a stranger's thread. A brand
+// new person with no followers yet is skipped, and that is the right bias for an
+// UNINVITED reply — anyone who wants us regardless can @-mention us, and the
+// mention lane bypasses this gate exactly as it bypasses the bot filter.
+//
+// Needs engagement counts, so it applies to the Bluesky lane only; Threads gives
+// us just the matched post text and the caller skips this check there.
+export const AUDIENCE_MIN_POSTS = 8; // too few posts to judge → don't judge
+export const AUDIENCE_SILENT_SHARE = 0.9;
+
+export function authorLooksUnheard(
+  posts,
+  { minPosts = AUDIENCE_MIN_POSTS, silentShare = AUDIENCE_SILENT_SHARE } = {}
+) {
+  const withCounts = (posts || []).filter(
+    (p) => p && typeof p === 'object' && ('likeCount' in p || 'replyCount' in p)
+  );
+  // No counts (Threads' thin corpus) or too small a sample: not enough to say,
+  // and "not enough to say" must never mean "unheard".
+  if (withCounts.length < minPosts) return false;
+  const silent = withCounts.filter((p) => !(p.likeCount > 0) && !(p.replyCount > 0)).length;
+  return silent / withCounts.length >= silentShare;
+}
+
 // Build the idea-model prompt from the poster's own recent posts. The model's
 // job: invent ONE small app tailored to them that's FUN or USEFUL and would
 // make them chuckle — kind, never mean/edgy/weird. Its output becomes the build
@@ -1161,8 +1202,19 @@ async function bskyAuthorPosts(did, { token, limit = 20 } = {}) {
   const r = await bskyFetch(`app.bsky.feed.getAuthorFeed?${params.toString()}`, { token });
   if (!r.ok) return [];
   return (r.data.feed || [])
-    .map((it) => it && it.post && it.post.record && it.post.record.text)
-    .filter((x) => typeof x === 'string' && x.trim().length > 0);
+    .map((it) => {
+      const post = (it && it.post) || {};
+      const text = post.record && post.record.text;
+      if (typeof text !== 'string' || text.trim().length === 0) return null;
+      // The engagement counts ride along on the same response the idea corpus
+      // comes from, so the audience check below costs no extra request.
+      return {
+        text,
+        likeCount: Number(post.likeCount) || 0,
+        replyCount: Number(post.replyCount) || 0,
+      };
+    })
+    .filter(Boolean);
 }
 
 // Is this post a genuine open invitation to drop app/startup links? Same
@@ -1201,11 +1253,15 @@ async function deriveSolicitationIdea(ctx, doc, accessJwt, cfg, opts = {}) {
   // Threads' API can't read an arbitrary user's feed, so the caller passes the
   // matched post text as a thinner corpus (`opts.posts`). Either way the idea is
   // derived from untrusted text and only ever becomes the build PROMPT.
-  const posts = opts.posts
-    ? opts.posts
+  const records = opts.posts
+    ? null
     : doc.authorDid
       ? await bskyAuthorPosts(doc.authorDid, { token: accessJwt, limit: cfg.authorFeedLimit })
       : [];
+  const posts = records ? records.map((p) => p.text) : opts.posts;
+  // Audience check before we spend a model call: if nobody engages with this
+  // account at all, our reply lands in front of no one.
+  if (records && authorLooksUnheard(records)) return { skip: 'author has no audience' };
   let raw;
   try {
     raw = await ctx.callAI(buildIdeaPrompt(posts), { max_tokens: 60 });
